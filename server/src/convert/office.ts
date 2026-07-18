@@ -109,6 +109,11 @@ export async function convertWithLibreOffice(opts: {
   // Enrich env so Windows LO finds its program/ prefix libraries
   const loEnv: NodeJS.ProcessEnv = {
     ...process.env,
+    http_proxy: 'http://127.0.0.1:9',
+    https_proxy: 'http://127.0.0.1:9',
+    HTTP_PROXY: 'http://127.0.0.1:9',
+    HTTPS_PROXY: 'http://127.0.0.1:9',
+    NO_PROXY: '',
     // Avoid inheriting a broken URE_BOOTSTRAP from a partial install
   };
   if (process.platform === 'win32') {
@@ -130,6 +135,11 @@ export async function convertWithLibreOffice(opts: {
     stderr = String(result?.stderr || '');
     exitCode = 0;
   } catch (e) {
+    try {
+      fs.rmSync(loOutDir, { recursive: true, force: true });
+    } catch {
+      /* best effort */
+    }
     if (opts.isCancelled?.()) throw badRequest('Cancelled');
     const err = e as Error & { stderr?: string; stdout?: string; code?: number | string };
     stderr = String(err.stderr || err.message || '');
@@ -174,6 +184,11 @@ export async function convertWithLibreOffice(opts: {
   const found = pickLoOutput(loOutDir, safeInputName, expectedExt);
   if (!found) {
     const listed = safeReaddir(loOutDir).join(', ') || '(empty)';
+    try {
+      fs.rmSync(loOutDir, { recursive: true, force: true });
+    } catch {
+      /* best effort */
+    }
     throw badRequest(
       sanitizeUserError(
         `LibreOffice produced no output file (expected ${expectedExt}). files=[${listed}] stderr=${stderr.slice(0, 200)}`,
@@ -190,6 +205,11 @@ export async function convertWithLibreOffice(opts: {
     assertMagicForFormat(produced, expectedExt);
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'invalid output';
+    try {
+      fs.rmSync(loOutDir, { recursive: true, force: true });
+    } catch {
+      /* best effort */
+    }
     throw badRequest(`Office conversion failed validation: ${sanitizeUserError(msg)}`);
   }
 
@@ -202,6 +222,11 @@ export async function convertWithLibreOffice(opts: {
     assertMagicForFormat(finalPath, expectedExt);
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'invalid output';
+    try {
+      fs.rmSync(loOutDir, { recursive: true, force: true });
+    } catch {
+      /* best effort */
+    }
     throw badRequest(`Office conversion failed validation: ${sanitizeUserError(msg)}`);
   }
 

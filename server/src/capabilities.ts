@@ -123,6 +123,12 @@ export function detectCapabilities(force = false) {
     path: all.pandoc.path || undefined,
     version: all.pandoc.version,
   };
+  const calibre: BinaryStatus = {
+    name: 'calibre',
+    available: all.calibre.available,
+    path: all.calibre.path || undefined,
+    version: all.calibre.version,
+  };
 
   const optional = resolveAllOptionalBinaries(force);
   const binaries = {
@@ -131,6 +137,7 @@ export function detectCapabilities(force = false) {
     '7z': sevenZa,
     libreoffice,
     pandoc,
+    calibre,
     sharp: { name: 'sharp', available: true, version: 'bundled' } as BinaryStatus,
     pdfLib: { name: 'pdf-lib', available: true, version: 'bundled' } as BinaryStatus,
     pdftotext: {

@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { config } from '../config.js';
 import { detectCapabilities } from '../capabilities.js';
 import { badRequest, unavailable } from '../lib/errors.js';
 import { randomServerName } from '../lib/paths.js';
@@ -14,6 +15,7 @@ import {
   type QualityPreset,
 } from '../convert/quality.js';
 import type { ProcessContext, ProcessResult } from './types.js';
+import type { EngineRoute } from '../convert/engines/index.js';
 
 function requireFfprobe(): string {
   const caps = detectCapabilities();
@@ -51,6 +53,9 @@ function finishMedia(
   extraMeta?: Record<string, unknown>,
 ): ProcessResult {
   assertValidOutput(outputPath, { label: 'Media output', expectedExt: ext });
+  if (fs.statSync(outputPath).size > config.maxOutputBytes) {
+    throw badRequest('Media output exceeds the configured size limit');
+  }
   return {
     outputPath,
     outputName,
@@ -95,7 +100,7 @@ export async function processMedia(ctx: ProcessContext): Promise<ProcessResult> 
     };
   }
 
-  const { ffmpeg } = requireFfmpeg();
+  const { ffmpeg, ffprobe } = requireFfmpeg();
   if (!ctx.inputPaths[0]) throw badRequest('Media file required');
   if (ctx.isCancelled()) throw badRequest('Cancelled');
 
@@ -111,11 +116,14 @@ export async function processMedia(ctx: ProcessContext): Promise<ProcessResult> 
     const outName = randomServerName(ext);
     const outputPath = path.join(ctx.outputDir, outName);
     // Stream-copy trim — no re-encode
-    const args = ['-y', '-ss', start, '-i', ctx.inputPaths[0]];
+    const args = safeFfmpegInputArgs();
+    args.push('-ss', start, '-i', ctx.inputPaths[0]);
     if (duration) args.push('-t', duration);
     else if (end) args.push('-to', end);
-    args.push('-c', 'copy', outputPath);
-    await runFfmpeg(ffmpeg, args, ctx);
+    args.push('-c', 'copy');
+    pushMetadataArgs(args, ctx.options);
+    args.push(outputPath);
+    await runFfmpeg(ffmpeg, ffprobe, args, outputPath, ctx);
     ctx.onProgress(100, 'Trimmed');
     return finishMedia(outputPath, `trimmed${ext}`, ext, { quality: qualityPreset, streamCopy: true });
   }
@@ -125,7 +133,9 @@ export async function processMedia(ctx: ProcessContext): Promise<ProcessResult> 
     const ext = `.${format}`;
     const outName = randomServerName(ext);
     const outputPath = path.join(ctx.outputDir, outName);
-    const args = ['-y', '-i', ctx.inputPaths[0]];
+    const args = safeFfmpegInputArgs();
+    args.push('-i', ctx.inputPaths[0]);
+    const selectedRoute = routeFromOptions(ctx.options);
 
     const audioFmts = ['mp3', 'wav', 'flac', 'aac', 'ogg', 'opus', 'm4a', 'wma'];
     const isAudioOut = audioFmts.includes(format) || family === 'audio';
@@ -154,8 +164,9 @@ export async function processMedia(ctx: ProcessContext): Promise<ProcessResult> 
       if (format === 'mp4' || format === 'm4v') {
         args.push('-movflags', videoQ.mp4MovFlags);
       }
+      pushMetadataArgs(args, ctx.options);
       args.push(outputPath);
-      await runFfmpeg(ffmpeg, args, ctx);
+      await runFfmpeg(ffmpeg, ffprobe, args, outputPath, ctx);
       ctx.onProgress(100, 'Remuxed');
       return finishMedia(outputPath, `converted${ext}`, ext, {
         quality: qualityPreset,
@@ -164,8 +175,13 @@ export async function processMedia(ctx: ProcessContext): Promise<ProcessResult> 
     }
 
     if (isAudioOut) {
-      pushAudioEncodeArgs(args, format, audioQ);
-      args.push('-vn', outputPath);
+      pushAudioEncodeArgs(
+        args,
+        format,
+        audioQ,
+        String(selectedRoute?.metadata?.audioEncoder || '') || undefined,
+      );
+      args.push('-vn');
     } else if (format === 'gif') {
       // Real GIF palette pipeline — never -c copy
       const fps = qualityPreset === 'fast' ? 8 : qualityPreset === 'high' ? 15 : 10;
@@ -175,14 +191,22 @@ export async function processMedia(ctx: ProcessContext): Promise<ProcessResult> 
         `fps=${fps},scale=${width}:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse`,
         '-loop',
         '0',
-        outputPath,
       );
     } else {
-      pushVideoEncodeArgs(args, format, videoQ, audioQ, qualityPreset);
-      args.push(outputPath);
+      pushVideoEncodeArgs(
+        args,
+        format,
+        videoQ,
+        audioQ,
+        qualityPreset,
+        String(selectedRoute?.metadata?.videoEncoder || '') || undefined,
+        String(selectedRoute?.metadata?.audioEncoder || '') || undefined,
+      );
     }
 
-    await runFfmpeg(ffmpeg, args, ctx);
+    pushMetadataArgs(args, ctx.options);
+    args.push(outputPath);
+    await runFfmpeg(ffmpeg, ffprobe, args, outputPath, ctx);
     ctx.onProgress(100, 'Transcoded');
     return finishMedia(outputPath, `converted${ext}`, ext, {
       quality: qualityPreset,
@@ -198,21 +222,31 @@ export async function processMedia(ctx: ProcessContext): Promise<ProcessResult> 
     const ext = `.${format}`;
     const outName = randomServerName(ext);
     const outputPath = path.join(ctx.outputDir, outName);
-    const args = ['-y', '-i', ctx.inputPaths[0], '-vn'];
+    const args = safeFfmpegInputArgs();
+    args.push('-i', ctx.inputPaths[0], '-vn');
+    const selectedRoute = routeFromOptions(ctx.options);
 
     const detect = detectFromOptions(ctx.options);
     const streams = streamsFromDetectMeta(detect) || streamsFromDetectMeta(detect?.meta);
     const forceReencode = Boolean(ctx.options.reencode || ctx.options.forceReencode);
     if (!forceReencode && canStreamCopy(format, streams)) {
-      args.push('-c:a', 'copy', outputPath);
-      await runFfmpeg(ffmpeg, args, ctx);
+      args.push('-c:a', 'copy');
+      pushMetadataArgs(args, ctx.options);
+      args.push(outputPath);
+      await runFfmpeg(ffmpeg, ffprobe, args, outputPath, ctx);
       ctx.onProgress(100, 'Audio extracted');
       return finishMedia(outputPath, `audio${ext}`, ext, { quality: qualityPreset, streamCopy: true });
     }
 
-    pushAudioEncodeArgs(args, format, audioQ);
+    pushAudioEncodeArgs(
+      args,
+      format,
+      audioQ,
+      String(selectedRoute?.metadata?.audioEncoder || '') || undefined,
+    );
+    pushMetadataArgs(args, ctx.options);
     args.push(outputPath);
-    await runFfmpeg(ffmpeg, args, ctx);
+    await runFfmpeg(ffmpeg, ffprobe, args, outputPath, ctx);
     ctx.onProgress(100, 'Audio extracted');
     return finishMedia(outputPath, `audio${ext}`, ext, { quality: qualityPreset, streamCopy: false });
   }
@@ -224,7 +258,7 @@ export async function processMedia(ctx: ProcessContext): Promise<ProcessResult> 
     const outputPath = path.join(ctx.outputDir, outName);
     const target = String(ctx.options.targetLoudness || '-16');
     const args = [
-      '-y',
+      ...safeFfmpegInputArgs(),
       '-i',
       ctx.inputPaths[0],
       '-af',
@@ -235,8 +269,9 @@ export async function processMedia(ctx: ProcessContext): Promise<ProcessResult> 
     if (audioFmts.includes(format)) {
       pushAudioEncodeArgs(args, format, audioQ);
     }
+    pushMetadataArgs(args, ctx.options);
     args.push(outputPath);
-    await runFfmpeg(ffmpeg, args, ctx);
+    await runFfmpeg(ffmpeg, ffprobe, args, outputPath, ctx);
     ctx.onProgress(100, 'Normalized');
     return finishMedia(outputPath, `normalized${ext}`, ext, { quality: qualityPreset });
   }
@@ -248,6 +283,7 @@ function pushAudioEncodeArgs(
   args: string[],
   format: string,
   audioQ: ReturnType<typeof audioEncodeSettings>,
+  encoderOverride?: string,
 ): void {
   // libopus only supports 8/12/16/24/48 kHz — never 44100
   const sampleRate =
@@ -255,17 +291,17 @@ function pushAudioEncodeArgs(
   args.push('-ar', String(sampleRate), '-ac', String(audioQ.channels));
 
   if (format === 'mp3') {
-    args.push('-codec:a', 'libmp3lame', '-qscale:a', String(audioQ.mp3Qscale));
+    args.push('-codec:a', encoderOverride || 'libmp3lame', '-qscale:a', String(audioQ.mp3Qscale));
   } else if (format === 'wav') {
-    args.push('-codec:a', 'pcm_s16le');
+    args.push('-codec:a', encoderOverride || 'pcm_s16le');
   } else if (format === 'flac') {
-    args.push('-codec:a', 'flac');
+    args.push('-codec:a', encoderOverride || 'flac');
   } else if (format === 'aac' || format === 'm4a') {
-    args.push('-codec:a', 'aac', '-b:a', audioQ.aacBitrate);
+    args.push('-codec:a', encoderOverride || 'aac', '-b:a', audioQ.aacBitrate);
   } else if (format === 'ogg' || format === 'opus') {
-    args.push('-codec:a', 'libopus', '-b:a', audioQ.opusBitrate);
+    args.push('-codec:a', encoderOverride || 'libopus', '-b:a', audioQ.opusBitrate);
   } else if (format === 'wma') {
-    args.push('-codec:a', 'wmav2', '-b:a', audioQ.wmaBitrate);
+    args.push('-codec:a', encoderOverride || 'wmav2', '-b:a', audioQ.wmaBitrate);
   } else {
     args.push('-codec:a', 'libmp3lame', '-qscale:a', String(audioQ.mp3Qscale));
   }
@@ -277,11 +313,13 @@ function pushVideoEncodeArgs(
   videoQ: ReturnType<typeof videoEncodeSettings>,
   audioQ: ReturnType<typeof audioEncodeSettings>,
   qualityPreset: QualityPreset,
+  videoEncoderOverride?: string,
+  audioEncoderOverride?: string,
 ): void {
   if (format === 'webm') {
     args.push(
       '-c:v',
-      'libvpx-vp9',
+      videoEncoderOverride || 'libvpx-vp9',
       '-b:v',
       '0',
       '-crf',
@@ -289,7 +327,7 @@ function pushVideoEncodeArgs(
       '-pix_fmt',
       videoQ.pixelFormat,
       '-c:a',
-      'libopus',
+      audioEncoderOverride || 'libopus',
       '-b:a',
       audioQ.opusBitrate,
       // libopus requires 48000 (not 44100)
@@ -304,7 +342,7 @@ function pushVideoEncodeArgs(
   if (format === 'mp4' || format === 'm4v') {
     args.push(
       '-c:v',
-      'libx264',
+      videoEncoderOverride || 'libx264',
       '-preset',
       videoQ.x264Preset,
       '-crf',
@@ -312,7 +350,7 @@ function pushVideoEncodeArgs(
       '-pix_fmt',
       videoQ.pixelFormat,
       '-c:a',
-      'aac',
+      audioEncoderOverride || 'aac',
       '-b:a',
       videoQ.audioBitrate,
       '-ar',
@@ -328,7 +366,7 @@ function pushVideoEncodeArgs(
   if (format === 'mkv' || format === 'mov') {
     args.push(
       '-c:v',
-      'libx264',
+      videoEncoderOverride || 'libx264',
       '-preset',
       videoQ.x264Preset,
       '-crf',
@@ -336,7 +374,7 @@ function pushVideoEncodeArgs(
       '-pix_fmt',
       videoQ.pixelFormat,
       '-c:a',
-      'aac',
+      audioEncoderOverride || 'aac',
       '-b:a',
       videoQ.audioBitrate,
       '-ar',
@@ -351,13 +389,13 @@ function pushVideoEncodeArgs(
     const qv = qualityPreset === 'high' ? '3' : qualityPreset === 'fast' ? '7' : '5';
     args.push(
       '-c:v',
-      'mpeg4',
+      videoEncoderOverride || 'mpeg4',
       '-q:v',
       qv,
       '-pix_fmt',
       videoQ.pixelFormat,
       '-c:a',
-      'libmp3lame',
+      audioEncoderOverride || 'libmp3lame',
       '-qscale:a',
       String(audioQ.mp3Qscale),
     );
@@ -368,13 +406,13 @@ function pushVideoEncodeArgs(
     const qv = qualityPreset === 'high' ? '3' : qualityPreset === 'fast' ? '7' : '5';
     args.push(
       '-c:v',
-      'mpeg2video',
+      videoEncoderOverride || 'mpeg2video',
       '-q:v',
       qv,
       '-pix_fmt',
       videoQ.pixelFormat,
       '-c:a',
-      'mp2',
+      audioEncoderOverride || 'mp2',
       '-b:a',
       videoQ.audioBitrate,
     );
@@ -384,13 +422,13 @@ function pushVideoEncodeArgs(
   if (format === 'wmv') {
     args.push(
       '-c:v',
-      'wmv2',
+      videoEncoderOverride || 'wmv2',
       '-b:v',
       qualityPreset === 'high' ? '2M' : qualityPreset === 'fast' ? '800k' : '1.5M',
       '-pix_fmt',
       videoQ.pixelFormat,
       '-c:a',
-      'wmav2',
+      audioEncoderOverride || 'wmav2',
       '-b:a',
       audioQ.wmaBitrate,
     );
@@ -400,13 +438,13 @@ function pushVideoEncodeArgs(
   if (format === 'flv') {
     args.push(
       '-c:v',
-      'flv',
+      videoEncoderOverride || 'flv',
       '-q:v',
       qualityPreset === 'high' ? '3' : qualityPreset === 'fast' ? '7' : '5',
       '-pix_fmt',
       videoQ.pixelFormat,
       '-c:a',
-      'libmp3lame',
+      audioEncoderOverride || 'libmp3lame',
       '-qscale:a',
       String(audioQ.mp3Qscale),
     );
@@ -430,7 +468,13 @@ function containersCompatibleForCopy(inputFormat: string, outFormat: string): bo
   return groups.some((g) => g.includes(a) && g.includes(b));
 }
 
-async function runFfmpeg(ffmpeg: string, args: string[], ctx: ProcessContext): Promise<void> {
+async function runFfmpeg(
+  ffmpeg: string,
+  ffprobe: string,
+  args: string[],
+  outputPath: string,
+  ctx: ProcessContext,
+): Promise<void> {
   ctx.onProgress(40, 'Running ffmpeg');
   if (ctx.isCancelled()) throw badRequest('Cancelled');
   try {
@@ -439,11 +483,54 @@ async function runFfmpeg(ffmpeg: string, args: string[], ctx: ProcessContext): P
       timeout: 240_000,
       maxBuffer: 20 * 1024 * 1024,
     });
+    assertValidOutput(outputPath, { label: 'FFmpeg output' });
+    if (fs.statSync(outputPath).size > config.maxOutputBytes) {
+      throw new Error('output exceeds the configured size limit');
+    }
+    const { stdout } = await execFileTracked(
+      ffprobe,
+      ['-v', 'error', '-print_format', 'json', '-show_format', '-show_streams', outputPath],
+      { jobId: ctx.jobId, timeout: 30_000, maxBuffer: 10 * 1024 * 1024 },
+    );
+    const validation = JSON.parse(stdout) as {
+      format?: { format_name?: string };
+      streams?: unknown[];
+    };
+    if (!validation.format?.format_name || !validation.streams?.length) {
+      throw new Error('ffprobe could not validate the encoded output');
+    }
   } catch (e) {
     if (ctx.isCancelled()) throw badRequest('Cancelled');
     const msg = e instanceof Error ? e.message : 'ffmpeg failed';
     throw badRequest(`Media processing failed: ${msg}`);
   }
+}
+
+function safeFfmpegInputArgs(): string[] {
+  return [
+    '-y',
+    '-nostdin',
+    '-hide_banner',
+    '-loglevel',
+    'error',
+    '-protocol_whitelist',
+    'file,pipe',
+  ];
+}
+
+function pushMetadataArgs(args: string[], options: Record<string, unknown>): void {
+  const preserve = options.preserveMetadata !== false && options.stripMetadata !== true;
+  args.push(
+    '-map_metadata',
+    preserve ? '0' : '-1',
+    '-fs',
+    String(config.maxOutputBytes),
+  );
+}
+
+function routeFromOptions(options: Record<string, unknown>): EngineRoute | undefined {
+  const route = options._engineRoute;
+  return route && typeof route === 'object' ? route as EngineRoute : undefined;
 }
 
 function guessMime(ext: string): string {

@@ -95,6 +95,13 @@ describe('system', () => {
     assert.ok(Array.isArray(body.tools));
     assert.ok(body.tools.some((t: { id: string }) => t.id === 'text.hash'));
     assert.ok(body.binaries.sharp.available);
+    assert.ok(Array.isArray(body.converter?.engines));
+    assert.ok(
+      Object.values(body.binaries).every(
+        (binary: any) => !Object.prototype.hasOwnProperty.call(binary, 'path'),
+      ),
+    );
+    assert.ok(!/executablePath|[A-Za-z]:\\\\/.test(JSON.stringify(body)));
   });
 
   it('diagnostics exposes process-worker health and queue metrics', async () => {

@@ -83,6 +83,7 @@ function jobPublicDto(
     message: job.message,
     error: job.error,
     options,
+    meta: job.result_json ? safeParseOptions(job.result_json) : null,
     outputName: job.output_name,
     outputMime: job.output_mime,
     downloadUrl: job.status === 'completed' && job.output_path ? `/api/jobs/${job.id}/download` : null,

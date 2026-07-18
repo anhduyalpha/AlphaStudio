@@ -10,6 +10,7 @@ import {
   applyResultVisibility,
   canConvertGroup,
   buildResultRows,
+  engineForOutput,
   filterSortResults,
   hasActiveDuplicateJob,
   groupKeyForFile,
@@ -136,6 +137,29 @@ describe('buildConversionGroups', () => {
     ]);
     assert.equal(deleted.mode, 'empty');
     assert.equal(deleted.groups.length, 0);
+  });
+
+  it('uses registry engine metadata and follows the selected output', () => {
+    const detected = pngDetect({
+      recommendedOutput: 'webp',
+      outputs: [
+        {
+          format: 'webp',
+          available: true,
+          label: 'WebP',
+          engine: { id: 'alphastudio', name: 'AlphaStudio Built-in', profile: 'core' },
+        },
+        {
+          format: 'mp4',
+          available: true,
+          label: 'MP4',
+          engine: { id: 'ffmpeg', name: 'FFmpeg', profile: 'media' },
+        },
+      ],
+    });
+    const group = buildConversionGroups([file({ detect: detected })]).groups[0];
+    assert.equal(group.engine, 'AlphaStudio Built-in');
+    assert.equal(engineForOutput(group, 'mp4'), 'FFmpeg');
   });
 });
 

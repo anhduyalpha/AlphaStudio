@@ -6,6 +6,13 @@ import { badRequest } from '../lib/errors.js';
 import { randomServerName } from '../lib/paths.js';
 import { detectFile, kindFromInspect, type InspectResult } from '../convert/detect.js';
 import { assertPairAllowed, routeConversion } from '../convert/matrix.js';
+import {
+  convertWithCalibre,
+  convertWithPandoc,
+  executeEngineFallback,
+  validateEngineOutput,
+  type EngineRoute,
+} from '../convert/engines/index.js';
 import { convertWithLibreOffice, isSameFormatPair } from '../convert/office.js';
 import { convertTextFormat, textToPdf } from '../convert/textPdf.js';
 import { assertValidOutput, resolveQualityPreset } from '../convert/quality.js';
@@ -28,7 +35,11 @@ export async function processConverter(ctx: ProcessContext): Promise<ProcessResu
   if (!ctx.inputPaths.length) throw badRequest('Files required for conversion');
   ctx.onProgress(5, 'Starting conversion');
 
-  const outputs: { path: string; name: string }[] = [];
+  const outputs: {
+    path: string;
+    name: string;
+    meta?: Record<string, unknown>;
+  }[] = [];
   let i = 0;
 
   for (const input of ctx.inputPaths) {
@@ -61,9 +72,33 @@ export async function processConverter(ctx: ProcessContext): Promise<ProcessResu
         ctx.onProgress(8 + ((i + p / 100) / ctx.inputPaths.length) * 80, msg),
     };
 
-    const result = await convertOne(singleCtx, kind.family, kind.format, format);
+    const decision = routeConversion(kind, format, String(singleCtx.options.operation || 'convert'));
+    if (!decision.route || decision.engine === 'unsupported') {
+      throw badRequest(decision.reason || `Unsupported conversion: ${kind.format} → ${format}`);
+    }
+    const candidates = [decision.route, ...(decision.fallbacks || [])];
+    const executed = await executeEngineFallback(candidates, async (route) => {
+      const result = await convertOne(singleCtx, kind.family, kind.format, format, route);
+        validateEngineOutput(
+          route,
+          result.outputPath,
+          path.extname(result.outputName).slice(1) || format,
+        );
+      return result;
+    });
+    const result = executed.result;
+    result.meta = {
+      ...result.meta,
+      conversionEngine: {
+        id: executed.route.engineId,
+        name: executed.route.engineName,
+        version: executed.route.version,
+        profile: executed.route.profile,
+      },
+      attemptedEngines: executed.attemptedEngines,
+    };
     validateConverterOutput(result.outputPath, format, result.outputName);
-    outputs.push({ path: result.outputPath, name: result.outputName });
+    outputs.push({ path: result.outputPath, name: result.outputName, meta: result.meta });
     i += 1;
   }
 
@@ -73,7 +108,12 @@ export async function processConverter(ctx: ProcessContext): Promise<ProcessResu
       outputPath: outputs[0].path,
       outputName: outputs[0].name,
       outputMime: mimeFromName(outputs[0].name),
-      meta: { files: 1, format, quality: resolveQualityPreset(ctx.options) },
+      meta: {
+        ...outputs[0].meta,
+        files: 1,
+        format,
+        quality: resolveQualityPreset(ctx.options),
+      },
     };
   }
 
@@ -88,7 +128,20 @@ export async function processConverter(ctx: ProcessContext): Promise<ProcessResu
   ctx.onProgress(100, 'Batch complete');
   return {
     ...zipResult,
-    meta: { files: outputs.length, packed: true, format, quality: resolveQualityPreset(ctx.options) },
+    meta: {
+      files: outputs.length,
+      packed: true,
+      format,
+      quality: resolveQualityPreset(ctx.options),
+      conversionEngines: [
+        ...new Map(
+          outputs
+            .map((output) => output.meta?.conversionEngine)
+            .filter((engine): engine is Record<string, unknown> => Boolean(engine))
+            .map((engine) => [String(engine.id || engine.name), engine]),
+        ).values(),
+      ],
+    },
   };
 }
 
@@ -167,11 +220,39 @@ async function convertOne(
   family: string,
   inputFormat: string,
   outputFormat: string,
+  selectedRoute: EngineRoute,
 ): Promise<ProcessResult> {
   const out = outputFormat === 'jpg' ? 'jpeg' : outputFormat;
   const input = ctx.inputPaths[0];
   const name = ctx.inputNames[0] || 'file';
   const quality = resolveQualityPreset(ctx.options);
+
+  if (selectedRoute.engineId === 'pandoc') {
+    return convertWithPandoc({
+      inputPath: input,
+      outputDir: ctx.outputDir,
+      outputFormat: out,
+      route: selectedRoute,
+      originalBaseName: base(name),
+      jobId: ctx.jobId,
+      isCancelled: ctx.isCancelled,
+    });
+  }
+
+  if (selectedRoute.engineId === 'calibre') {
+    return convertWithCalibre({
+      inputPath: input,
+      outputDir: ctx.outputDir,
+      outputFormat: out,
+      originalBaseName: base(name),
+      jobId: ctx.jobId,
+      isCancelled: ctx.isCancelled,
+    });
+  }
+
+  if (selectedRoute.engineId === 'libreoffice') {
+    return convertOfficeRoute(ctx, input, name, inputFormat, out);
+  }
 
   // Same-format pairs never route to LibreOffice.
   // PDF→PDF: safe copy only (optimize/normalize is a separate pdf:compress job).
@@ -213,6 +294,7 @@ async function convertOne(
           format: out,
           family: 'media',
           quality,
+          _engineRoute: selectedRoute,
           _detect: ctx.options._detect,
           detectMeta: ctx.options.detectMeta,
         },
@@ -240,6 +322,7 @@ async function convertOne(
           format: out,
           family: 'media',
           quality,
+          _engineRoute: selectedRoute,
           _detect: ctx.options._detect,
           detectMeta: ctx.options.detectMeta,
         },
@@ -252,6 +335,7 @@ async function convertOne(
         format: out,
         family: family === 'audio' ? 'audio' : 'media',
         quality,
+        _engineRoute: selectedRoute,
         _detect: ctx.options._detect,
         detectMeta: ctx.options.detectMeta,
       },
@@ -339,29 +423,7 @@ async function convertOne(
     if (isSameFormatPair(inputFormat, out)) {
       throw badRequest(`Same-format ${inputFormat} → ${out} must not use LibreOffice`);
     }
-    // Defense-in-depth: routeConversion must allow LO
-    const route = routeConversion(
-      { family: family as 'document', format: inputFormat, ext: `.${inputFormat}`, mime: '' },
-      out,
-    );
-    if (!route.libreOfficeAllowed) {
-      throw badRequest(`Unsupported conversion: ${inputFormat} → ${out}`);
-    }
-    const loOut = await convertWithLibreOffice({
-      inputPath: input,
-      outputDir: ctx.workDir,
-      outFormat: out,
-      isCancelled: ctx.isCancelled,
-      jobId: ctx.jobId,
-      originalBaseName: base(name),
-    });
-    const final = path.join(ctx.outputDir, path.basename(loOut.outputPath));
-    fs.copyFileSync(loOut.outputPath, final);
-    return {
-      outputPath: final,
-      outputName: loOut.outputName,
-      outputMime: mimeFromName(loOut.outputName),
-    };
+    return convertOfficeRoute(ctx, input, name, inputFormat, out);
   }
 
   // Text / ebook
@@ -386,28 +448,36 @@ async function convertOne(
         outputMime: out === 'html' ? 'text/html' : 'text/plain',
       };
     }
-    // fallback LO path — direct to target format (never same-format)
-    if (isSameFormatPair(inputFormat, out)) {
-      throw badRequest(`Same-format ${inputFormat} → ${out} is not routed through LibreOffice`);
-    }
-    const loOut = await convertWithLibreOffice({
-      inputPath: input,
-      outputDir: ctx.workDir,
-      outFormat: out,
-      isCancelled: ctx.isCancelled,
-      jobId: ctx.jobId,
-      originalBaseName: base(name),
-    });
-    const final = path.join(ctx.outputDir, path.basename(loOut.outputPath));
-    fs.copyFileSync(loOut.outputPath, final);
-    return {
-      outputPath: final,
-      outputName: loOut.outputName,
-      outputMime: mimeFromName(loOut.outputName),
-    };
   }
 
   throw badRequest(`No converter for family ${family} (${inputFormat} → ${out})`);
+}
+
+async function convertOfficeRoute(
+  ctx: ProcessContext,
+  input: string,
+  name: string,
+  inputFormat: string,
+  outputFormat: string,
+): Promise<ProcessResult> {
+  if (isSameFormatPair(inputFormat, outputFormat)) {
+    throw badRequest(`Same-format ${inputFormat} → ${outputFormat} must not use LibreOffice`);
+  }
+  const loOut = await convertWithLibreOffice({
+    inputPath: input,
+    outputDir: ctx.workDir,
+    outFormat: outputFormat,
+    isCancelled: ctx.isCancelled,
+    jobId: ctx.jobId,
+    originalBaseName: base(name),
+  });
+  const final = path.join(ctx.outputDir, path.basename(loOut.outputPath));
+  fs.copyFileSync(loOut.outputPath, final);
+  return {
+    outputPath: final,
+    outputName: loOut.outputName,
+    outputMime: mimeFromName(loOut.outputName),
+  };
 }
 
 /**
