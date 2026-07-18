@@ -1,0 +1,22 @@
+{
+  "name": "codegraph_find_implementors",
+  "description": "Find all functions registered as implementations of an ops struct field (e.g., who implements ndo_open in net_device_ops). USE WHEN: exploring driver architecture, finding all implementations of a callback interface, or checking which drivers implement a specific operation. Works with C designated initializers (.field = func patterns). Filter by structType and/or fieldName, or omit both to list all ops struct registrations in the codebase.",
+  "inputSchema": {
+    "properties": {
+      "fieldName": {
+        "description": "Specific field/method name to search (e.g., 'ndo_open'). If omitted, returns all fields for the struct.",
+        "type": "string"
+      },
+      "limit": {
+        "default": 50.0,
+        "description": "Maximum number of results to return",
+        "type": "number"
+      },
+      "structType": {
+        "description": "Ops struct type name to search (e.g., 'net_device_ops'). If omitted, returns all ops struct registrations.",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  }
+}

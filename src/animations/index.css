@@ -1,0 +1,10 @@
+/* Animation barrel — loaded after styles.css so motion enhancements layer on top.
+   Per-domain motion first, then motion-modes + activity gating LAST so
+   mode/visibility overrides win the cascade. */
+@import './shell.css';
+@import './dashboard.css';
+@import './controls.css';
+@import './workspaces.css';
+@import './editors.css';
+@import './insights.css';
+@import './motion-modes.css';

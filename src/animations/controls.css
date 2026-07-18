@@ -1,0 +1,121 @@
+/* Global controls motion (buttons, badges, toasts, palette) — owned by controls subagent. */
+/* Enhances existing classes only: animates transform/opacity/filter/box-shadow/background-position. */
+/* Loaded after styles.css so single-class selectors layer on top. Tokens reused, no !important. */
+
+/* --- Buttons: press-down feedback (base :hover translateY(-2px) is kept) --- */
+.button:active {
+  transform: translateY(1px) scale(0.97);
+}
+
+/* --- Button primary: overflow-safe sheen sweep on hover via background-position --- */
+/* Layers a diagonal highlight band over the base gradient; background auto-clips to radius. */
+.button-primary {
+  background-image:
+    linear-gradient(115deg, transparent 34%, rgba(255, 255, 255, 0.34) 50%, transparent 66%),
+    linear-gradient(135deg, var(--purple), var(--blue));
+  background-size: 220% 100%, 100% 100%;
+  background-position: 165% 0, 0 0;
+  background-repeat: no-repeat;
+  transition:
+    transform 220ms var(--ease),
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease,
+    background-position 640ms var(--ease);
+}
+
+.button-primary:hover {
+  background-position: -65% 0, 0 0;
+}
+
+/* --- Toast: static premium glow (no infinite animation). Base toast-in entrance untouched. --- */
+.toast-message::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: 0 0 22px rgba(155, 124, 255, 0.22);
+  opacity: 0.4;
+}
+
+/* --- Modal scrim: fade in on mount --- */
+.modal-scrim {
+  animation: ctl-scrim-in 260ms var(--ease) both;
+}
+
+@keyframes ctl-scrim-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* --- Command palette: scale + fade + slight rise on mount --- */
+.command-palette {
+  animation: ctl-palette-in 340ms var(--ease) both;
+  transform-origin: top center;
+}
+
+@keyframes ctl-palette-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.965); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* --- Command results: staggered fade/slide-in (nth-child up to 8) --- */
+.command-results button {
+  animation: ctl-result-in 300ms var(--ease) both;
+}
+
+.command-results button:nth-child(1) { animation-delay: 40ms; }
+.command-results button:nth-child(2) { animation-delay: 85ms; }
+.command-results button:nth-child(3) { animation-delay: 130ms; }
+.command-results button:nth-child(4) { animation-delay: 175ms; }
+.command-results button:nth-child(5) { animation-delay: 220ms; }
+.command-results button:nth-child(6) { animation-delay: 265ms; }
+.command-results button:nth-child(7) { animation-delay: 310ms; }
+.command-results button:nth-child(8) { animation-delay: 355ms; }
+
+@keyframes ctl-result-in {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Segmented control / tool tabs: subtle pop when becoming active --- */
+.segmented-control button.active,
+.tool-tabs button.active {
+  animation: ctl-tab-pop 280ms var(--ease);
+}
+
+@keyframes ctl-tab-pop {
+  0% { transform: scale(0.9); }
+  60% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+/* --- Toggle knob: springy slide (position values unchanged, only easing/duration) --- */
+.toggle-row i::after {
+  transition:
+    transform 320ms cubic-bezier(0.34, 1.4, 0.6, 1),
+    background 180ms ease;
+}
+
+/* --- Status badge: pulse ONLY when explicitly marked live (an active process),
+   opacity-only, full mode only. Normal badges are always static. A small dot
+   ::before is added by StatusBadge live rendering; here we just pulse it. --- */
+.status-badge.is-live::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  margin-right: 0.4rem;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+html[data-motion="full"] .status-badge.is-live::before {
+  animation: ctl-badge-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes ctl-badge-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.7); }
+}

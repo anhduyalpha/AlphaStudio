@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-labelledby="title desc">
+  <title id="title">QR Lab</title><desc id="desc">A custom QR matrix surrounded by connected scan nodes.</desc>
+  <defs><linearGradient id="g" x1="217" y1="91" x2="424" y2="309"><stop stop-color="#5D8DFF"/><stop offset="1" stop-color="#49DBE8"/></linearGradient></defs>
+  <rect x="39" y="39" width="562" height="322" rx="46" fill="#5D8DFF" fill-opacity=".05" stroke="#5D8DFF" stroke-opacity=".18" stroke-width="2"/>
+  <path d="M104 200h92M444 200h92M320 66v45M320 289v45" stroke="#5D8DFF" stroke-opacity=".27" stroke-width="2"/>
+  <circle cx="99" cy="200" r="7" fill="#5D8DFF"/><circle cx="541" cy="200" r="7" fill="#49DBE8"/><circle cx="320" cy="62" r="5" fill="#9B7CFF"/><circle cx="320" cy="338" r="5" fill="#43D99B"/>
+  <rect x="199" y="79" width="242" height="242" rx="35" fill="#121727" fill-opacity=".78" stroke="url(#g)" stroke-width="4"/>
+  <g fill="none" stroke="#D6DCFF" stroke-width="14"><rect x="232" y="112" width="54" height="54" rx="5"/><rect x="354" y="112" width="54" height="54" rx="5"/><rect x="232" y="234" width="54" height="54" rx="5"/></g>
+  <g fill="#80E4EC"><rect x="314" y="112" width="18" height="18" rx="3"/><rect x="314" y="146" width="18" height="54" rx="3"/><rect x="348" y="190" width="18" height="18" rx="3"/><rect x="388" y="190" width="20" height="54" rx="3"/><rect x="314" y="222" width="54" height="18" rx="3"/><rect x="314" y="270" width="18" height="18" rx="3"/><rect x="348" y="254" width="18" height="34" rx="3"/></g>
+  <path d="M182 127v-25a18 18 0 0 1 18-18h25M458 127v-25a18 18 0 0 0-18-18h-25M182 273v25a18 18 0 0 0 18 18h25M458 273v25a18 18 0 0 1-18 18h-25" fill="none" stroke="#9B7CFF" stroke-width="7" stroke-linecap="round"/>
+</svg>

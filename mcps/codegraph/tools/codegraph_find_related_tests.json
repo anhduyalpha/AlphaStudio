@@ -1,0 +1,26 @@
+{
+  "name": "codegraph_find_related_tests",
+  "description": "Discovers test files and functions that exercise specific code. USE WHEN: modifying code to know which tests to run/update, debugging to find test cases, or assessing test coverage. Returns tests array (name, id, relationship) for the target symbol, plus total count. Finds tests by tracing Calls edges to functions with test-like names (test_, _test). Requires uri and line parameters.",
+  "inputSchema": {
+    "properties": {
+      "limit": {
+        "default": 10.0,
+        "description": "Maximum number of related tests to return",
+        "type": "number"
+      },
+      "line": {
+        "default": 0.0,
+        "description": "Line number (0-indexed)",
+        "type": "number"
+      },
+      "uri": {
+        "description": "The file URI to find tests for (e.g. file:///Users/me/project/src/main.rs)",
+        "type": "string"
+      }
+    },
+    "required": [
+      "uri"
+    ],
+    "type": "object"
+  }
+}

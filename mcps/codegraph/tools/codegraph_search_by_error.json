@@ -1,0 +1,28 @@
+{
+  "name": "codegraph_search_by_error",
+  "description": "Find functions that throw, catch, or handle specific error types. USE WHEN: understanding error flow, finding where exceptions originate, or auditing error handling coverage. Scans function body_prefix and signature for language-specific error patterns (Rust: Err(/panic!/anyhow, Python: raise/except, JS/TS: throw/catch, Go: errors.New/if err != nil, Java/C#: throw/catch). Optionally filter by a specific error type string and by role (throws vs catches). Returns functions with matched error_patterns and error_role (\"throws\", \"catches\", or \"both\").",
+  "inputSchema": {
+    "properties": {
+      "error_type": {
+        "description": "Specific error type to search for (e.g. \"IoError\", \"ValueError\"). Omit to match any error pattern.",
+        "type": "string"
+      },
+      "limit": {
+        "default": 50.0,
+        "description": "Maximum number of functions to return (default: 50)",
+        "type": "number"
+      },
+      "mode": {
+        "default": "any",
+        "description": "Which functions to return: \"throws\" (produce errors), \"catches\" (handle errors), \"any\" (both). Default: \"any\".",
+        "enum": [
+          "throws",
+          "catches",
+          "any"
+        ],
+        "type": "string"
+      }
+    },
+    "type": "object"
+  }
+}

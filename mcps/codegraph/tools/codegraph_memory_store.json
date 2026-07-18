@@ -1,0 +1,79 @@
+{
+  "name": "codegraph_memory_store",
+  "description": "Persists knowledge for future sessions. USE WHEN: discovering important context worth remembering — debugging insights, architectural decisions, known issues, coding conventions, or project-specific knowledge. Returns the stored memory ID. Each kind has specific optional fields: debug_context uses problem+solution, architectural_decision uses decision+rationale, known_issue uses description+severity. Tags improve future retrieval.",
+  "inputSchema": {
+    "properties": {
+      "agentSource": {
+        "description": "Optional tag for which AI agent stored this memory (e.g. \"claude\", \"cursor\", \"windsurf\", \"codex\", \"cline\"). Surfaces in codegraph_memory_list output for cross-agent attribution.",
+        "type": "string"
+      },
+      "confidence": {
+        "default": 1.0,
+        "description": "Confidence level 0.0-1.0 (default: 1.0)",
+        "type": "number"
+      },
+      "content": {
+        "description": "Main content of the memory",
+        "type": "string"
+      },
+      "decision": {
+        "description": "For architectural_decision: the decision made",
+        "type": "string"
+      },
+      "description": {
+        "description": "For known_issue/convention/project_context: detailed description",
+        "type": "string"
+      },
+      "kind": {
+        "description": "Type of memory being stored",
+        "enum": [
+          "debug_context",
+          "architectural_decision",
+          "known_issue",
+          "convention",
+          "project_context"
+        ],
+        "type": "string"
+      },
+      "problem": {
+        "description": "For debug_context: describe the problem encountered",
+        "type": "string"
+      },
+      "rationale": {
+        "description": "For architectural_decision: reasoning behind the decision",
+        "type": "string"
+      },
+      "severity": {
+        "description": "For known_issue: severity level",
+        "enum": [
+          "critical",
+          "high",
+          "medium",
+          "low"
+        ],
+        "type": "string"
+      },
+      "solution": {
+        "description": "For debug_context: describe the solution found",
+        "type": "string"
+      },
+      "tags": {
+        "description": "Tags for categorization and search",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "title": {
+        "description": "Short descriptive title for the memory",
+        "type": "string"
+      }
+    },
+    "required": [
+      "kind",
+      "title",
+      "content"
+    ],
+    "type": "object"
+  }
+}

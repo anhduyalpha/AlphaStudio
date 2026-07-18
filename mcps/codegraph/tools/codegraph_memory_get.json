@@ -1,0 +1,16 @@
+{
+  "name": "codegraph_memory_get",
+  "description": "Retrieves full memory details by ID. USE WHEN: you have a memory ID from search results and need complete content.",
+  "inputSchema": {
+    "properties": {
+      "id": {
+        "description": "Memory ID to retrieve",
+        "type": "string"
+      }
+    },
+    "required": [
+      "id"
+    ],
+    "type": "object"
+  }
+}

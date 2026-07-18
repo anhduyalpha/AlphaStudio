@@ -1,0 +1,16 @@
+{
+  "name": "codegraph_design_gaps",
+  "description": "Find things described in an indexed design doc that don't exist in the code yet. Extracts backtick-wrapped identifiers from the doc and returns ONLY those not found in the code graph. Each gap includes the heading-path context showing which section of the doc describes the missing item. USE WHEN: checking what's left to implement from a design doc, or building a TODO list from an architecture spec.",
+  "inputSchema": {
+    "properties": {
+      "source": {
+        "description": "Source file path of the indexed doc to check for gaps (as shown by codegraph_list_doc_sources).",
+        "type": "string"
+      }
+    },
+    "required": [
+      "source"
+    ],
+    "type": "object"
+  }
+}

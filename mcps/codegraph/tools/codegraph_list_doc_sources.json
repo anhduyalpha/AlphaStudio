@@ -1,0 +1,8 @@
+{
+  "name": "codegraph_list_doc_sources",
+  "description": "List all markdown files that have been indexed into the docs store via codegraph_index_markdown. Returns source file paths. USE WHEN: checking what docs are already indexed before indexing or searching.",
+  "inputSchema": {
+    "properties": {},
+    "type": "object"
+  }
+}

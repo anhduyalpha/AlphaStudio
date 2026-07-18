@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-labelledby="title desc">
+  <title id="title">Media Toolkit</title><desc id="desc">A video stage with play control and a connected timeline.</desc>
+  <defs><linearGradient id="g" x1="157" y1="85" x2="484" y2="318"><stop stop-color="#FF7FAC"/><stop offset=".5" stop-color="#9B7CFF"/><stop offset="1" stop-color="#5D8DFF"/></linearGradient></defs>
+  <rect x="39" y="39" width="562" height="322" rx="46" fill="#FF7FAC" fill-opacity=".045" stroke="#FF7FAC" stroke-opacity=".18" stroke-width="2"/>
+  <path d="M96 133h65M480 267h65M105 281l56-34M478 119l58 34" stroke="#FF7FAC" stroke-opacity=".25" stroke-width="2"/>
+  <circle cx="92" cy="133" r="7" fill="#FF7FAC"/><circle cx="549" cy="267" r="7" fill="#5D8DFF"/><circle cx="101" cy="284" r="5" fill="#49DBE8"/><circle cx="541" cy="157" r="5" fill="#9B7CFF"/>
+  <rect x="151" y="81" width="338" height="238" rx="35" fill="#121727" fill-opacity=".78" stroke="url(#g)" stroke-width="4"/>
+  <path d="M151 126h338M151 267h338" stroke="#9B7CFF" stroke-opacity=".35" stroke-width="3"/>
+  <g stroke="#B7A7FF" stroke-width="5"><path d="M185 82v44M225 82v44M415 82v44M455 82v44M185 267v51M225 267v51M415 267v51M455 267v51"/></g>
+  <circle cx="320" cy="196" r="55" fill="url(#g)" fill-opacity=".18" stroke="#D8CFFF" stroke-opacity=".65" stroke-width="3"/>
+  <path d="m304 165 48 31-48 31Z" fill="#F7F8FC"/>
+  <path d="M185 292h270" stroke="#7689FF" stroke-width="9" stroke-linecap="round" opacity=".42"/><path d="M185 292h124" stroke="#49DBE8" stroke-width="9" stroke-linecap="round"/><circle cx="309" cy="292" r="12" fill="#fff" stroke="#49DBE8" stroke-width="5"/>
+</svg>

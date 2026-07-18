@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300" role="img" aria-labelledby="title desc">
+  <title id="title">No files uploaded</title><desc id="desc">An upload tray connected to a floating file node.</desc>
+  <defs><linearGradient id="g" x1="140" y1="54" x2="345" y2="251"><stop stop-color="#9B7CFF"/><stop offset="1" stop-color="#49DBE8"/></linearGradient></defs>
+  <path d="M66 150h76M338 150h76M240 37v42M240 222v42" stroke="#7B88AD" stroke-opacity=".3" stroke-width="2"/>
+  <circle cx="61" cy="150" r="6" fill="#9B7CFF"/><circle cx="419" cy="150" r="6" fill="#49DBE8"/><circle cx="240" cy="32" r="5" fill="#5D8DFF"/><circle cx="240" cy="269" r="5" fill="#43D99B"/>
+  <rect x="139" y="50" width="202" height="199" rx="42" fill="#9B7CFF" fill-opacity=".06" stroke="#9B7CFF" stroke-opacity=".24" stroke-width="3"/>
+  <path d="M182 172v45h116v-45M207 194l33 25 33-25" fill="none" stroke="#B7C3E1" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M240 181V92M207 126l33-34 33 34" fill="none" stroke="url(#g)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="240" cy="92" r="11" fill="#fff" stroke="#9B7CFF" stroke-width="5"/>
+  <path d="M161 104h-15a13 13 0 0 0-13 13v15M319 104h15a13 13 0 0 1 13 13v15" fill="none" stroke="#49DBE8" stroke-opacity=".55" stroke-width="5" stroke-linecap="round"/>
+</svg>

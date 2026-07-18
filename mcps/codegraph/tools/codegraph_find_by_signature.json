@@ -1,0 +1,41 @@
+{
+  "name": "codegraph_find_by_signature",
+  "description": "Finds functions matching signature patterns. USE WHEN: searching by structural characteristics rather than names - parameter count, return types, or modifiers. namePattern supports wildcards: 'get*' matches getUser, getData; '*Handler' matches requestHandler. paramCount filters by exact count; use minParams/maxParams for ranges. returnType matches against the function's return type string. modifiers filters by async, static, public, private, etc.",
+  "inputSchema": {
+    "properties": {
+      "limit": {
+        "default": 50.0,
+        "description": "Maximum number of results",
+        "type": "number"
+      },
+      "maxParams": {
+        "description": "Maximum number of parameters",
+        "type": "number"
+      },
+      "minParams": {
+        "description": "Minimum number of parameters",
+        "type": "number"
+      },
+      "modifiers": {
+        "description": "Required modifiers (e.g., ['async'], ['static', 'public'])",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "namePattern": {
+        "description": "Pattern to match function names (supports wildcards like 'get*', '*Handler')",
+        "type": "string"
+      },
+      "paramCount": {
+        "description": "Exact number of parameters",
+        "type": "number"
+      },
+      "returnType": {
+        "description": "Return type to match (e.g., 'Promise', 'Result<T>', 'void')",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  }
+}

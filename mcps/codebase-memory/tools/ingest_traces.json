@@ -1,0 +1,34 @@
+{
+  "name": "ingest_traces",
+  "description": "Ingest runtime traces to enhance the knowledge graph",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "traces": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "caller": {
+              "type": "string"
+            },
+            "callee": {
+              "type": "string"
+            },
+            "count": {
+              "type": "integer"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "project": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "traces",
+      "project"
+    ]
+  }
+}

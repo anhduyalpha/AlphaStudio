@@ -1,0 +1,38 @@
+{
+  "name": "codegraph_memory_list",
+  "description": "Lists memories with filtering and pagination. USE WHEN: browsing available memories or auditing stored knowledge.",
+  "inputSchema": {
+    "properties": {
+      "currentOnly": {
+        "default": true,
+        "description": "Only show non-invalidated memories",
+        "type": "boolean"
+      },
+      "kinds": {
+        "description": "Filter by memory kinds",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "limit": {
+        "default": 50.0,
+        "description": "Maximum memories to return",
+        "type": "number"
+      },
+      "offset": {
+        "default": 0.0,
+        "description": "Offset for pagination",
+        "type": "number"
+      },
+      "tags": {
+        "description": "Filter by tags",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "type": "object"
+  }
+}

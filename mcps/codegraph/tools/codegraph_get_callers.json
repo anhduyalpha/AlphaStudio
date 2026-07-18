@@ -1,0 +1,26 @@
+{
+  "name": "codegraph_get_callers",
+  "description": "Finds all functions that call a target function (reverse call graph). USE WHEN: understanding function usage, finding all invocation sites, or assessing change impact. SIMPLER than traverse_graph for this common use case. Returns callers array with symbol name and node ID. Use depth>1 to trace the full caller chain (who calls the callers). Identify target via uri+line or nodeId from symbol_search.",
+  "inputSchema": {
+    "properties": {
+      "depth": {
+        "default": 1.0,
+        "description": "Depth of caller chain to traverse (default: 1)",
+        "type": "number"
+      },
+      "line": {
+        "description": "0-based line number of the function. Use with uri to identify the function.",
+        "type": "number"
+      },
+      "nodeId": {
+        "description": "Internal node ID from symbol_search. Alternative to uri+line.",
+        "type": "string"
+      },
+      "uri": {
+        "description": "File URI (e.g. file:///Users/me/project/src/main.rs). Use with line to identify the function.",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  }
+}

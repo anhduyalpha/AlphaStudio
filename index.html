@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="AlphaStudio — local utility studio for file conversion, PDF tools, QR encode/decode, media processing, and more via a private Node API."
+    />
+    <meta name="theme-color" content="#765fff" />
+    <link rel="icon" type="image/svg+xml" href="/assets/brand/favicon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/assets/brand/app-icon-192.png" />
+    <title>AlphaStudio — Local Utility Studio</title>
+    <script>
+      (() => {
+        const storedTheme = localStorage.getItem('alpha-studio-theme');
+        const theme = storedTheme || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        document.documentElement.dataset.theme = theme;
+
+        // Resolve motion mode before first paint to avoid a flash of heavy motion.
+        // OS reduced-motion wins; else stored choice; else device heuristic; else balanced.
+        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const storedMotion = localStorage.getItem('alpha-studio-motion');
+        const modes = ['full', 'balanced', 'reduced'];
+        let motion = 'balanced';
+        if (reduce) {
+          motion = 'reduced';
+        } else if (storedMotion && modes.includes(storedMotion)) {
+          motion = storedMotion;
+        } else {
+          const conn = navigator.connection;
+          const lite =
+            (conn && conn.saveData === true) ||
+            (typeof navigator.hardwareConcurrency === 'number' && navigator.hardwareConcurrency <= 4) ||
+            (typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4) ||
+            window.matchMedia('(max-width: 900px)').matches;
+          motion = lite ? 'balanced' : 'balanced';
+        }
+        document.documentElement.dataset.motion = motion;
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

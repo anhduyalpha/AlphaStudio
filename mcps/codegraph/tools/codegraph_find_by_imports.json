@@ -1,0 +1,32 @@
+{
+  "name": "codegraph_find_by_imports",
+  "description": "Finds all files importing a specific module or package. USE WHEN: planning library migrations, finding all React component usages, or discovering internal module consumers. Pass the module name via `moduleName` param (e.g., 'vscode', 'lodash', 'react', './utils'). Returns array of files that import the specified module, with file path and import details. matchMode controls matching: 'exact' for full name, 'prefix' for starts-with, 'contains' for substring, 'fuzzy' for approximate matching.",
+  "inputSchema": {
+    "properties": {
+      "limit": {
+        "default": 50.0,
+        "description": "Maximum number of results",
+        "type": "number"
+      },
+      "matchMode": {
+        "default": "contains",
+        "description": "How to match the module name",
+        "enum": [
+          "exact",
+          "prefix",
+          "contains",
+          "fuzzy"
+        ],
+        "type": "string"
+      },
+      "moduleName": {
+        "description": "Name of the module/package to search for (e.g., 'lodash', 'react', './utils')",
+        "type": "string"
+      }
+    },
+    "required": [
+      "moduleName"
+    ],
+    "type": "object"
+  }
+}

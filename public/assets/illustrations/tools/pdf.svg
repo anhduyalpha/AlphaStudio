@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-labelledby="title desc">
+  <title id="title">PDF Studio</title><desc id="desc">Layered document pages connected by studio nodes.</desc>
+  <defs><linearGradient id="g" x1="210" y1="74" x2="438" y2="330"><stop stop-color="#49DBE8"/><stop offset="1" stop-color="#5D8DFF"/></linearGradient></defs>
+  <rect x="39" y="39" width="562" height="322" rx="46" fill="#49DBE8" fill-opacity=".05" stroke="#49DBE8" stroke-opacity=".18" stroke-width="2"/>
+  <path d="M94 112h112M438 286h108M94 286l91-53M455 114l91 48" fill="none" stroke="#49DBE8" stroke-opacity=".25" stroke-width="2"/>
+  <circle cx="93" cy="112" r="7" fill="#49DBE8"/><circle cx="548" cy="286" r="7" fill="#5D8DFF"/><circle cx="94" cy="286" r="5" fill="#9B7CFF"/><circle cx="548" cy="163" r="5" fill="#43D99B"/>
+  <rect x="214" y="91" width="204" height="224" rx="25" transform="rotate(-7 214 91)" fill="#121727" fill-opacity=".38" stroke="#9B7CFF" stroke-opacity=".42" stroke-width="3"/>
+  <rect x="226" y="88" width="204" height="224" rx="25" transform="rotate(5 226 88)" fill="#121727" fill-opacity=".5" stroke="#5D8DFF" stroke-opacity=".5" stroke-width="3"/>
+  <rect x="218" y="84" width="204" height="232" rx="25" fill="#121727" fill-opacity=".78" stroke="url(#g)" stroke-width="4"/>
+  <path d="M354 84v58h68" fill="#49DBE8" fill-opacity=".12" stroke="#49DBE8" stroke-opacity=".68" stroke-width="3"/>
+  <rect x="254" y="156" width="82" height="48" rx="13" fill="#5D8DFF" fill-opacity=".16" stroke="#5D8DFF" stroke-opacity=".52" stroke-width="2"/>
+  <path d="M272 226h96M272 252h74M272 278h88" stroke="#B5C6FF" stroke-width="9" stroke-linecap="round" opacity=".72"/>
+  <path d="m278 181 13 13 27-27" fill="none" stroke="#49DBE8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

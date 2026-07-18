@@ -1,0 +1,36 @@
+{
+  "name": "codegraph_find_entry_points",
+  "description": "Discovers application entry points and execution starting points. USE WHEN: understanding app architecture, tracing request flow, or finding where to start debugging. START HERE when exploring unfamiliar backend applications. Returns array of entry points with name, kind, file path, line range, and signature. Default returns architectural entry points only (main, HTTP handlers, CLI commands, event handlers). Use entryType='all' to include tests and public API, or 'test'/'public' for those specifically. Default limit 50. Use compact=true for minimal output.",
+  "inputSchema": {
+    "properties": {
+      "compact": {
+        "default": false,
+        "description": "Compact mode: return minimal info (name, kind, location) without signatures/docstrings for smaller responses",
+        "type": "boolean"
+      },
+      "entryType": {
+        "description": "Type of entry point to find. Default returns architectural entry points (main, http_handler, cli_command, event_handler). Use 'all' to include tests and public API. Use 'test' or 'public' for those specifically.",
+        "enum": [
+          "main",
+          "http_handler",
+          "cli_command",
+          "event_handler",
+          "test",
+          "public",
+          "all"
+        ],
+        "type": "string"
+      },
+      "framework": {
+        "description": "Filter by framework (e.g., 'express', 'fastapi', 'actix')",
+        "type": "string"
+      },
+      "limit": {
+        "default": 50.0,
+        "description": "Maximum number of results",
+        "type": "number"
+      }
+    },
+    "type": "object"
+  }
+}

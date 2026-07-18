@@ -1,0 +1,21 @@
+{
+  "name": "codegraph_get_module_summary",
+  "description": "Get a high-level summary of a module or directory — file count, function count, language breakdown, top complex functions, and external dependencies. Great for understanding unfamiliar code areas.",
+  "inputSchema": {
+    "properties": {
+      "path": {
+        "description": "Absolute directory path to summarize (e.g. /workspace/src/auth). All graph nodes whose file path starts with this prefix are included.",
+        "type": "string"
+      },
+      "top_n": {
+        "default": 5.0,
+        "description": "How many of the most-complex functions to include in the result (default: 5)",
+        "type": "number"
+      }
+    },
+    "required": [
+      "path"
+    ],
+    "type": "object"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "name": "codegraph_search_by_pattern",
+  "description": "Search code using regex patterns across function bodies, signatures, names, and docstrings. USE WHEN: finding specific code patterns (e.g., 'unwrap\\(\\)' calls, SQL queries, error handling patterns). More precise than symbol_search when you know the exact pattern. Returns matches with node_id, name, kind, path, line range, matched_in (which scope matched), matched_text (snippet up to 200 chars), and signature.",
+  "inputSchema": {
+    "properties": {
+      "limit": {
+        "default": 50.0,
+        "description": "Maximum number of matches to return (default: 50)",
+        "type": "number"
+      },
+      "node_type": {
+        "default": "any",
+        "description": "Filter to a specific node kind: 'function', 'class', or 'any' (all, default)",
+        "enum": [
+          "any",
+          "function",
+          "class"
+        ],
+        "type": "string"
+      },
+      "pattern": {
+        "description": "Regex pattern to search for (e.g. 'unwrap\\(\\)', 'TODO', 'SELECT .* FROM')",
+        "type": "string"
+      },
+      "scope": {
+        "default": "any",
+        "description": "Which node property to search: 'function_body' (body_prefix), 'signature', 'name', 'docstring', or 'any' (all, default)",
+        "enum": [
+          "any",
+          "function_body",
+          "signature",
+          "name",
+          "docstring"
+        ],
+        "type": "string"
+      }
+    },
+    "required": [
+      "pattern"
+    ],
+    "type": "object"
+  }
+}

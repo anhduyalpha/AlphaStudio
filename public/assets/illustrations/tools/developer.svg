@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-labelledby="title desc">
+  <title id="title">Developer Utilities</title><desc id="desc">A local code panel connected to structured data nodes.</desc>
+  <defs><linearGradient id="g" x1="139" y1="83" x2="502" y2="318"><stop stop-color="#F4BD5E"/><stop offset=".46" stop-color="#9B7CFF"/><stop offset="1" stop-color="#49DBE8"/></linearGradient></defs>
+  <rect x="39" y="39" width="562" height="322" rx="46" fill="#F4BD5E" fill-opacity=".04" stroke="#F4BD5E" stroke-opacity=".18" stroke-width="2"/>
+  <path d="M96 119h71M475 282h69M103 285l61-38M478 116l59 39" stroke="#F4BD5E" stroke-opacity=".24" stroke-width="2"/>
+  <circle cx="92" cy="119" r="7" fill="#F4BD5E"/><circle cx="548" cy="282" r="7" fill="#49DBE8"/><circle cx="99" cy="288" r="5" fill="#5D8DFF"/><circle cx="542" cy="157" r="5" fill="#9B7CFF"/>
+  <rect x="132" y="80" width="376" height="240" rx="35" fill="#121727" fill-opacity=".82" stroke="url(#g)" stroke-width="4"/>
+  <path d="M132 132h376" stroke="#9B7CFF" stroke-opacity=".42" stroke-width="3"/>
+  <circle cx="174" cy="106" r="8" fill="#FF7188"/><circle cx="202" cy="106" r="8" fill="#F4BD5E"/><circle cx="230" cy="106" r="8" fill="#43D99B"/>
+  <path d="m241 177-54 39 54 39M399 177l54 39-54 39M353 157l-67 118" fill="none" stroke="url(#g)" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M167 290h129M350 290h123" stroke="#8A95B2" stroke-width="8" stroke-linecap="round" opacity=".5"/>
+  <circle cx="320" cy="216" r="10" fill="#fff" stroke="#9B7CFF" stroke-width="5"/>
+</svg>

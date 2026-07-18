@@ -1,0 +1,21 @@
+{
+  "name": "codegraph_search_docs",
+  "description": "Semantic search over project docs previously indexed via codegraph_index_markdown. Returns matching doc sections with heading-path breadcrumbs (e.g. \"Authentication > JWT > Refresh Token Rotation\"), relevance scores, and source file provenance. USE WHEN: you need design context, architecture decisions, or API specs that were captured in project markdown files. Complements codegraph_memory_search (which stores ad-hoc notes) — this searches structured project documentation.",
+  "inputSchema": {
+    "properties": {
+      "limit": {
+        "default": 5.0,
+        "description": "Maximum results to return (default: 5)",
+        "type": "number"
+      },
+      "query": {
+        "description": "Natural-language search query over indexed docs (e.g. \"how does the auth module handle JWT refresh?\")",
+        "type": "string"
+      }
+    },
+    "required": [
+      "query"
+    ],
+    "type": "object"
+  }
+}

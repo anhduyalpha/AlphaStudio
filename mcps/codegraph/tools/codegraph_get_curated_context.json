@@ -1,0 +1,30 @@
+{
+  "name": "codegraph_get_curated_context",
+  "description": "Discovers and assembles context across the entire codebase for a natural language query. USE WHEN: you need to understand a concept, pattern, or subsystem that spans multiple files — e.g., 'how does authentication work?', 'what handles database connections?', 'error handling patterns'. Unlike codegraph_get_ai_context (single symbol) or codegraph_get_edit_context (single location), this searches the whole codebase and curates cross-cutting context. Pipeline: (1) searches for relevant symbols matching query, (2) resolves full source code for top matches, (3) walks dependency graph to find related modules, (4) fetches relevant memories, (5) curates everything within token budget prioritized by relevance. EXAMPLE: query='authentication middleware' returns the auth middleware function source, its callers (routes using it), its dependencies (token verification, user lookup), and any architectural decisions or debug notes about auth.",
+  "inputSchema": {
+    "properties": {
+      "maxSymbols": {
+        "default": 5.0,
+        "description": "Maximum number of primary symbols to include (default: 5)",
+        "type": "number"
+      },
+      "maxTokens": {
+        "default": 8000.0,
+        "description": "Maximum tokens of context to return (default: 8000)",
+        "type": "number"
+      },
+      "query": {
+        "description": "Natural language description of the context needed, or a symbol/module name (e.g., 'authentication logic', 'error handling in the API layer', 'UserService')",
+        "type": "string"
+      },
+      "uri": {
+        "description": "Optional file URI to anchor the search — results from this file are prioritized",
+        "type": "string"
+      }
+    },
+    "required": [
+      "query"
+    ],
+    "type": "object"
+  }
+}

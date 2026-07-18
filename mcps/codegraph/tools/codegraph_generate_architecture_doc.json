@@ -1,0 +1,18 @@
+{
+  "name": "codegraph_generate_architecture_doc",
+  "description": "Generate a structured ARCHITECTURE.md from the code graph. Produces a markdown document covering: project overview (file/function/language counts), module breakdown (per-directory summaries with key exports, dependencies, complexity hotspots), hot paths (most-called functions), and architectural concerns (circular deps). The output can be saved to a file and then indexed via codegraph_index_markdown for future verify_design checks. USE WHEN: onboarding to a new codebase, generating initial documentation, or refreshing stale docs.",
+  "inputSchema": {
+    "properties": {
+      "scope": {
+        "description": "Optional directory path to scope the doc to (e.g. \"src/\" or \"crates/codegraph-server/\"). If omitted, covers the entire indexed workspace.",
+        "type": "string"
+      },
+      "topN": {
+        "default": 10.0,
+        "description": "Number of top items per section — hot paths, complex functions per module (default: 10)",
+        "type": "number"
+      }
+    },
+    "type": "object"
+  }
+}

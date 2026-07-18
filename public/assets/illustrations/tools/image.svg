@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-labelledby="title desc">
+  <title id="title">Image Lab</title><desc id="desc">A layered image frame with crop handles and creative nodes.</desc>
+  <defs><linearGradient id="g" x1="173" y1="89" x2="466" y2="316"><stop stop-color="#43D99B"/><stop offset=".52" stop-color="#49DBE8"/><stop offset="1" stop-color="#5D8DFF"/></linearGradient></defs>
+  <rect x="39" y="39" width="562" height="322" rx="46" fill="#43D99B" fill-opacity=".045" stroke="#43D99B" stroke-opacity=".18" stroke-width="2"/>
+  <path d="M100 121h91M450 285h90M109 294l66-51M467 109l65 48" stroke="#43D99B" stroke-opacity=".25" stroke-width="2"/>
+  <circle cx="96" cy="121" r="7" fill="#43D99B"/><circle cx="544" cy="285" r="7" fill="#49DBE8"/><circle cx="104" cy="298" r="5" fill="#5D8DFF"/><circle cx="537" cy="161" r="5" fill="#9B7CFF"/>
+  <rect x="166" y="80" width="308" height="240" rx="35" fill="#121727" fill-opacity=".78" stroke="url(#g)" stroke-width="4"/>
+  <circle cx="230" cy="143" r="22" fill="#F4BD5E" fill-opacity=".82"/>
+  <path d="M170 274 255 187l53 54 44-45 118 120H194a24 24 0 0 1-24-24v-18Z" fill="url(#g)" fill-opacity=".48"/>
+  <path d="M170 111V92a12 12 0 0 1 12-12h19M439 80h23a12 12 0 0 1 12 12v19M474 289v19a12 12 0 0 1-12 12h-23M201 320h-19a12 12 0 0 1-12-12v-19" fill="none" stroke="#E6FFFF" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="320" cy="201" r="11" fill="#121727" stroke="#fff" stroke-width="5"/>
+</svg>

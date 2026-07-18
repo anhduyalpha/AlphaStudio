@@ -1,0 +1,27 @@
+{
+  "name": "codegraph_pr_context",
+  "description": "Analyze the current branch's changes against the code graph. Runs git diff to find changed files, then for each changed function: who calls it (blast radius), what tests cover it, which modules are affected. Returns a combined PR review context in one call — replaces manually running analyze_impact + find_related_tests on each file. USE WHEN: reviewing a PR, preparing a commit message, or checking what a branch might break before merging.",
+  "inputSchema": {
+    "properties": {
+      "baseBranch": {
+        "description": "Base branch to diff against (default: 'main'). The tool runs git diff <baseBranch>...HEAD to find changed files.",
+        "type": "string"
+      },
+      "compact": {
+        "default": false,
+        "description": "Compact output — counts only, skip per-symbol detail",
+        "type": "boolean"
+      },
+      "format": {
+        "default": "json",
+        "description": "Output format. 'json' (default) returns structured data. 'markdown' returns a ready-to-post PR comment (risk summary, blast radius, test gaps, stale docs, suggested reviewers) — ideal for posting directly to a GitHub PR via a CI action.",
+        "enum": [
+          "json",
+          "markdown"
+        ],
+        "type": "string"
+      }
+    },
+    "type": "object"
+  }
+}

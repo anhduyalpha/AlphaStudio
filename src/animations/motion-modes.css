@@ -1,0 +1,76 @@
+/* ============================================================
+   Motion-mode + activity gating. Loaded LAST so it wins the cascade.
+
+   Modes (html[data-motion]):
+     full     — all decoration, incl. subtle infinite idle motion
+     balanced — DEFAULT; entrances + interaction only, no idle decoration
+     reduced  — nearly all non-essential motion removed
+
+   Decorative infinite animations are declared in their own files ONLY under
+   html[data-motion="full"], so balanced already gets none by construction.
+   This file adds: (1) the activity pause switch, (2) the reduced hard stop,
+   (3) glass/blur reductions for balanced + small screens.
+   ============================================================ */
+
+/* ---- (1) Offscreen / hidden-tab pausing for complex animation GROUPS ----
+   The activity hook sets data-animation-active="false" on a group parent when
+   it scrolls out of view or the tab is hidden. Pause every descendant's
+   animation cheaply (no unmount, no layout). Scoped to flagged groups only. */
+[data-animation-active="false"],
+[data-animation-active="false"] *,
+[data-animation-active="false"] *::before,
+[data-animation-active="false"] *::after {
+  animation-play-state: paused !important;
+}
+
+/* ---- (2) Reduced mode: neutralize nearly all motion ----
+   Mirrors the prefers-reduced-motion safety net (further down in styles.css)
+   so an explicit "reduced" pick behaves the same even without the OS flag.
+   Use animation:none (not 0.01ms + delay) so fill-mode:backwards entrances
+   never stick at opacity:0. Interaction transitions intentionally preserved. */
+html[data-motion="reduced"] *,
+html[data-motion="reduced"] *::before,
+html[data-motion="reduced"] *::after {
+  animation: none !important;
+}
+
+/* ---- (3) Glassmorphism cost control ----
+   Keep identity blur on sidebar/topbar/modal. Lighten elsewhere on small
+   screens and whenever motion is balanced/reduced (proxy for lower-power). */
+@media (max-width: 900px) {
+  .app-topbar,
+  .sidebar {
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .floating-window {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .ambient-light {
+    width: 16rem;
+    height: 16rem;
+    filter: blur(48px);
+    opacity: 0.09;
+  }
+}
+
+@media (max-width: 520px) {
+  /* Fixed, pointer-events:none decorative blobs — safe to drop on phones. */
+  .ambient-light { display: none; }
+}
+
+/* Non-identity glass surfaces: reduce blur radius under balanced/reduced. */
+html[data-motion="balanced"] .floating-window,
+html[data-motion="reduced"] .floating-window {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Opaque fallback where backdrop-filter is unsupported — keeps contrast. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .sidebar { background: var(--sidebar-bg); }
+  .app-topbar { background: color-mix(in srgb, var(--bg) 94%, transparent); }
+  .command-palette,
+  .floating-window { background: var(--surface-strong); }
+}

@@ -1,0 +1,55 @@
+{
+  "name": "alphastudio",
+  "private": true,
+  "version": "3.6.0",
+  "type": "module",
+  "workspaces": [
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently -k --kill-others-on-fail -n client,server -c cyan,magenta \"npm run dev:client\" \"npm run dev:server\"",
+    "dev:client": "vite",
+    "dev:server": "npm run dev -w alphastudio-server",
+    "build": "npm run build:client && npm run build:server",
+    "build:client": "vite build",
+    "build:server": "npm run build -w alphastudio-server",
+    "start": "npm run start -w alphastudio-server",
+    "test": "npm run test -w alphastudio-server",
+    "test:maint": "node --test scripts/maint/tests/*.test.mjs",
+    "test:audit": "node --test scripts/audit/tests/*.test.mjs",
+    "benchmark:workers": "node scripts/benchmark-worker-latency.mjs",
+    "benchmark:upload": "node scripts/benchmark-upload-detect.mjs",
+    "clear": "node scripts/maint/clear.mjs",
+    "clean": "node scripts/maint/clean.mjs",
+    "reset": "node scripts/maint/reset.mjs",
+    "tools:check": "node scripts/maint/tools.mjs check",
+    "tools:install": "node scripts/maint/tools.mjs install",
+    "tools:repair": "node scripts/maint/tools.mjs repair",
+    "tools:update": "node scripts/maint/tools.mjs update",
+    "db:repair": "node scripts/maint/db-repair.mjs",
+    "deps:check": "node scripts/maint/deps.mjs check",
+    "deps:prune": "node scripts/maint/deps.mjs prune",
+    "doctor": "node scripts/maint/doctor.mjs",
+    "audit:backend": "node scripts/audit/backend.mjs",
+    "setup:tools": "node scripts/setup-tools.mjs",
+    "check:tools": "node scripts/maint/tools.mjs check",
+    "repair:tools": "node scripts/maint/tools.mjs repair"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "vite": "6.4.3"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "allowScripts": {
+    "better-sqlite3@12.11.1": true,
+    "esbuild@0.21.5": true,
+    "esbuild@0.28.1": true,
+    "sharp@0.35.3": true
+  }
+}

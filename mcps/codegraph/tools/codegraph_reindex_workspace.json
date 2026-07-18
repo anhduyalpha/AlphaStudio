@@ -1,0 +1,14 @@
+{
+  "name": "codegraph_reindex_workspace",
+  "description": "Reindex the workspace to refresh the code graph. Default is INCREMENTAL — only re-parses files that changed since last index (much faster). Set force=true for full rebuild when parsers were updated or graph is corrupted.",
+  "inputSchema": {
+    "properties": {
+      "force": {
+        "default": false,
+        "description": "Force full reindex — clears the graph and re-parses all files. Default false (incremental — only re-parses files that changed since last index).",
+        "type": "boolean"
+      }
+    },
+    "type": "object"
+  }
+}

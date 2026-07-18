@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-labelledby="title desc">
+  <title id="title">Text and OCR</title><desc id="desc">A document under a connected optical scan frame.</desc>
+  <defs><linearGradient id="g" x1="199" y1="76" x2="445" y2="323"><stop stop-color="#49DBE8"/><stop offset="1" stop-color="#9B7CFF"/></linearGradient></defs>
+  <rect x="39" y="39" width="562" height="322" rx="46" fill="#49DBE8" fill-opacity=".045" stroke="#49DBE8" stroke-opacity=".18" stroke-width="2"/>
+  <path d="M96 116h107M438 284h105M95 284l83-47M465 114l76 45" stroke="#49DBE8" stroke-opacity=".24" stroke-width="2"/>
+  <circle cx="92" cy="116" r="7" fill="#49DBE8"/><circle cx="547" cy="284" r="7" fill="#9B7CFF"/><circle cx="91" cy="286" r="5" fill="#5D8DFF"/><circle cx="546" cy="161" r="5" fill="#43D99B"/>
+  <rect x="219" y="73" width="202" height="254" rx="27" fill="#121727" fill-opacity=".78" stroke="url(#g)" stroke-width="4"/>
+  <path d="M354 73v58h67" fill="#49DBE8" fill-opacity=".12" stroke="#49DBE8" stroke-opacity=".62" stroke-width="3"/>
+  <path d="M260 162h118M260 198h86M260 234h118M260 270h70" stroke="#B8C9E8" stroke-width="10" stroke-linecap="round" opacity=".76"/>
+  <path d="M196 130v-27a16 16 0 0 1 16-16h27M444 130v-27a16 16 0 0 0-16-16h-27M196 270v27a16 16 0 0 0 16 16h27M444 270v27a16 16 0 0 1-16 16h-27" fill="none" stroke="#9B7CFF" stroke-width="7" stroke-linecap="round"/>
+  <path d="M181 216h278" stroke="#49DBE8" stroke-width="5" stroke-linecap="round"/><circle cx="320" cy="216" r="10" fill="#fff" stroke="#49DBE8" stroke-width="5"/>
+</svg>

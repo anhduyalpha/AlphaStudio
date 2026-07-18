@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-labelledby="title desc">
+  <title id="title">Archive Center</title><desc id="desc">A protected archive box with layered files and nodes.</desc>
+  <defs><linearGradient id="g" x1="173" y1="83" x2="468" y2="318"><stop stop-color="#9B7CFF"/><stop offset="1" stop-color="#5D8DFF"/></linearGradient></defs>
+  <rect x="39" y="39" width="562" height="322" rx="46" fill="#9B7CFF" fill-opacity=".05" stroke="#9B7CFF" stroke-opacity=".18" stroke-width="2"/>
+  <path d="M100 113h98M442 286h100M99 286l75-42M466 113l73 43" stroke="#9B7CFF" stroke-opacity=".24" stroke-width="2"/>
+  <circle cx="95" cy="113" r="7" fill="#9B7CFF"/><circle cx="546" cy="286" r="7" fill="#5D8DFF"/><circle cx="95" cy="288" r="5" fill="#49DBE8"/><circle cx="543" cy="158" r="5" fill="#43D99B"/>
+  <path d="M190 135h260l25 49H165l25-49Z" fill="#9B7CFF" fill-opacity=".2" stroke="#9B7CFF" stroke-opacity=".72" stroke-width="4" stroke-linejoin="round"/>
+  <rect x="165" y="180" width="310" height="139" rx="27" fill="#121727" fill-opacity=".8" stroke="url(#g)" stroke-width="4"/>
+  <path d="M257 116h126l18 64H239l18-64Z" fill="#121727" fill-opacity=".7" stroke="#49DBE8" stroke-opacity=".58" stroke-width="3"/>
+  <rect x="274" y="211" width="92" height="42" rx="13" fill="#5D8DFF" fill-opacity=".16" stroke="#9B7CFF" stroke-opacity=".65" stroke-width="3"/>
+  <path d="M298 232h44M320 232v56m-12-12 12 12 12-12" fill="none" stroke="#D7D0FF" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

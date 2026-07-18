@@ -1,0 +1,19 @@
+{
+  "name": "codegraph_find_circular_deps",
+  "description": "Detect circular import/dependency chains in the codebase. USE WHEN: auditing architecture health, finding import cycles that prevent tree-shaking or module splitting, or diagnosing build/bundler errors caused by circular references. Returns each cycle as an ordered list of file paths with the originating file repeated at the end (e.g. [\"a.rs\", \"b.rs\", \"a.rs\"]). Self-imports are also detected. Use max_cycle_length to cap large cycles. Use compact=true for a quick yes/no answer with counts only.",
+  "inputSchema": {
+    "properties": {
+      "compact": {
+        "default": false,
+        "description": "Return a condensed summary (cycle count only) without the full file lists",
+        "type": "boolean"
+      },
+      "max_cycle_length": {
+        "default": 10.0,
+        "description": "Maximum number of files in a reported cycle (default: 10). Cycles longer than this are omitted.",
+        "type": "number"
+      }
+    },
+    "type": "object"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "name": "codegraph_get_dependency_graph",
+  "description": "Analyzes file import/dependency relationships. USE WHEN: understanding module architecture, finding circular dependencies, planning refactoring, or tracing import chains. Returns a graph of files connected by import edges. direction='imports' shows what this file depends on, 'importedBy' shows what depends on this file, 'both' shows full picture. depth controls how many levels to traverse (1=direct only). Requires uri parameter (file URI).",
+  "inputSchema": {
+    "properties": {
+      "depth": {
+        "default": 3.0,
+        "description": "How many levels of dependencies to traverse (1-10, default: 3)",
+        "type": "number"
+      },
+      "direction": {
+        "default": "both",
+        "description": "Direction to analyze: 'imports' (what this file uses), 'importedBy' (what uses this file), or 'both'",
+        "enum": [
+          "imports",
+          "importedBy",
+          "both"
+        ],
+        "type": "string"
+      },
+      "includeExternal": {
+        "default": false,
+        "description": "Whether to include external dependencies from node_modules/packages",
+        "type": "boolean"
+      },
+      "summary": {
+        "default": false,
+        "description": "Return a condensed summary for large graphs",
+        "type": "boolean"
+      },
+      "uri": {
+        "description": "The file URI to analyze (e.g., file:///path/to/file.ts)",
+        "type": "string"
+      }
+    },
+    "required": [
+      "uri"
+    ],
+    "type": "object"
+  }
+}

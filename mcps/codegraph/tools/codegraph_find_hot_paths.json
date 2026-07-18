@@ -1,0 +1,14 @@
+{
+  "name": "codegraph_find_hot_paths",
+  "description": "Find the most-called functions in the codebase, ranked by caller count. USE WHEN: identifying performance bottlenecks, understanding which functions are central to your codebase, or deciding where to focus optimisation or review effort. Scores each function by incoming Calls edges: direct callers count 1.0, depth-2 callers 0.5, depth-3 callers 0.25. Returns an array of functions with name, file path, line range, direct_callers, transitive_callers, score, and signature. Default limit 20.",
+  "inputSchema": {
+    "properties": {
+      "limit": {
+        "default": 20.0,
+        "description": "Maximum number of functions to return, sorted by caller score (default: 20)",
+        "type": "number"
+      }
+    },
+    "type": "object"
+  }
+}

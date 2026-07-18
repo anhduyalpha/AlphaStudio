@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-labelledby="title desc">
+  <title id="title">Audio Lab</title><desc id="desc">A connected waveform and local audio controls.</desc>
+  <defs><linearGradient id="g" x1="139" y1="200" x2="503" y2="200"><stop stop-color="#FF7FAC"/><stop offset=".52" stop-color="#9B7CFF"/><stop offset="1" stop-color="#49DBE8"/></linearGradient></defs>
+  <rect x="39" y="39" width="562" height="322" rx="46" fill="#FF7FAC" fill-opacity=".04" stroke="#FF7FAC" stroke-opacity=".18" stroke-width="2"/>
+  <path d="M98 111h90M452 288h92M104 289l65-40M465 110l73 43" stroke="#FF7FAC" stroke-opacity=".24" stroke-width="2"/>
+  <circle cx="94" cy="111" r="7" fill="#FF7FAC"/><circle cx="548" cy="288" r="7" fill="#49DBE8"/><circle cx="100" cy="291" r="5" fill="#5D8DFF"/><circle cx="542" cy="155" r="5" fill="#9B7CFF"/>
+  <rect x="132" y="91" width="376" height="218" rx="36" fill="#121727" fill-opacity=".78" stroke="url(#g)" stroke-width="4"/>
+  <path d="M168 202h25l14-51 24 102 25-135 28 159 27-124 25 95 25-73 23 49 19-22h31" fill="none" stroke="url(#g)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M177 280h286" stroke="#7785A8" stroke-opacity=".44" stroke-width="8" stroke-linecap="round"/><path d="M177 280h133" stroke="#49DBE8" stroke-width="8" stroke-linecap="round"/><circle cx="310" cy="280" r="11" fill="#fff" stroke="#49DBE8" stroke-width="5"/>
+  <circle cx="178" cy="122" r="7" fill="#43D99B"/><circle cx="204" cy="122" r="7" fill="#F4BD5E"/><circle cx="230" cy="122" r="7" fill="#FF7188"/>
+</svg>

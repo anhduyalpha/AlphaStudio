@@ -1,0 +1,46 @@
+{
+  "name": "codegraph_symbol_search",
+  "description": "Searches codebase for symbols by name or pattern. USE WHEN: finding function/class implementations, exploring unfamiliar code, or locating specific functionality. THIS IS YOUR STARTING POINT when you don't know where code is located. Supports both exact name matching and natural language queries (e.g., 'function that validates email addresses'). Returns array of matches, each with: name, kind (function/class/method/variable/interface/type/module), file path, line range, signature, and docstring. Use compact=true for minimal output (name, kind, location only). symbolType filters by kind — use 'any' to search all types.",
+  "inputSchema": {
+    "properties": {
+      "compact": {
+        "default": false,
+        "description": "Compact mode: return minimal info (name, kind, location) without signatures/docstrings for smaller responses",
+        "type": "boolean"
+      },
+      "includePrivate": {
+        "default": true,
+        "description": "Include private/internal symbols in results",
+        "type": "boolean"
+      },
+      "limit": {
+        "default": 20.0,
+        "description": "Maximum number of results to return",
+        "type": "number"
+      },
+      "query": {
+        "description": "Search query - can be a symbol name, partial name, or descriptive text",
+        "type": "string"
+      },
+      "symbolType": {
+        "default": "any",
+        "description": "Filter results by symbol type",
+        "enum": [
+          "function",
+          "class",
+          "method",
+          "variable",
+          "interface",
+          "type",
+          "module",
+          "any"
+        ],
+        "type": "string"
+      }
+    },
+    "required": [
+      "query"
+    ],
+    "type": "object"
+  }
+}

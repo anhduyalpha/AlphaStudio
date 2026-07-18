@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300" role="img" aria-labelledby="title desc">
+  <title id="title">External tool unavailable</title><desc id="desc">A disconnected tool plug beside a local utility node.</desc>
+  <defs><linearGradient id="g" x1="138" y1="57" x2="348" y2="250"><stop stop-color="#F4BD5E"/><stop offset="1" stop-color="#FF7FAC"/></linearGradient></defs>
+  <path d="M61 151h74M345 151h74M240 32v49M240 221v47" stroke="#7B88AD" stroke-opacity=".28" stroke-width="2"/>
+  <circle cx="56" cy="151" r="6" fill="#F4BD5E"/><circle cx="424" cy="151" r="6" fill="#FF7FAC"/><circle cx="240" cy="27" r="5" fill="#9B7CFF"/><circle cx="240" cy="273" r="5" fill="#49DBE8"/>
+  <rect x="127" y="48" width="226" height="205" rx="43" fill="#F4BD5E" fill-opacity=".05" stroke="#F4BD5E" stroke-opacity=".22" stroke-width="3"/>
+  <path d="M171 95h57v48a29 29 0 0 1-29 29h-28V95Z" fill="#121727" fill-opacity=".58" stroke="#F4BD5E" stroke-opacity=".7" stroke-width="5"/>
+  <path d="M184 75v20M214 75v20M199 172v40" stroke="#F4BD5E" stroke-width="8" stroke-linecap="round"/>
+  <path d="M309 204a39 39 0 1 0-52-52l22 22-18 18-22-22a39 39 0 0 0 52 52l49 49" fill="none" stroke="url(#g)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="m237 115 82 82" stroke="#FF7188" stroke-width="7" stroke-linecap="round"/><circle cx="278" cy="156" r="9" fill="#fff" stroke="#FF7FAC" stroke-width="5"/>
+</svg>

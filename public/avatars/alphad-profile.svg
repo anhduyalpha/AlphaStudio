@@ -1,0 +1,22 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="52" y1="46" x2="452" y2="470" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#17112F"/><stop offset="0.48" stop-color="#0D1731"/><stop offset="1" stop-color="#07151B"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="137" y1="128" x2="391" y2="392" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B499FF"/><stop offset="0.5" stop-color="#6C8FFF"/><stop offset="1" stop-color="#49DBE8"/>
+    </linearGradient>
+    <filter id="glow" x="66" y="61" width="393" height="393" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="22"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#bg)"/>
+  <circle cx="256" cy="252" r="166" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
+  <circle cx="256" cy="252" r="132" fill="url(#accent)" fill-opacity="0.16" filter="url(#glow)"/>
+  <path d="M119 374L211 146H252L344 374H294L276 326H185L167 374H119ZM202 281H259L231 202L202 281Z" fill="url(#accent)"/>
+  <path d="M284 148H393L339 202H284V148Z" fill="#49DBE8" fill-opacity="0.95"/>
+  <path d="M310 223H392V270H310V223Z" fill="#F7F8FC" fill-opacity="0.93"/>
+  <path d="M310 290H365C383 290 398 305 398 323V341C398 359 383 374 365 374H310V332H353C359 332 364 327 364 321C364 315 359 310 353 310H310V290Z" fill="#F7F8FC" fill-opacity="0.93"/>
+  <circle cx="106" cy="128" r="5" fill="#9B7CFF"/><circle cx="420" cy="388" r="5" fill="#49DBE8"/>
+  <path d="M80 238H114M398 168H432M256 76V106M256 402V432" stroke="rgba(255,255,255,0.16)" stroke-width="2" stroke-linecap="round"/>
+</svg>

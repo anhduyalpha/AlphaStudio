@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-labelledby="title desc">
+  <title id="title">Converter workspace</title><desc id="desc">Connected source and output files exchanging data.</desc>
+  <defs><linearGradient id="g" x1="160" y1="90" x2="478" y2="318"><stop stop-color="#9B7CFF"/><stop offset="1" stop-color="#49DBE8"/></linearGradient></defs>
+  <rect x="39" y="39" width="562" height="322" rx="46" fill="#9B7CFF" fill-opacity=".055" stroke="#9B7CFF" stroke-opacity=".19" stroke-width="2"/>
+  <path d="M94 108h82M464 292h82M101 297l65-37M474 105l62 37" fill="none" stroke="#5D8DFF" stroke-opacity=".28" stroke-width="2"/>
+  <circle cx="91" cy="108" r="7" fill="#9B7CFF"/><circle cx="549" cy="292" r="7" fill="#49DBE8"/><circle cx="94" cy="301" r="5" fill="#5D8DFF"/><circle cx="544" cy="147" r="5" fill="#43D99B"/>
+  <rect x="135" y="105" width="142" height="190" rx="25" fill="#121727" fill-opacity=".72" stroke="#9B7CFF" stroke-opacity=".72" stroke-width="3"/>
+  <path d="M230 105v43h47" fill="#9B7CFF" fill-opacity=".16" stroke="#9B7CFF" stroke-opacity=".65" stroke-width="3"/>
+  <path d="M169 190h76M169 218h58M169 246h70" stroke="#B7A7FF" stroke-width="9" stroke-linecap="round" opacity=".76"/>
+  <rect x="363" y="105" width="142" height="190" rx="25" fill="#121727" fill-opacity=".72" stroke="#49DBE8" stroke-opacity=".72" stroke-width="3"/>
+  <path d="M458 105v43h47" fill="#49DBE8" fill-opacity=".16" stroke="#49DBE8" stroke-opacity=".65" stroke-width="3"/>
+  <path d="M397 190h76M397 218h58M397 246h70" stroke="#8CEAF0" stroke-width="9" stroke-linecap="round" opacity=".76"/>
+  <path d="M287 174h62l-18-18M353 226h-62l18 18" fill="none" stroke="url(#g)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="320" cy="200" r="9" fill="#F7F8FC" stroke="#6E79FF" stroke-width="5"/>
+</svg>

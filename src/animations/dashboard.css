@@ -1,0 +1,297 @@
+/* Dashboard & agent fan-out motion — owned by dashboard subagent.
+   Layered on top of src/styles.css (imported after). Single-class anchored,
+   every @keyframes prefixed `dash-`. */
+
+/* ============================================================
+   PART A — signature "agents fan out" visual (fully owned here)
+   ============================================================ */
+
+.agent-fan {
+  position: relative;
+  width: 100%;
+  min-height: 310px;
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+}
+
+/* concentric breathing rings behind everything */
+.agent-fan-rings {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Rings are STATIC by default. In full mode, only the outer dashed ring makes
+   one slow transform-only rotation — the single permitted idle decoration. */
+.agent-fan-rings span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  transform: translate(-50%, -50%);
+}
+
+.agent-fan-rings span:nth-child(1) { width: 150px; height: 150px; opacity: 0.65; }
+.agent-fan-rings span:nth-child(2) { width: 236px; height: 236px; opacity: 0.4; }
+.agent-fan-rings span:nth-child(3) { width: 320px; height: 320px; opacity: 0.24; border-style: dashed; }
+
+html[data-motion="full"] .agent-fan-rings span:nth-child(3) {
+  animation: dash-ring-spin 48s linear infinite;
+}
+
+/* connecting spokes (SVG fills the container, stretched viewBox) */
+.agent-fan-spokes {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.agent-fan-spoke {
+  stroke: var(--border-strong);
+  stroke-width: 1;
+  stroke-linecap: round;
+  stroke-dasharray: 64;
+  stroke-dashoffset: 64;
+  opacity: 0;
+  animation: dash-spoke-draw 620ms var(--ease) both;
+  animation-delay: var(--fan-delay, 260ms);
+}
+
+/* radiating specialist agent nodes */
+.agent-node {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  display: grid;
+  justify-items: center;
+  gap: 0.32rem;
+  width: max-content;
+  --fan-radius: clamp(120px, 26vw, 190px);
+  transform:
+    translate(-50%, -50%)
+    rotate(var(--fan-angle))
+    translateX(var(--fan-radius))
+    rotate(calc(var(--fan-angle) * -1));
+  animation: dash-node-pop 560ms var(--ease) both;
+  animation-delay: var(--fan-delay, 320ms);
+}
+
+/* color tints — set vars so the single-class chip can read them */
+.color-purple { --agent-c: var(--purple); --agent-tint: rgba(155, 124, 255, 0.14); }
+.color-cyan   { --agent-c: var(--cyan);   --agent-tint: rgba(73, 219, 232, 0.14); }
+.color-blue   { --agent-c: var(--blue);   --agent-tint: rgba(93, 141, 255, 0.14); }
+.color-pink   { --agent-c: var(--pink);   --agent-tint: rgba(255, 127, 172, 0.14); }
+.color-green  { --agent-c: var(--green);  --agent-tint: rgba(67, 217, 155, 0.14); }
+.color-amber  { --agent-c: var(--amber);  --agent-tint: rgba(244, 189, 94, 0.14); }
+
+/* Static chip with a static premium shadow. No idle float by default; the
+   float lives on the chip (never the fanned node) and runs in full mode only. */
+.agent-node-chip {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  color: var(--agent-c, var(--purple));
+  background: var(--agent-tint, var(--surface-hover));
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  box-shadow: var(--shadow-md);
+}
+
+html[data-motion="full"] .agent-node-chip {
+  animation: dash-node-float 4.2s ease-in-out infinite;
+  animation-delay: var(--fan-delay, 320ms);
+}
+
+.agent-node b {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+}
+
+/* centered orchestrator core */
+.agent-core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 3;
+  width: 92px;
+  height: 92px;
+  display: grid;
+  place-items: center;
+  gap: 0.15rem;
+  color: #fff;
+  text-align: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--purple), var(--blue));
+  box-shadow: var(--shadow-lg), 0 0 42px rgba(155, 124, 255, 0.45);
+  transform: translate(-50%, -50%);
+  animation: dash-core-in 620ms var(--ease) both;
+  animation-delay: 120ms;
+}
+
+.agent-core strong {
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+/* Expanding ring behind the core: transform/opacity only. A finite 2-pulse
+   flourish after mount by default; continuous only in full mode. */
+.agent-core-pulse {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: -1;
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  border: 1.5px solid var(--purple);
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  animation: dash-core-pulse 2.8s var(--ease) 500ms 2 both;
+}
+
+html[data-motion="full"] .agent-core-pulse {
+  animation-iteration-count: infinite;
+}
+
+@keyframes dash-ring-spin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to   { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+@keyframes dash-spoke-draw {
+  from { stroke-dashoffset: 64; opacity: 0; }
+  60%  { opacity: 0.55; }
+  to   { stroke-dashoffset: 0; opacity: 0.5; }
+}
+
+/* nodes start collapsed at the core, then pop outward to rest */
+@keyframes dash-node-pop {
+  from {
+    opacity: 0;
+    transform:
+      translate(-50%, -50%)
+      rotate(var(--fan-angle))
+      translateX(0)
+      rotate(calc(var(--fan-angle) * -1))
+      scale(0.2);
+  }
+  60% { opacity: 1; }
+  to {
+    opacity: 1;
+    transform:
+      translate(-50%, -50%)
+      rotate(var(--fan-angle))
+      translateX(var(--fan-radius))
+      rotate(calc(var(--fan-angle) * -1))
+      scale(1);
+  }
+}
+
+@keyframes dash-node-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-5px); }
+}
+
+@keyframes dash-core-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.35); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes dash-core-pulse {
+  0%   { opacity: 0.55; transform: translate(-50%, -50%) scale(1); }
+  70%  { opacity: 0; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(2.1); }
+}
+
+/* ============================================================
+   PART B — dashboard content motion (enhance only)
+   ============================================================ */
+
+/* stat cards — staggered rise + refined hover lift */
+.stat-card {
+  animation: dash-rise 560ms var(--ease) both;
+  transition: transform 220ms var(--ease), border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.stat-card:nth-child(1) { animation-delay: 60ms; }
+.stat-card:nth-child(2) { animation-delay: 140ms; }
+.stat-card:nth-child(3) { animation-delay: 220ms; }
+.stat-card:nth-child(4) { animation-delay: 300ms; }
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+
+/* quick actions — staggered pop-in */
+.dashboard-quick-grid button {
+  animation: dash-pop 480ms var(--ease) both;
+}
+
+.dashboard-quick-grid button:nth-child(1) { animation-delay: 80ms; }
+.dashboard-quick-grid button:nth-child(2) { animation-delay: 150ms; }
+.dashboard-quick-grid button:nth-child(3) { animation-delay: 220ms; }
+.dashboard-quick-grid button:nth-child(4) { animation-delay: 290ms; }
+.dashboard-quick-grid button:nth-child(5) { animation-delay: 360ms; }
+.dashboard-quick-grid button:nth-child(6) { animation-delay: 430ms; }
+.dashboard-quick-grid button:nth-child(7) { animation-delay: 500ms; }
+.dashboard-quick-grid button:nth-child(8) { animation-delay: 570ms; }
+
+/* launch art — slow scale on hover (opacity handled in base styles) */
+.launch-art {
+  transition: opacity 220ms ease, transform 620ms var(--ease);
+}
+
+.launch-card:hover .launch-art {
+  transform: scale(1.06);
+}
+
+/* data table rows — subtle staggered fade-in */
+.data-table tbody tr {
+  animation: dash-row-in 520ms var(--ease) both;
+}
+
+.data-table tbody tr:nth-child(1) { animation-delay: 60ms; }
+.data-table tbody tr:nth-child(2) { animation-delay: 120ms; }
+.data-table tbody tr:nth-child(3) { animation-delay: 180ms; }
+.data-table tbody tr:nth-child(4) { animation-delay: 240ms; }
+.data-table tbody tr:nth-child(5) { animation-delay: 300ms; }
+.data-table tbody tr:nth-child(6) { animation-delay: 360ms; }
+
+/* privacy orb — subtle transform-only pulse, full mode only (static otherwise) */
+html[data-motion="full"] .privacy-orb {
+  animation: dash-orb-pulse 3.6s ease-in-out infinite;
+}
+
+@keyframes dash-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dash-pop {
+  from { opacity: 0; transform: translateY(10px) scale(0.94); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes dash-row-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dash-orb-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50%      { transform: scale(1.06); opacity: 1; }
+}

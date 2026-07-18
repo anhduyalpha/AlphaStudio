@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300" role="img" aria-labelledby="title desc">
+  <title id="title">No converted files</title><desc id="desc">An empty output tray waiting for a completed file.</desc>
+  <defs><linearGradient id="g" x1="135" y1="52" x2="350" y2="252"><stop stop-color="#49DBE8"/><stop offset="1" stop-color="#43D99B"/></linearGradient></defs>
+  <path d="M65 177h83M332 177h83M240 34v42" stroke="#7B88AD" stroke-opacity=".3" stroke-width="2"/>
+  <circle cx="60" cy="177" r="6" fill="#49DBE8"/><circle cx="420" cy="177" r="6" fill="#43D99B"/><circle cx="240" cy="29" r="5" fill="#9B7CFF"/>
+  <rect x="128" y="53" width="224" height="200" rx="42" fill="#49DBE8" fill-opacity=".055" stroke="#49DBE8" stroke-opacity=".23" stroke-width="3"/>
+  <path d="M169 171h142l22 64H147l22-64Z" fill="#121727" fill-opacity=".28" stroke="#8CA1C2" stroke-opacity=".58" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M147 235h186" stroke="url(#g)" stroke-width="7" stroke-linecap="round"/>
+  <rect x="190" y="78" width="100" height="120" rx="18" fill="#121727" fill-opacity=".68" stroke="url(#g)" stroke-width="4"/>
+  <path d="M258 78v29h32" fill="#49DBE8" fill-opacity=".14" stroke="#49DBE8" stroke-opacity=".62" stroke-width="3"/>
+  <path d="m212 145 18 18 38-43" fill="none" stroke="#43D99B" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="240" cy="204" r="8" fill="#fff" stroke="#43D99B" stroke-width="4"/>
+</svg>

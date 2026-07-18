@@ -1,0 +1,31 @@
+{
+  "name": "codegraph_verify_design",
+  "description": "Cross-reference an indexed design doc against the code graph. Extracts backtick-wrapped identifiers from the doc (e.g. `UserService`, `authenticate()`, `POST /payments`) and checks each against the code graph via symbol search. direction='forward' (default): doc claims → code existence. direction='reverse': public code symbols → doc mentions. direction='both': both directions in one call. Returns verified/unverified with heading-path context. USE WHEN: checking whether the codebase matches the design doc, or after a refactor to see if the doc is still accurate.",
+  "inputSchema": {
+    "properties": {
+      "compact": {
+        "default": false,
+        "description": "Compact output: return only counts + gap items (skip the verified list in forward direction, skip undocumented list in reverse). Dramatically reduces output size for large codebases. Default: false.",
+        "type": "boolean"
+      },
+      "direction": {
+        "default": "forward",
+        "description": "Verification direction. 'forward' = doc→code (do claimed identifiers exist?). 'reverse' = code→doc (are public symbols documented?). 'both' = run both directions.",
+        "enum": [
+          "forward",
+          "reverse",
+          "both"
+        ],
+        "type": "string"
+      },
+      "source": {
+        "description": "Source file path of the indexed doc to verify against the code graph (as shown by codegraph_list_doc_sources).",
+        "type": "string"
+      }
+    },
+    "required": [
+      "source"
+    ],
+    "type": "object"
+  }
+}

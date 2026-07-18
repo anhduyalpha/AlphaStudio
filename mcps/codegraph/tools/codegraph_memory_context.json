@@ -1,0 +1,36 @@
+{
+  "name": "codegraph_memory_context",
+  "description": "Finds memories relevant to current code location. USE WHEN: starting work on a file/function to see past context. THIS SHOULD BE YOUR FIRST CALL when starting work on unfamiliar code. Returns memories array (id, title, content, kind, score, tags) ranked by relevance to the file/line. Optionally filter by kinds. Provide line for function-level precision.",
+  "inputSchema": {
+    "properties": {
+      "character": {
+        "description": "Optional character position",
+        "type": "number"
+      },
+      "kinds": {
+        "description": "Filter by memory kinds",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "limit": {
+        "default": 5.0,
+        "description": "Maximum memories to return",
+        "type": "number"
+      },
+      "line": {
+        "description": "Optional line number for more specific context",
+        "type": "number"
+      },
+      "uri": {
+        "description": "File URI to find relevant memories for (e.g. file:///Users/me/project/src/main.rs)",
+        "type": "string"
+      }
+    },
+    "required": [
+      "uri"
+    ],
+    "type": "object"
+  }
+}

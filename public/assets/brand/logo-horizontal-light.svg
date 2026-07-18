@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 76" role="img" aria-labelledby="title desc">
+  <title id="title">AlphaStudio logo</title><desc id="desc">AlphaStudio connected-node logo for light surfaces.</desc>
+  <defs><linearGradient id="g" x1="4" y1="2" x2="70" y2="72" gradientUnits="userSpaceOnUse"><stop stop-color="#835FFF"/><stop offset=".5" stop-color="#5269E9"/><stop offset="1" stop-color="#1CBAC8"/></linearGradient></defs>
+  <rect x="2" y="2" width="72" height="72" rx="21" fill="url(#g)"/>
+  <path d="M23 53 36.6 21a1.4 1.4 0 0 1 2.6 0L52 53M29 40.5h17" fill="none" stroke="#fff" stroke-width="4.6" stroke-linecap="round"/><circle cx="23" cy="53" r="4" fill="#fff"/><circle cx="38" cy="18.8" r="4" fill="#fff"/><circle cx="52" cy="53" r="4" fill="#E9FCFF"/>
+  <text x="94" y="45" fill="#111827" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="34" font-weight="730" letter-spacing="-.8">Alpha<tspan fill="#684CF1">Studio</tspan></text>
+  <text x="96" y="63" fill="#64748B" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="10" font-weight="600" letter-spacing="2.4">LOCAL CREATIVE UTILITIES</text>
+</svg>

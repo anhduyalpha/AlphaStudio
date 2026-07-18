@@ -1,0 +1,9 @@
+<svg width="640" height="400" viewBox="0 0 640 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs><linearGradient id="g" x1="80" y1="50" x2="560" y2="350" gradientUnits="userSpaceOnUse"><stop stop-color="#43D99B"/><stop offset="1" stop-color="#49DBE8"/></linearGradient><filter id="blur"><feGaussianBlur stdDeviation="34"/></filter></defs>
+<rect width="640" height="400" rx="38" fill="#0B0D19"/><circle cx="112" cy="72" r="116" fill="#43D99B" fill-opacity=".16" filter="url(#blur)"/><circle cx="532" cy="324" r="120" fill="#49DBE8" fill-opacity=".14" filter="url(#blur)"/>
+<rect x="28" y="28" width="584" height="344" rx="30" fill="rgba(255,255,255,.035)" stroke="rgba(255,255,255,.09)"/>
+<g transform="translate(52 28)" stroke="url(#g)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"><rect x="90" y="92" width="180" height="174" rx="28"/><circle cx="140" cy="140" r="17"/><path d="M94 230L158 172L202 208L232 176L270 214"/></g>
+<rect x="382" y="80" width="176" height="26" rx="13" fill="rgba(255,255,255,.08)"/><rect x="382" y="124" width="126" height="14" rx="7" fill="rgba(255,255,255,.06)"/><rect x="382" y="150" width="158" height="14" rx="7" fill="rgba(255,255,255,.06)"/>
+<text x="382" y="248" fill="#F7F8FC" font-size="25" font-family="Arial, sans-serif" font-weight="700">Image Lab</text><text x="382" y="278" fill="#A7AFC3" font-size="15" font-family="Arial, sans-serif">Resize • Optimize</text>
+<rect x="382" y="304" width="142" height="38" rx="19" fill="url(#g)" fill-opacity=".22" stroke="url(#g)" stroke-opacity=".45"/><text x="406" y="328" fill="#F7F8FC" font-size="13" font-family="Arial, sans-serif">Open workspace</text>
+</svg>

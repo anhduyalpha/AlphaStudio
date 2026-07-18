@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-labelledby="title desc">
+  <title id="title">Color Studio</title><desc id="desc">Connected color swatches, gradient nodes, and an eyedropper.</desc>
+  <defs><linearGradient id="g" x1="168" y1="91" x2="470" y2="313"><stop stop-color="#F4BD5E"/><stop offset=".35" stop-color="#FF7FAC"/><stop offset=".68" stop-color="#9B7CFF"/><stop offset="1" stop-color="#49DBE8"/></linearGradient></defs>
+  <rect x="39" y="39" width="562" height="322" rx="46" fill="#F4BD5E" fill-opacity=".04" stroke="#F4BD5E" stroke-opacity=".18" stroke-width="2"/>
+  <path d="M96 115h84M463 285h80M104 287l67-41M466 112l71 46" stroke="#F4BD5E" stroke-opacity=".24" stroke-width="2"/>
+  <circle cx="92" cy="115" r="7" fill="#F4BD5E"/><circle cx="547" cy="285" r="7" fill="#49DBE8"/><circle cx="100" cy="290" r="5" fill="#9B7CFF"/><circle cx="541" cy="160" r="5" fill="#FF7FAC"/>
+  <rect x="153" y="85" width="334" height="230" rx="38" fill="#121727" fill-opacity=".78" stroke="url(#g)" stroke-width="4"/>
+  <circle cx="230" cy="174" r="51" fill="#FF7FAC" fill-opacity=".75"/><circle cx="300" cy="174" r="51" fill="#9B7CFF" fill-opacity=".75"/><circle cx="265" cy="230" r="51" fill="#49DBE8" fill-opacity=".72"/>
+  <path d="M352 147h88a18 18 0 0 1 18 18v76a18 18 0 0 1-18 18h-88" fill="url(#g)" fill-opacity=".16" stroke="#D8D0FF" stroke-opacity=".55" stroke-width="3"/>
+  <path d="m368 233 56-56 17 17-56 56-27 9 10-26Z" fill="none" stroke="#F7F8FC" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M179 286h282" stroke="url(#g)" stroke-width="13" stroke-linecap="round"/>
+</svg>

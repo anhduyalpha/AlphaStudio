@@ -1,0 +1,18 @@
+{
+  "name": "codegraph_find_dead_imports",
+  "description": "Find unused imports — modules imported but never referenced by any function in the importing file. USE WHEN: cleaning up import lists, reducing bundle size, or auditing a file before refactoring. Returns dead_imports (confirmed unused, module is in the graph), unresolved_imports (external/third-party modules that could not be verified), total_imports, and dead_count. Provide uri to restrict to one file; omit for a workspace-wide scan. LIMITATIONS: macro-generated call sites and dynamic dispatch may cause false positives.",
+  "inputSchema": {
+    "properties": {
+      "limit": {
+        "default": 100.0,
+        "description": "Maximum number of dead imports to return (default: 100)",
+        "type": "number"
+      },
+      "uri": {
+        "description": "File URI to restrict analysis to a single file (e.g. file:///path/to/foo.rs). Omit to scan the entire indexed workspace.",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  }
+}

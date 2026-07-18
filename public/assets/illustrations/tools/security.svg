@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-labelledby="title desc">
+  <title id="title">Security Lab</title><desc id="desc">A connected shield protecting a local file node.</desc>
+  <defs><linearGradient id="g" x1="194" y1="70" x2="454" y2="330"><stop stop-color="#43D99B"/><stop offset="1" stop-color="#49DBE8"/></linearGradient></defs>
+  <rect x="39" y="39" width="562" height="322" rx="46" fill="#43D99B" fill-opacity=".045" stroke="#43D99B" stroke-opacity=".18" stroke-width="2"/>
+  <path d="M91 122h113M436 278h113M95 278l88-49M462 120l83 45" stroke="#43D99B" stroke-opacity=".25" stroke-width="2"/>
+  <circle cx="87" cy="122" r="7" fill="#43D99B"/><circle cx="553" cy="278" r="7" fill="#49DBE8"/><circle cx="91" cy="280" r="5" fill="#5D8DFF"/><circle cx="550" cy="167" r="5" fill="#9B7CFF"/>
+  <path d="M320 70 446 117v84c0 76-49 123-126 147-77-24-126-71-126-147v-84L320 70Z" fill="#121727" fill-opacity=".8" stroke="url(#g)" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M320 105 407 138v60c0 51-32 85-87 106-55-21-87-55-87-106v-60l87-33Z" fill="#43D99B" fill-opacity=".12" stroke="#43D99B" stroke-opacity=".34" stroke-width="3"/>
+  <path d="m270 204 34 34 70-76" fill="none" stroke="#F0FFFF" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="320" cy="104" r="8" fill="#43D99B"/><circle cx="231" cy="201" r="7" fill="#49DBE8"/><circle cx="409" cy="201" r="7" fill="#9B7CFF"/>
+</svg>

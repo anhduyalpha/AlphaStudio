@@ -1,0 +1,21 @@
+{
+  "name": "codegraph_index_directory",
+  "description": "Add an entire directory to the code graph without clearing existing data. USE WHEN: you need to explore a new codebase (e.g., kernel headers, another driver's source) alongside already-indexed code. Recursively indexes all supported files, resolves cross-file imports, and rebuilds search indexes. Does NOT clear existing graph data — new files are added alongside. Set embed=true to also build embeddings for similarity tools. Requires path parameter (absolute directory path).",
+  "inputSchema": {
+    "properties": {
+      "embed": {
+        "default": false,
+        "description": "Also build embeddings for similarity search (default: false). Set true for source code you want in find_similar/find_duplicates results. Leave false for reference-only code like kernel headers.",
+        "type": "boolean"
+      },
+      "path": {
+        "description": "Absolute path to the directory to add to the index",
+        "type": "string"
+      }
+    },
+    "required": [
+      "path"
+    ],
+    "type": "object"
+  }
+}

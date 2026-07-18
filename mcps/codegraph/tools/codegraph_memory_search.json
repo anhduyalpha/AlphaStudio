@@ -1,0 +1,47 @@
+{
+  "name": "codegraph_memory_search",
+  "description": "Searches memories with hybrid BM25 + semantic + graph proximity. USE WHEN: recalling past knowledge — previous debugging sessions, architectural decisions, known issues. ALWAYS SEARCH before starting complex tasks. Returns results array (id, title, content, kind, score, tags, created_at) sorted by relevance. Filter with kinds (debug_context, architectural_decision, known_issue, convention, project_context), tags, or codeContext (node IDs for proximity boosting). Set currentOnly=false to include invalidated memories.",
+  "inputSchema": {
+    "properties": {
+      "codeContext": {
+        "description": "Code node IDs for proximity boosting",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "currentOnly": {
+        "default": true,
+        "description": "Only return non-invalidated memories",
+        "type": "boolean"
+      },
+      "kinds": {
+        "description": "Filter by memory kinds",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "limit": {
+        "default": 10.0,
+        "description": "Maximum results to return",
+        "type": "number"
+      },
+      "query": {
+        "description": "Search query - supports natural language",
+        "type": "string"
+      },
+      "tags": {
+        "description": "Filter by tags",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "query"
+    ],
+    "type": "object"
+  }
+}

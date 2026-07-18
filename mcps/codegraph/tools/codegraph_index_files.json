@@ -1,0 +1,20 @@
+{
+  "name": "codegraph_index_files",
+  "description": "Add or update specific files in the code graph without full reindex. USE WHEN: new files were created, existing files were modified, or you need specific files re-indexed immediately. Removes old data for each file before re-parsing — safe to call on already-indexed files. Resolves cross-file imports and rebuilds search indexes. Much faster than full reindex. Requires paths parameter (array of absolute file paths).",
+  "inputSchema": {
+    "properties": {
+      "paths": {
+        "description": "Array of absolute file paths to add to the index",
+        "items": {
+          "description": "Absolute file path",
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "paths"
+    ],
+    "type": "object"
+  }
+}

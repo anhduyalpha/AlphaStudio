@@ -1,0 +1,210 @@
+/* Tool workspace motion (converter, pdf, qr) — owned by workspaces subagent.
+   Imported AFTER src/styles.css. Single-class selectors layer on top.
+   Only transform/opacity/filter/box-shadow/background/background-position animated. */
+
+/* ---------------------------------------------------------------------------
+   Converter — dropzone
+--------------------------------------------------------------------------- */
+/* Idle dropzone is static (premium border/bg live in styles.css). Motion is
+   triggered only by direct interaction: hover, keyboard focus, drag-over. */
+.file-dropzone {
+  transition: transform 200ms var(--ease), border-color 200ms ease, background-color 200ms ease;
+}
+
+.file-dropzone:hover,
+.file-dropzone:focus-visible,
+.file-dropzone.is-dragover {
+  transform: scale(1.012);
+}
+
+.dropzone-icon {
+  transition: transform 260ms var(--ease);
+}
+
+.file-dropzone:hover .dropzone-icon,
+.file-dropzone:focus-visible .dropzone-icon,
+.file-dropzone.is-dragover .dropzone-icon {
+  transform: translateY(-5px);
+}
+
+/* ---------------------------------------------------------------------------
+   Converter — file queue (staggered slide-in from left)
+--------------------------------------------------------------------------- */
+.file-queue-row {
+  animation: wsp-row-slide 460ms var(--ease) both;
+}
+
+.file-queue-row:nth-child(1) { animation-delay: 40ms; }
+.file-queue-row:nth-child(2) { animation-delay: 110ms; }
+.file-queue-row:nth-child(3) { animation-delay: 180ms; }
+.file-queue-row:nth-child(4) { animation-delay: 250ms; }
+.file-queue-row:nth-child(5) { animation-delay: 320ms; }
+.file-queue-row:nth-child(6) { animation-delay: 390ms; }
+
+@keyframes wsp-row-slide {
+  from { opacity: 0; transform: translateX(-22px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ---------------------------------------------------------------------------
+   Progress bars — indeterminate shimmer sweep (background-position)
+--------------------------------------------------------------------------- */
+/* Transport shimmer: a transform-driven pseudo-element (no background-position
+   animation). Runs ONLY while media is playing; static otherwise. */
+.transport-line {
+  position: relative;
+  overflow: hidden;
+}
+
+.transport-line i {
+  position: relative;
+  overflow: hidden;
+}
+
+.transport-line[data-playing="true"] i::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 45%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.5) 50%, rgba(255, 255, 255, 0) 100%);
+  transform: translate3d(-160%, 0, 0);
+  animation: wsp-progress-shimmer 1.9s linear infinite;
+}
+
+@keyframes wsp-progress-shimmer {
+  from { transform: translate3d(-160%, 0, 0); }
+  to   { transform: translate3d(360%, 0, 0); }
+}
+
+/* ---------------------------------------------------------------------------
+   PDF — module cards (staggered pop-in + refined hover lift)
+--------------------------------------------------------------------------- */
+.pdf-module-card {
+  animation: wsp-card-pop 480ms var(--ease) both;
+}
+
+.pdf-module-card:nth-child(1) { animation-delay: 40ms; }
+.pdf-module-card:nth-child(2) { animation-delay: 95ms; }
+.pdf-module-card:nth-child(3) { animation-delay: 150ms; }
+.pdf-module-card:nth-child(4) { animation-delay: 205ms; }
+.pdf-module-card:nth-child(5) { animation-delay: 260ms; }
+.pdf-module-card:nth-child(6) { animation-delay: 315ms; }
+
+.pdf-module-card:hover {
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.22);
+}
+
+@keyframes wsp-card-pop {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ---------------------------------------------------------------------------
+   PDF — pages (staggered fade/scale-in inside canvas)
+--------------------------------------------------------------------------- */
+.pdf-page {
+  animation: wsp-page-in 420ms var(--ease) both;
+}
+
+.pdf-page:nth-child(1) { animation-delay: 30ms; }
+.pdf-page:nth-child(2) { animation-delay: 75ms; }
+.pdf-page:nth-child(3) { animation-delay: 120ms; }
+.pdf-page:nth-child(4) { animation-delay: 165ms; }
+.pdf-page:nth-child(5) { animation-delay: 210ms; }
+.pdf-page:nth-child(6) { animation-delay: 255ms; }
+.pdf-page:nth-child(7) { animation-delay: 300ms; }
+.pdf-page:nth-child(8) { animation-delay: 345ms; }
+
+@keyframes wsp-page-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.94); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ---------------------------------------------------------------------------
+   QR — frame entrance + soft infinite glow
+--------------------------------------------------------------------------- */
+/* One-time entrance; static premium glow via pseudo-element. The soft cyan
+   glow only breathes (opacity) in full mode — never an animated box-shadow. */
+.qr-frame {
+  position: relative;
+  animation: wsp-qr-enter 480ms var(--ease) both;
+}
+
+.qr-frame::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: 0 0 26px 3px rgba(73, 219, 232, 0.22);
+  opacity: 0.5;
+}
+
+html[data-motion="full"] .qr-frame::after {
+  animation: wsp-qr-glow 3.6s ease-in-out infinite;
+}
+
+@keyframes wsp-qr-enter {
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes wsp-qr-glow {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 0.75; }
+}
+
+/* QR modules materialize once — a few grouped waves, not per-module timers. */
+.mock-qr i.filled {
+  animation: wsp-qr-materialize 340ms var(--ease) both;
+}
+
+.mock-qr i.filled:nth-child(3n)   { animation-delay: 100ms; }
+.mock-qr i.filled:nth-child(5n)   { animation-delay: 190ms; }
+.mock-qr i.filled:nth-child(7n)   { animation-delay: 280ms; }
+
+@keyframes wsp-qr-materialize {
+  from { opacity: 0; transform: scale(0.4); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* QR logo pops in just after the frame settles */
+.qr-logo {
+  animation: wsp-logo-pop 420ms var(--ease) 320ms both;
+}
+
+@keyframes wsp-logo-pop {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+  70%  { transform: translate(-50%, -50%) scale(1.08); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* ---------------------------------------------------------------------------
+   QR — style presets (staggered entrance + active pop)
+--------------------------------------------------------------------------- */
+.style-preset {
+  animation: wsp-preset-in 440ms var(--ease) both;
+}
+
+.style-preset:nth-child(1) { animation-delay: 60ms; }
+.style-preset:nth-child(2) { animation-delay: 130ms; }
+.style-preset:nth-child(3) { animation-delay: 200ms; }
+.style-preset:nth-child(4) { animation-delay: 270ms; }
+.style-preset:nth-child(5) { animation-delay: 340ms; }
+.style-preset:nth-child(6) { animation-delay: 410ms; }
+
+.style-preset.active {
+  animation: wsp-preset-active-pop 360ms var(--ease);
+}
+
+@keyframes wsp-preset-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes wsp-preset-active-pop {
+  0%   { transform: scale(1); }
+  55%  { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}

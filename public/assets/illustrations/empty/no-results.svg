@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300" role="img" aria-labelledby="title desc">
+  <title id="title">No results found</title><desc id="desc">A search lens scanning an empty network of nodes.</desc>
+  <defs><linearGradient id="g" x1="135" y1="63" x2="353" y2="248"><stop stop-color="#5D8DFF"/><stop offset="1" stop-color="#9B7CFF"/></linearGradient></defs>
+  <path d="M55 125h78M347 125h78M91 231l75-39M390 230l-77-39" stroke="#7B88AD" stroke-opacity=".28" stroke-width="2"/>
+  <circle cx="50" cy="125" r="6" fill="#5D8DFF"/><circle cx="430" cy="125" r="6" fill="#9B7CFF"/><circle cx="86" cy="234" r="5" fill="#49DBE8"/><circle cx="395" cy="233" r="5" fill="#43D99B"/>
+  <rect x="126" y="49" width="228" height="204" rx="44" fill="#5D8DFF" fill-opacity=".05" stroke="#5D8DFF" stroke-opacity=".2" stroke-width="3"/>
+  <circle cx="221" cy="137" r="57" fill="#121727" fill-opacity=".52" stroke="url(#g)" stroke-width="8"/>
+  <path d="m263 179 66 66" stroke="url(#g)" stroke-width="15" stroke-linecap="round"/>
+  <path d="M186 123h70M186 151h48" stroke="#B7C3E1" stroke-opacity=".72" stroke-width="9" stroke-linecap="round"/>
+  <circle cx="183" cy="98" r="8" fill="#49DBE8"/><circle cx="259" cy="174" r="8" fill="#9B7CFF"/>
+  <path d="M158 77h-14a12 12 0 0 0-12 12v14M322 77h14a12 12 0 0 1 12 12v14" fill="none" stroke="#9B7CFF" stroke-opacity=".46" stroke-width="5" stroke-linecap="round"/>
+</svg>

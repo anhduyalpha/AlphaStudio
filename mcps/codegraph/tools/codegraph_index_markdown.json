@@ -1,0 +1,21 @@
+{
+  "name": "codegraph_index_markdown",
+  "description": "Index a local markdown file (ARCHITECTURE.md, API_DESIGN.md, etc.) into the persistent docs store. Parses the heading hierarchy, embeds leaf sections, and stores them so codegraph_search_docs can retrieve relevant sections in future sessions without re-reading the file. Returns the list of indexed chunks with their heading paths. USE WHEN: you want the agent to have design context across sessions without burning tokens re-reading the doc every time.",
+  "inputSchema": {
+    "properties": {
+      "maxChunkWords": {
+        "default": 300.0,
+        "description": "Maximum words per chunk before paragraph-splitting (default: 300). Lower values produce more precise embeddings but more chunks.",
+        "type": "number"
+      },
+      "path": {
+        "description": "Absolute path to a local markdown file to index (e.g. /projects/myapp/docs/ARCHITECTURE.md). The file is parsed into heading-tree chunks, embedded, and persisted so future sessions can search it without re-reading. Re-indexing the same path replaces previous chunks.",
+        "type": "string"
+      }
+    },
+    "required": [
+      "path"
+    ],
+    "type": "object"
+  }
+}

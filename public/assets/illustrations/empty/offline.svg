@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300" role="img" aria-labelledby="title desc">
+  <title id="title">Backend offline</title><desc id="desc">A local backend node disconnected from the AlphaStudio network.</desc>
+  <defs><linearGradient id="g" x1="133" y1="58" x2="354" y2="248"><stop stop-color="#5D8DFF"/><stop offset="1" stop-color="#49DBE8"/></linearGradient></defs>
+  <path d="M57 151h76M347 151h76M240 28v50M240 222v50" stroke="#7B88AD" stroke-opacity=".28" stroke-width="2" stroke-dasharray="7 8"/>
+  <circle cx="52" cy="151" r="6" fill="#5D8DFF"/><circle cx="428" cy="151" r="6" fill="#49DBE8"/><circle cx="240" cy="23" r="5" fill="#9B7CFF"/><circle cx="240" cy="277" r="5" fill="#43D99B"/>
+  <rect x="126" y="48" width="228" height="205" rx="43" fill="#5D8DFF" fill-opacity=".05" stroke="#5D8DFF" stroke-opacity=".2" stroke-width="3"/>
+  <path d="M169 172c0-25 18-46 43-50 9-28 35-47 65-47 38 0 69 30 70 68 19 5 33 23 33 44 0 25-20 45-45 45H187c-27 0-49-22-49-49 0-18 13-34 31-41Z" transform="translate(-18 -19)" fill="#121727" fill-opacity=".58" stroke="url(#g)" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M181 144a84 84 0 0 1 118 0M204 168a50 50 0 0 1 71 0M230 193a15 15 0 0 1 21 0" fill="none" stroke="#B7C3E1" stroke-width="8" stroke-linecap="round" opacity=".78"/>
+  <path d="M154 82 326 235" stroke="#FF7188" stroke-width="14" stroke-linecap="round"/><path d="M160 78 332 231" stroke="#fff" stroke-opacity=".5" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="240" cy="197" r="9" fill="#fff" stroke="#5D8DFF" stroke-width="5"/>
+</svg>

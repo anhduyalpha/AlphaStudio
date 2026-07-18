@@ -1,0 +1,41 @@
+{
+  "name": "codegraph_get_call_graph",
+  "description": "Maps function call relationships showing callers and callees. USE WHEN: tracing execution flow, understanding function usage, finding dead code, or debugging. Returns nodes with name, type, file path, and line range for each caller/callee in the chain. Use depth to control how many levels to traverse. Requires uri and line parameters.",
+  "inputSchema": {
+    "properties": {
+      "depth": {
+        "default": 3.0,
+        "description": "How many levels deep to traverse the call graph",
+        "type": "number"
+      },
+      "direction": {
+        "default": "both",
+        "description": "Direction: 'callers' (who calls this), 'callees' (what this calls), or 'both'",
+        "enum": [
+          "callers",
+          "callees",
+          "both"
+        ],
+        "type": "string"
+      },
+      "line": {
+        "description": "Line number of the function (0-indexed)",
+        "type": "number"
+      },
+      "summary": {
+        "default": false,
+        "description": "Return a condensed summary for large call graphs",
+        "type": "boolean"
+      },
+      "uri": {
+        "description": "The file URI containing the function (e.g. file:///Users/me/project/src/main.rs)",
+        "type": "string"
+      }
+    },
+    "required": [
+      "uri",
+      "line"
+    ],
+    "type": "object"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "name": "codegraph_analyze_impact",
+  "description": "Predicts blast radius of code changes before making them. USE WHEN: planning refactoring, renaming symbols, deleting code, or assessing risk. Returns: direct impacts (callers, references, subclasses), indirect impacts (2-level transitive), and CROSS-PROJECT impacts (consumers in other indexed projects found via unresolved calls, type references, and #include tracking). Risk level is elevated when cross-project consumers exist. changeType affects analysis: 'modify' shows callers/dependents, 'delete' shows all references that would break, 'rename' shows all sites needing updates. Requires uri and line parameters.",
+  "inputSchema": {
+    "properties": {
+      "changeType": {
+        "default": "modify",
+        "description": "Type of change to analyze",
+        "enum": [
+          "modify",
+          "delete",
+          "rename"
+        ],
+        "type": "string"
+      },
+      "line": {
+        "description": "Line number of the symbol (0-indexed)",
+        "type": "number"
+      },
+      "summary": {
+        "default": false,
+        "description": "Return a condensed summary when many impacts are found",
+        "type": "boolean"
+      },
+      "uri": {
+        "description": "The file URI containing the symbol (e.g. file:///Users/me/project/src/main.rs)",
+        "type": "string"
+      }
+    },
+    "required": [
+      "uri",
+      "line"
+    ],
+    "type": "object"
+  }
+}

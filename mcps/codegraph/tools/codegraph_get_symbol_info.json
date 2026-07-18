@@ -1,0 +1,26 @@
+{
+  "name": "codegraph_get_symbol_info",
+  "description": "Gets quick metadata about any symbol (function, class, variable, type). USE WHEN: you need to quickly understand what a symbol is, check its signature, or see usage count. FASTER than codegraph_get_ai_context when you only need basic info. Returns: name, kind, signature, visibility, file path, line range, and properties (is_async, is_static, etc.). Set includeReferences=true to also get all reference locations (slower). Requires uri and line parameters.",
+  "inputSchema": {
+    "properties": {
+      "includeReferences": {
+        "default": false,
+        "description": "Whether to include all references to the symbol. Can be slow on large workspaces.",
+        "type": "boolean"
+      },
+      "line": {
+        "description": "Line number of the symbol (0-indexed)",
+        "type": "number"
+      },
+      "uri": {
+        "description": "The file URI containing the symbol (e.g. file:///Users/me/project/src/main.rs)",
+        "type": "string"
+      }
+    },
+    "required": [
+      "uri",
+      "line"
+    ],
+    "type": "object"
+  }
+}

@@ -1,0 +1,132 @@
+/* Shell & navigation motion — owned by shell subagent. */
+
+/* ---- Keyframes (all prefixed shell-) ---- */
+
+@keyframes shell-sidebar-in {
+  from {
+    opacity: 0;
+    transform: translateX(-26px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes shell-link-in {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes shell-brand-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shell-topbar-in {
+  from {
+    opacity: 0;
+    transform: translateY(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shell-footer-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shell-dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.82); }
+}
+
+/* ---- Sidebar shell (desktop only, so the mobile drawer's own translateX toggle is untouched) ---- */
+
+@media (min-width: 901px) {
+  .sidebar {
+    animation: shell-sidebar-in 520ms var(--ease) both;
+  }
+}
+
+.brand-row {
+  animation: shell-brand-in 480ms var(--ease) 120ms both;
+}
+
+/* ---- Staggered nav links (nth-child starts at 2: the group's <p> label is child 1) ---- */
+
+.sidebar-link {
+  animation: shell-link-in 460ms var(--ease) both;
+}
+
+.sidebar-link:nth-child(2)  { animation-delay: 90ms; }
+.sidebar-link:nth-child(3)  { animation-delay: 115ms; }
+.sidebar-link:nth-child(4)  { animation-delay: 140ms; }
+.sidebar-link:nth-child(5)  { animation-delay: 165ms; }
+.sidebar-link:nth-child(6)  { animation-delay: 190ms; }
+.sidebar-link:nth-child(7)  { animation-delay: 215ms; }
+.sidebar-link:nth-child(8)  { animation-delay: 240ms; }
+.sidebar-link:nth-child(9)  { animation-delay: 265ms; }
+.sidebar-link:nth-child(n + 10) { animation-delay: 290ms; }
+
+/* Reinforce existing hover (base rule sets color/background only) */
+.sidebar-link:hover {
+  transform: translateX(3px);
+}
+
+.sidebar-link:active {
+  transform: translateX(1px);
+}
+
+/* ---- Status dot: subtle opacity pulse, full mode only (static otherwise) ---- */
+
+html[data-motion="full"] .status-dot {
+  animation: shell-dot-pulse 2.8s var(--ease) infinite;
+}
+
+/* ---- Topbar ---- */
+
+.app-topbar {
+  animation: shell-topbar-in 500ms var(--ease) both;
+}
+
+/* ---- Footer ---- */
+
+.app-footer {
+  animation: shell-footer-in 560ms var(--ease) 200ms both;
+}
+
+/* ---- Press feedback (preserve existing :hover transforms) ---- */
+
+.icon-button:active {
+  transform: translateY(0) scale(0.95);
+}
+
+.avatar-button {
+  transition: transform 180ms var(--ease);
+}
+
+.avatar-button:active {
+  transform: scale(0.95);
+}

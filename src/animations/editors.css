@@ -1,0 +1,166 @@
+/* Editor motion (image compare, media timeline/waveform).
+   Perf model: one-time entrances at base; infinite decoration only in
+   html[data-motion="full"]; playback effects gated on [data-playing="true"];
+   offscreen/hidden-tab pausing handled globally in motion-modes.css. */
+
+/* ---------------------------------------------------------------- */
+/* Image Lab — compare view                                          */
+/* ---------------------------------------------------------------- */
+
+@keyframes edt-pop-in {
+  0% { opacity: 0; transform: translateY(9px) scale(0.94); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes edt-label-in {
+  0% { opacity: 0; transform: translateY(7px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* One-time draggable-handle hint (transform only, then rests centered). */
+@keyframes edt-divider-hint {
+  0% { transform: translateX(0); }
+  30% { transform: translateX(-3px); }
+  65% { transform: translateX(3px); }
+  100% { transform: translateX(0); }
+}
+
+.compare-divider {
+  animation: edt-divider-hint 1.3s var(--ease) 600ms 1 both;
+}
+
+/* Orb: transform/opacity only; continuous shimmer is full-mode only. */
+@keyframes edt-orb-glow {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.05); opacity: 1; }
+}
+
+.image-swatch label {
+  animation: edt-label-in 460ms var(--ease) 120ms both;
+}
+
+/* Staggered pop-in for the thumbnail strip; .active border untouched. */
+.thumbnail-row button {
+  animation: edt-pop-in 420ms var(--ease) both;
+}
+.thumbnail-row button:nth-child(1) { animation-delay: 50ms; }
+.thumbnail-row button:nth-child(2) { animation-delay: 110ms; }
+.thumbnail-row button:nth-child(3) { animation-delay: 170ms; }
+.thumbnail-row button:nth-child(4) { animation-delay: 230ms; }
+
+/* ---------------------------------------------------------------- */
+/* Media Toolkit — video stage                                       */
+/* ---------------------------------------------------------------- */
+
+/* Entrance pulse ring (transform + opacity, runs twice then stops). */
+@keyframes edt-play-pulse {
+  0% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.9); }
+}
+
+.play-button {
+  transition: transform 200ms var(--ease), border-color 200ms ease, background-color 200ms ease;
+}
+.play-button::after {
+  content: "";
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 1px solid rgba(73, 219, 232, 0.5);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  opacity: 0;
+  animation: edt-play-pulse 2.4s var(--ease) 400ms 2 both;
+}
+/* Springy hover — preserves the centering translate. */
+.play-button:hover {
+  transform: translate(-50%, -50%) scale(1.09);
+  border-color: rgba(255, 255, 255, 0.55);
+  background: rgba(9, 12, 22, 0.72);
+}
+
+/* Living gradient blobs drift around their base rotate — full mode only. */
+@keyframes edt-blob-before {
+  0%, 100% { transform: rotate(28deg) translate(-2%, 1%); }
+  50% { transform: rotate(36deg) translate(2%, -2%); }
+}
+@keyframes edt-blob-after {
+  0%, 100% { transform: rotate(36deg) translate(2%, -1%); }
+  50% { transform: rotate(28deg) translate(-2%, 2%); }
+}
+
+/* ---------------------------------------------------------------- */
+/* Media Toolkit — timeline & waveform                               */
+/* ---------------------------------------------------------------- */
+
+@keyframes edt-equalizer {
+  0%, 100% { transform: scaleY(0.62); }
+  50% { transform: scaleY(1); }
+}
+
+@keyframes edt-track-in {
+  0% { opacity: 0; transform: translateY(6px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes edt-playhead-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* Waveform is STATIC by default. It animates only while the audio track is
+   flagged playing (set by MediaView). Balanced animates a sparse subset;
+   full animates more. transform: scaleY only. Offscreen/hidden pausing is
+   applied globally via animation-play-state in motion-modes.css. */
+.waveform i {
+  transform-origin: center;
+}
+html[data-motion="balanced"] .audio-track[data-playing="true"] .waveform i:nth-child(6n),
+html[data-motion="full"] .audio-track[data-playing="true"] .waveform i:nth-child(3n) {
+  animation: edt-equalizer 1.05s ease-in-out infinite;
+}
+html[data-motion="full"] .audio-track[data-playing="true"] .waveform i:nth-child(3n + 2) {
+  animation: edt-equalizer 1.35s ease-in-out infinite;
+}
+
+/* Track clips — staggered fade-in on mount (inline opacity kept after). */
+.track-content i {
+  animation: edt-track-in 440ms var(--ease) both;
+}
+.track-content i:nth-child(1) { animation-delay: 40ms; }
+.track-content i:nth-child(2) { animation-delay: 80ms; }
+.track-content i:nth-child(3) { animation-delay: 120ms; }
+.track-content i:nth-child(4) { animation-delay: 160ms; }
+.track-content i:nth-child(5) { animation-delay: 200ms; }
+.track-content i:nth-child(6) { animation-delay: 240ms; }
+.track-content i:nth-child(n + 7) { animation-delay: 280ms; }
+
+/* Playhead pulses (opacity only) only during playback. */
+.video-track[data-playing="true"] b {
+  animation: edt-playhead-pulse 3.2s ease-in-out infinite;
+}
+
+/* Continuous decorative motion: full mode only. */
+html[data-motion="full"] .mock-landscape i {
+  animation: edt-orb-glow 4.6s var(--ease) infinite;
+}
+html[data-motion="full"] .video-gradient::before {
+  animation: edt-blob-before 12s var(--ease) infinite;
+}
+html[data-motion="full"] .video-gradient::after {
+  animation: edt-blob-after 14s var(--ease) infinite;
+}
+
+/* ---------------------------------------------------------------- */
+/* Dev Tools — code panels                                           */
+/* ---------------------------------------------------------------- */
+
+.code-panels textarea {
+  transition: box-shadow 220ms var(--ease);
+}
+.code-panels textarea:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 1px rgba(73, 219, 232, 0.35), inset 0 0 14px rgba(73, 219, 232, 0.08);
+}

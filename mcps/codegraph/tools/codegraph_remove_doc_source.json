@@ -1,0 +1,16 @@
+{
+  "name": "codegraph_remove_doc_source",
+  "description": "Remove all indexed chunks from a specific source file. Use codegraph_list_doc_sources first to see available sources. USE WHEN: a doc is outdated and you want to clear it before re-indexing, or to clean up the docs store.",
+  "inputSchema": {
+    "properties": {
+      "source": {
+        "description": "The source file path to remove (exactly as shown by codegraph_list_doc_sources). All chunks from this source are deleted from the docs store.",
+        "type": "string"
+      }
+    },
+    "required": [
+      "source"
+    ],
+    "type": "object"
+  }
+}

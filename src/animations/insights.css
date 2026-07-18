@@ -1,0 +1,186 @@
+/* Insight & data-view motion (activity, donut, developer, profile, settings) — owned by insights subagent. */
+
+/* ============================================================
+   Keyframes (all prefixed ins-). transform / opacity / filter /
+   box-shadow only — never layout. Entrances use fill-mode backwards.
+   ============================================================ */
+
+@keyframes ins-slide-left {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes ins-fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ins-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ins-pop {
+  from { opacity: 0; transform: scale(0.72); }
+  60%  { opacity: 1; transform: scale(1.04); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes ins-chip-pop {
+  from { opacity: 0; transform: scale(0.6); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes ins-donut-in {
+  from { opacity: 0; transform: rotate(-90deg) scale(0.94); }
+  to   { opacity: 1; transform: rotate(0deg) scale(1); }
+}
+
+@keyframes ins-stage-in {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* Slow, low-amplitude idle float for the avatar stage. */
+@keyframes ins-float {
+  0%   { transform: translateY(0); }
+  50%  { transform: translateY(-7px); }
+  100% { transform: translateY(0); }
+}
+
+/* Opacity-only breathing for an ACTIVE timeline marker (opt-in, full mode). */
+@keyframes ins-marker-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.55; transform: scale(0.9); }
+}
+
+/* ============================================================
+   Activity view — timeline
+   ============================================================ */
+
+.timeline-row {
+  animation: ins-slide-left 520ms var(--ease) both;
+}
+.timeline-row:nth-child(1) { animation-delay: 40ms; }
+.timeline-row:nth-child(2) { animation-delay: 110ms; }
+.timeline-row:nth-child(3) { animation-delay: 180ms; }
+.timeline-row:nth-child(4) { animation-delay: 250ms; }
+.timeline-row:nth-child(5) { animation-delay: 320ms; }
+.timeline-row:nth-child(6) { animation-delay: 390ms; }
+
+/* One-time pop entrance for every marker. A continuous pulse runs only for a
+   marker explicitly flagged active, and only in full motion mode. */
+.timeline-marker {
+  animation: ins-pop 460ms var(--ease) 180ms both;
+}
+
+html[data-motion="full"] .timeline-marker.is-active {
+  animation:
+    ins-pop 460ms var(--ease) 180ms both,
+    ins-marker-pulse 3.2s ease-in-out 900ms infinite;
+}
+
+/* ============================================================
+   Activity view — donut + legend
+   ============================================================ */
+
+/* One-time rotate-in reveal (NOT an infinite spin). */
+.donut-chart {
+  animation: ins-donut-in 640ms var(--ease) 120ms both;
+}
+
+.legend-list span {
+  animation: ins-fade-in 420ms var(--ease) both;
+}
+.legend-list span:nth-child(1) { animation-delay: 460ms; }
+.legend-list span:nth-child(2) { animation-delay: 540ms; }
+.legend-list span:nth-child(3) { animation-delay: 620ms; }
+.legend-list span:nth-child(4) { animation-delay: 700ms; }
+
+/* ============================================================
+   Developer view — tool list + icons
+   ============================================================ */
+
+.dev-tool-list button {
+  animation: ins-slide-left 440ms var(--ease) both;
+}
+.dev-tool-list button:nth-child(1) { animation-delay: 60ms; }
+.dev-tool-list button:nth-child(2) { animation-delay: 115ms; }
+.dev-tool-list button:nth-child(3) { animation-delay: 170ms; }
+.dev-tool-list button:nth-child(4) { animation-delay: 225ms; }
+.dev-tool-list button:nth-child(5) { animation-delay: 280ms; }
+.dev-tool-list button:nth-child(6) { animation-delay: 335ms; }
+.dev-tool-list button:nth-child(7) { animation-delay: 390ms; }
+.dev-tool-list button:nth-child(8) { animation-delay: 445ms; }
+
+.dev-icon {
+  animation: ins-pop 420ms var(--ease) 120ms both;
+}
+
+/* ============================================================
+   Settings view
+   ============================================================ */
+
+.settings-section {
+  animation: ins-fade-up 560ms var(--ease) both;
+}
+.settings-section:nth-child(1) { animation-delay: 60ms; }
+.settings-section:nth-child(2) { animation-delay: 150ms; }
+.settings-section:nth-child(3) { animation-delay: 240ms; }
+.settings-section:nth-child(4) { animation-delay: 330ms; }
+.settings-section:nth-child(5) { animation-delay: 420ms; }
+
+.settings-title > span {
+  animation: ins-chip-pop 420ms var(--ease) 200ms both;
+}
+
+/* ============================================================
+   Profile view
+   ============================================================ */
+
+/* Entrance scale+fade always; the slow idle float is full mode only. */
+.profile-avatar-stage {
+  animation: ins-stage-in 540ms var(--ease) both;
+}
+
+html[data-motion="full"] .profile-avatar-stage {
+  animation:
+    ins-stage-in 540ms var(--ease) both,
+    ins-float 6s ease-in-out 800ms infinite;
+}
+
+.avatar-style-grid button {
+  animation: ins-pop 460ms var(--ease) both;
+}
+.avatar-style-grid button:nth-child(1) { animation-delay: 120ms; }
+.avatar-style-grid button:nth-child(2) { animation-delay: 185ms; }
+.avatar-style-grid button:nth-child(3) { animation-delay: 250ms; }
+.avatar-style-grid button:nth-child(4) { animation-delay: 315ms; }
+.avatar-style-grid button:nth-child(5) { animation-delay: 380ms; }
+.avatar-style-grid button:nth-child(6) { animation-delay: 445ms; }
+
+/* ============================================================
+   Modular workspace view
+   ============================================================ */
+
+.feature-action-button {
+  animation: ins-slide-left 480ms var(--ease) both;
+}
+.feature-action-button:nth-child(1) { animation-delay: 80ms; }
+.feature-action-button:nth-child(2) { animation-delay: 145ms; }
+.feature-action-button:nth-child(3) { animation-delay: 210ms; }
+.feature-action-button:nth-child(4) { animation-delay: 275ms; }
+.feature-action-button:nth-child(5) { animation-delay: 340ms; }
+.feature-action-button:nth-child(6) { animation-delay: 405ms; }
+
+.workspace-tabs button {
+  animation: ins-fade-in 380ms var(--ease) both;
+}
+.workspace-tabs button:nth-child(1) { animation-delay: 40ms; }
+.workspace-tabs button:nth-child(2) { animation-delay: 90ms; }
+.workspace-tabs button:nth-child(3) { animation-delay: 140ms; }
+.workspace-tabs button:nth-child(4) { animation-delay: 190ms; }
+.workspace-tabs button:nth-child(5) { animation-delay: 240ms; }
+.workspace-tabs button:nth-child(6) { animation-delay: 290ms; }
+.workspace-tabs button:nth-child(7) { animation-delay: 340ms; }
+.workspace-tabs button:nth-child(8) { animation-delay: 390ms; }

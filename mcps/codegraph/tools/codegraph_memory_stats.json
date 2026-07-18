@@ -1,0 +1,7 @@
+{
+  "name": "codegraph_memory_stats",
+  "description": "Get statistics about stored memories - counts by kind, total storage, etc.",
+  "inputSchema": {
+    "type": "object"
+  }
+}

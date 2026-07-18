@@ -1,0 +1,26 @@
+node_modules/
+server/node_modules/
+dist/
+server/dist/
+data/
+data-test/
+data-test-*/
+data-smoke/
+.tools/
+.runtime/
+.env
+*.log
+.DS_Store
+coverage/
+server/coverage/
+audit/
+.nyc_output/
+.cache/
+.vite/
+server/.vite/
+logs/
+tmp/
+temp/
+terminals/
+# Nested lockfile is obsolete under npm workspaces (root lockfile only)
+server/package-lock.json
