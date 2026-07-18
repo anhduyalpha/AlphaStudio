@@ -50,6 +50,9 @@ const {
   listToolDefs,
   resolveTool,
   requiredToolNames,
+  parseToolSelection,
+  toolNamesForSelection,
+  selectionSizeEstimate,
 } = await import('../lib/tools-probe.mjs');
 const { fileIdentity, matchesIdentity } = await import('../lib/checksum.mjs');
 const { featureFlags, detectEnvironment } = await import('../lib/platform.mjs');
@@ -306,7 +309,7 @@ describe('checksum + manifest', () => {
 describe('tools probe', () => {
   it('lists required tool names including ImageMagick, 7z, and sharp', () => {
     const names = listToolDefs();
-    for (const n of ['ffmpeg', 'ffprobe', 'libreoffice', 'pandoc', 'imagemagick', '7z', 'sharp']) {
+    for (const n of ['ffmpeg', 'ffprobe', 'libreoffice', 'pandoc', 'calibre', 'imagemagick', '7z', 'sharp']) {
       assert.ok(names.includes(n), `missing def ${n}`);
     }
   });
@@ -337,6 +340,49 @@ describe('tools probe', () => {
     assert.ok(!req.includes('imagemagick'));
     assert.ok(!req.includes('sharp'));
     assert.ok(!req.includes('pandoc'));
+  });
+
+  it('selects profiles/tools independently with FFmpeg companion expansion', () => {
+    const documents = parseToolSelection(['--profile', 'documents'], {});
+    assert.deepEqual(
+      toolNamesForSelection(documents).sort(),
+      ['libreoffice', 'pandoc'],
+    );
+    const mixed = parseToolSelection(
+      ['--profile=ebooks,core', '--tool', 'ffmpeg'],
+      {},
+    );
+    assert.deepEqual(
+      toolNamesForSelection(mixed).sort(),
+      ['7z', 'calibre', 'ffmpeg', 'ffprobe'],
+    );
+    assert.deepEqual(
+      requiredToolNames(undefined, mixed).sort(),
+      ['7z', 'calibre', 'ffmpeg', 'ffprobe'],
+    );
+  });
+
+  it('reports profile size estimates and rejects unknown selectors', () => {
+    const selection = parseToolSelection(['--profile', 'ebooks'], {});
+    const estimate = selectionSizeEstimate(selection);
+    assert.ok(estimate.downloadMb >= 0);
+    assert.ok(estimate.installedMb >= 400);
+    assert.throws(
+      () => parseToolSelection(['--profile', 'everything'], {}),
+      /Unknown profile/,
+    );
+    assert.throws(
+      () => parseToolSelection(['--tool', 'convertx'], {}),
+      /Unknown tool/,
+    );
+  });
+
+  it('checkAllTools can restrict probes to a selected profile', () => {
+    const selected = checkAllTools(repoRoot, {
+      toolNames: ['calibre'],
+      forceProbe: false,
+    });
+    assert.deepEqual(selected.map((tool) => tool.name), ['calibre']);
   });
 
   it('resolveTool uses cache when manifest identity is valid', () => {

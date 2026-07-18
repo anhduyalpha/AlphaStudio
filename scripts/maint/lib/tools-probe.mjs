@@ -1,5 +1,5 @@
 /**
- * Discover FFmpeg, ffprobe, LibreOffice, Pandoc, ImageMagick, 7-Zip, bundled sharp.
+ * Discover FFmpeg, ffprobe, LibreOffice, Pandoc, Calibre, ImageMagick, 7-Zip, bundled sharp.
  * Prefers valid system installs, then project .tools (platform layout + legacy).
  * Fast path: trust atomic manifest when size+mtime still match (no re-exec).
  */
@@ -30,6 +30,9 @@ const TOOL_DEFS = [
   {
     name: 'ffmpeg',
     tier: 'required',
+    profile: 'media',
+    downloadSizeMb: 125,
+    installedSizeMb: 180,
     pathNames: ['ffmpeg'],
     probeArgs: ['-version'],
     projectBins: (isWin) => [
@@ -40,6 +43,9 @@ const TOOL_DEFS = [
   {
     name: 'ffprobe',
     tier: 'required',
+    profile: 'media',
+    downloadSizeMb: 0,
+    installedSizeMb: 0,
     pathNames: ['ffprobe'],
     probeArgs: ['-version'],
     projectBins: (isWin) => [
@@ -50,6 +56,9 @@ const TOOL_DEFS = [
   {
     name: 'libreoffice',
     tier: 'required',
+    profile: 'documents',
+    downloadSizeMb: 350,
+    installedSizeMb: 1500,
     pathNames: ['soffice', 'libreoffice'],
     probeArgs: ['--version'],
     projectBins: (isWin) => [
@@ -73,14 +82,45 @@ const TOOL_DEFS = [
   {
     name: 'pandoc',
     tier: 'optional', // required only when ALPHA_REQUIRE_PANDOC=1
+    profile: 'documents',
+    downloadSizeMb: 35,
+    installedSizeMb: 190,
     featureGate: 'pandocRequired',
     pathNames: ['pandoc'],
     probeArgs: ['--version'],
     projectBins: (isWin) => [isWin ? 'pandoc.exe' : 'pandoc', path.join('bin', isWin ? 'pandoc.exe' : 'pandoc')],
   },
   {
+    name: 'calibre',
+    tier: 'optional',
+    profile: 'ebooks',
+    downloadSizeMb: 205,
+    installedSizeMb: 430,
+    pathNames: ['ebook-convert'],
+    probeArgs: ['--version'],
+    projectBins: (isWin) => [
+      isWin ? 'ebook-convert.exe' : 'ebook-convert',
+      path.join('bin', isWin ? 'ebook-convert.exe' : 'ebook-convert'),
+    ],
+    wellKnown: () => {
+      if (process.platform === 'win32') {
+        return [
+          'C:\\Program Files\\Calibre2\\ebook-convert.exe',
+          'C:\\Program Files (x86)\\Calibre2\\ebook-convert.exe',
+        ];
+      }
+      if (process.platform === 'darwin') {
+        return ['/Applications/calibre.app/Contents/MacOS/ebook-convert'];
+      }
+      return ['/usr/bin/ebook-convert', '/usr/local/bin/ebook-convert'];
+    },
+  },
+  {
     name: '7z',
     tier: 'required',
+    profile: 'core',
+    downloadSizeMb: 3,
+    installedSizeMb: 8,
     pathNames: ['7z', '7za', '7zz'],
     probeArgs: null, // version probe flaky; existence is enough
     projectBins: (isWin) =>
@@ -99,6 +139,9 @@ const TOOL_DEFS = [
   {
     name: 'sharp',
     tier: 'bundled',
+    profile: 'core',
+    downloadSizeMb: 0,
+    installedSizeMb: 0,
     pathNames: [],
     probeArgs: null,
     projectBins: () => [],
@@ -130,8 +173,80 @@ export function getToolDef(name) {
   return TOOL_DEFS.find((t) => t.name === name) || null;
 }
 
+export const TOOL_PROFILES = Object.freeze({
+  core: ['7z'],
+  media: ['ffmpeg', 'ffprobe'],
+  documents: ['libreoffice', 'pandoc'],
+  ebooks: ['calibre'],
+});
+
+/**
+ * Parse repeatable/comma-separated --profile and --tool selectors.
+ * A null result means backward-compatible legacy command behavior.
+ */
+export function parseToolSelection(args = [], env = process.env) {
+  const profiles = new Set();
+  const tools = new Set();
+  const consume = (target, value) => {
+    for (const token of String(value || '').split(/[,;\s]+/).filter(Boolean)) {
+      target.add(token.toLowerCase());
+    }
+  };
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = String(args[index]);
+    if (arg === '--profile' && args[index + 1]) consume(profiles, args[++index]);
+    else if (arg.startsWith('--profile=')) consume(profiles, arg.slice('--profile='.length));
+    else if (arg === '--tool' && args[index + 1]) consume(tools, args[++index]);
+    else if (arg.startsWith('--tool=')) consume(tools, arg.slice('--tool='.length));
+  }
+  consume(profiles, env.ALPHA_TOOLS_PROFILE || '');
+  consume(tools, env.ALPHA_TOOLS_TOOL || '');
+  if (!profiles.size && !tools.size) return null;
+  const unknownProfiles = [...profiles].filter((profile) => !TOOL_PROFILES[profile]);
+  const knownTools = new Set(TOOL_DEFS.map((definition) => definition.name));
+  const unknownTools = [...tools].filter((tool) => !knownTools.has(tool));
+  if (unknownProfiles.length || unknownTools.length) {
+    throw new Error(
+      [
+        unknownProfiles.length ? `Unknown profile(s): ${unknownProfiles.join(', ')}` : '',
+        unknownTools.length ? `Unknown tool(s): ${unknownTools.join(', ')}` : '',
+      ].filter(Boolean).join('. '),
+    );
+  }
+  return { profiles: [...profiles], tools: [...tools] };
+}
+
+export function toolNamesForSelection(selection) {
+  if (!selection) return null;
+  const names = new Set(selection.tools || []);
+  for (const profile of selection.profiles || []) {
+    for (const name of TOOL_PROFILES[profile] || []) names.add(name);
+  }
+  if (names.has('ffmpeg') || names.has('ffprobe')) {
+    names.add('ffmpeg');
+    names.add('ffprobe');
+  }
+  return [...names];
+}
+
+export function selectionSizeEstimate(selection) {
+  const names = toolNamesForSelection(selection);
+  if (!names) return null;
+  return names.reduce(
+    (total, name) => {
+      const definition = getToolDef(name);
+      total.downloadMb += Number(definition?.downloadSizeMb || 0);
+      total.installedMb += Number(definition?.installedSizeMb || 0);
+      return total;
+    },
+    { downloadMb: 0, installedMb: 0 },
+  );
+}
+
 /** Names that tools:check treats as primary (missing → exit 2). */
-export function requiredToolNames(features = featureFlags()) {
+export function requiredToolNames(features = featureFlags(), selection = null) {
+  const selected = toolNamesForSelection(selection);
+  if (selected) return selected;
   const names = [];
   for (const d of TOOL_DEFS) {
     if (d.tier === 'bundled') continue;
@@ -152,7 +267,7 @@ export function requiredToolNames(features = featureFlags()) {
 
 /** Tools that setup-tools can install portably. */
 export function installableToolNames() {
-  return ['ffmpeg', 'ffprobe', 'libreoffice', 'pandoc', '7z'];
+  return ['ffmpeg', 'ffprobe', 'libreoffice', 'pandoc', 'calibre', '7z'];
 }
 
 export function probeExec(cmd, args) {
@@ -478,7 +593,9 @@ export function resolveTool(name, root = projectRoot, opts = {}) {
 export function checkAllTools(root = projectRoot, opts = {}) {
   const features = featureFlags();
   // Only include feature tools when enabled (plus always-listed core set for UI)
+  const requested = opts.toolNames?.length ? new Set(opts.toolNames) : null;
   const defs = TOOL_DEFS.filter((d) => {
+    if (requested && !requested.has(d.name)) return false;
     if (d.tier === 'feature' && d.featureGate && !features[d.featureGate]) return false;
     return true;
   });
@@ -564,7 +681,7 @@ export function checkAllTools(root = projectRoot, opts = {}) {
  * @param {{ forceProbe?: boolean }} [opts]
  */
 export function missingRequiredTools(root = projectRoot, opts = {}) {
-  const required = new Set(requiredToolNames());
+  const required = new Set(requiredToolNames(featureFlags(), opts.selection || null));
   return checkAllTools(root, opts).filter((t) => required.has(t.name) && !t.available && !t.skipped);
 }
 

@@ -12,6 +12,8 @@
  *   - 7-Zip             (7zr.exe bootstrap + extra package on Windows; 7zz linux)
  *   - pandoc            (official GitHub release zip/tarball)
  *   - LibreOffice       (Windows MSI administrative extract; else actionable error)
+ * Discovers but does not bundle Calibre; the ebooks profile adopts an installed
+ * `ebook-convert` and otherwise prints native installation instructions.
  *
  * Selective install: --only ffmpeg --only 7z  or  ALPHA_TOOLS_ONLY=ffmpeg,7z
  */
@@ -688,6 +690,43 @@ async function setupLibreOffice(cfg) {
   }
 }
 
+// ─── Calibre (system/native install only) ─────────────────────────────────
+
+async function setupCalibre(cfg) {
+  const local = path.join(toolsDir, 'calibre', isWin ? 'ebook-convert.exe' : 'ebook-convert');
+  const wellKnown = isWin
+    ? [
+        'C:\\Program Files\\Calibre2\\ebook-convert.exe',
+        'C:\\Program Files (x86)\\Calibre2\\ebook-convert.exe',
+      ]
+    : isMac
+      ? ['/Applications/calibre.app/Contents/MacOS/ebook-convert']
+      : ['/usr/bin/ebook-convert', '/usr/local/bin/ebook-convert'];
+  const executable =
+    findOnPath(['ebook-convert']) ||
+    wellKnown.find((candidate) => fs.existsSync(candidate)) ||
+    (fs.existsSync(local) ? local : null);
+  if (executable) {
+    const result = probe(executable, ['--version']);
+    if (result.ok) {
+      cfg.tools.calibre = { path: executable, version: result.version };
+      log(`calibre: system/native install OK (${executable})`);
+      return;
+    }
+  }
+
+  err(
+    'ACTION REQUIRED: Calibre ebook-convert not found.\n' +
+      (isWin
+        ? '  Install Calibre from https://calibre-ebook.com/download_windows then rerun this command.\n'
+        : isMac
+          ? '  brew install --cask calibre, then rerun this command.\n'
+          : '  Install the distro calibre package (for example: sudo apt install calibre), then rerun this command.\n') +
+      '  AlphaStudio does not bundle Calibre because the optional runtime is large (~430 MiB installed).',
+  );
+  process.exitCode = 2;
+}
+
 // ─── main ─────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -697,6 +736,7 @@ async function main() {
   const pandocRequested =
     Boolean(onlySet?.has('pandoc')) ||
     ['1', 'true', 'yes'].includes(String(process.env.ALPHA_REQUIRE_PANDOC || '').toLowerCase());
+  const calibreRequested = Boolean(onlySet?.has('calibre'));
   const cfg = { updatedAt: new Date().toISOString(), tools: {} };
   if (fs.existsSync(configPath)) {
     try {
@@ -716,15 +756,21 @@ async function main() {
   if (shouldSetup('7z', onlySet)) await setup7z(cfg);
   else log('7z: skipped (--only filter)');
   if (pandocRequested) await setupPandoc(cfg);
-  else log('pandoc: skipped (runtime 3.6 does not use it; request with --only pandoc)');
+  else log('pandoc: skipped (optional; request with --only pandoc)');
   if (shouldSetup('libreoffice', onlySet)) await setupLibreOffice(cfg);
   else log('libreoffice: skipped (--only filter)');
+  if (calibreRequested) await setupCalibre(cfg);
+  else log('calibre: skipped (optional; request with --only calibre)');
 
   // Final probes
   for (const [name, entry] of Object.entries(cfg.tools)) {
     if (!entry?.path || !fs.existsSync(entry.path)) continue;
     const args =
-      name === 'libreoffice' || name === 'pandoc' ? ['--version'] : name === '7z' ? [] : ['-version'];
+      name === 'libreoffice' || name === 'pandoc' || name === 'calibre'
+        ? ['--version']
+        : name === '7z'
+          ? []
+          : ['-version'];
     if (name === '7z') {
       entry.version = entry.version || '7z';
       continue;

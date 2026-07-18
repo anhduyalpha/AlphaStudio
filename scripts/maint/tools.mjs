@@ -22,6 +22,9 @@ import {
   repairInstructions,
   requiredToolNames,
   installableToolNames,
+  parseToolSelection,
+  toolNamesForSelection,
+  selectionSizeEstimate,
 } from './lib/tools-probe.mjs';
 import {
   loadManifest,
@@ -36,6 +39,14 @@ import { verifyChecksum, fileIdentity } from './lib/checksum.mjs';
 const cmd = process.argv[2] || 'check';
 const help = process.argv.includes('--help') || process.argv.includes('-h');
 const forceProbe = process.argv.includes('--force') || process.argv.includes('--no-cache');
+let selection;
+try {
+  selection = parseToolSelection(process.argv.slice(3), process.env);
+} catch (error) {
+  console.error(`Invalid tool selection: ${error.message}`);
+  process.exit(1);
+}
+const selectedToolNames = toolNamesForSelection(selection);
 
 if (help) {
   console.log(`Usage: node scripts/maint/tools.mjs <check|install|repair|update> [options]
@@ -47,6 +58,8 @@ if (help) {
 
   Options:
     --force / --no-cache   Bypass manifest cache (always re-probe)
+    --profile <name>       Select core, media, documents, or ebooks (repeatable)
+    --tool <name>          Select one tool; FFmpeg automatically includes ffprobe
     --help / -h            Show this help
 
   Feature flags (env):
@@ -72,6 +85,20 @@ function printEnvHeader() {
   console.log(
     `  Features:     ocr=${f.ocr} pdfExtras=${f.pdfExtras} pandocRequired=${f.pandocRequired}`,
   );
+  if (selection) {
+    const estimate = selectionSizeEstimate(selection);
+    console.log(
+      `  Selection:    ${[
+        ...(selection.profiles || []).map((profile) => `profile:${profile}`),
+        ...(selection.tools || []).map((tool) => `tool:${tool}`),
+      ].join(', ')}`,
+    );
+    console.log(
+      `  Estimate:     download ~${estimate.downloadMb} MiB, installed ~${estimate.installedMb} MiB`,
+    );
+  } else {
+    console.log('  Selection:    legacy required set (backward compatible)');
+  }
   console.log('');
 }
 
@@ -80,7 +107,10 @@ function printEnvHeader() {
  * Skips re-hash when identity already matches.
  */
 function syncManifestFromResolved(tools) {
-  const list = tools || checkAllTools(projectRoot, { forceProbe: true });
+  const list = tools || checkAllTools(projectRoot, {
+    forceProbe: true,
+    toolNames: selectedToolNames,
+  });
   const m = loadManifest(projectRoot);
   const batch = {};
   for (const t of list) {
@@ -136,8 +166,8 @@ function runCheck() {
   printEnvHeader();
   const started = Date.now();
   // Fast path: use cache unless --force
-  const tools = checkAllTools(projectRoot, { forceProbe });
-  const required = new Set(requiredToolNames());
+  const tools = checkAllTools(projectRoot, { forceProbe, toolNames: selectedToolNames });
+  const required = new Set(requiredToolNames(undefined, selection));
   const missing = [];
   let cacheHits = 0;
 
@@ -187,8 +217,11 @@ function runInstall({ force = false } = {}) {
   printEnvHeader();
 
   // Cold probe to know what's truly missing (system first via resolve)
-  const before = checkAllTools(projectRoot, { forceProbe: true });
-  const required = new Set(requiredToolNames());
+  const before = checkAllTools(projectRoot, {
+    forceProbe: true,
+    toolNames: selectedToolNames,
+  });
+  const required = new Set(requiredToolNames(undefined, selection));
   const missing = before.filter((t) => !t.available && !t.skipped && required.has(t.name));
   const missingNames = missing.map((t) => t.name);
 
@@ -276,7 +309,7 @@ function runInstall({ force = false } = {}) {
 function mirrorFlatToPlatformLayout() {
   const plat = toolsPlatformDir(projectRoot);
   const flat = toolsRoot(projectRoot);
-  const names = ['ffmpeg', '7z', 'pandoc', 'libreoffice'];
+  const names = ['ffmpeg', '7z', 'pandoc', 'libreoffice', 'calibre'];
   for (const name of names) {
     const src = path.join(flat, name);
     const dest = path.join(plat, name);
@@ -298,7 +331,9 @@ function runRepair() {
 
   const m = loadManifest(projectRoot);
   const broken = [];
+  const requested = selectedToolNames ? new Set(selectedToolNames) : null;
   for (const [name, entry] of Object.entries(m.tools)) {
+    if (requested && !requested.has(name)) continue;
     if (!entry.executablePath || entry.executablePath === 'bundled') {
       console.log(`  [OK]     ${name}: bundled`);
       continue;
@@ -333,9 +368,12 @@ function runRepair() {
   }
 
   // Force re-resolve from system → project
-  const tools = checkAllTools(projectRoot, { forceProbe: true });
+  const tools = checkAllTools(projectRoot, {
+    forceProbe: true,
+    toolNames: selectedToolNames,
+  });
   syncManifestFromResolved(tools);
-  const required = new Set(requiredToolNames());
+  const required = new Set(requiredToolNames(undefined, selection));
   const missing = tools.filter((t) => !t.available && !t.skipped && required.has(t.name)).map((t) => t.name);
 
   if (broken.length || missing.length) {
