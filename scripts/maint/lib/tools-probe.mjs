@@ -81,7 +81,7 @@ const TOOL_DEFS = [
   },
   {
     name: 'pandoc',
-    tier: 'optional', // required only when ALPHA_REQUIRE_PANDOC=1
+    tier: 'required',
     profile: 'documents',
     downloadSizeMb: 35,
     installedSizeMb: 190,
@@ -92,7 +92,7 @@ const TOOL_DEFS = [
   },
   {
     name: 'calibre',
-    tier: 'optional',
+    tier: 'required',
     profile: 'ebooks',
     downloadSizeMb: 205,
     installedSizeMb: 430,
@@ -174,6 +174,10 @@ export function getToolDef(name) {
 }
 
 export const TOOL_PROFILES = Object.freeze({
+  // Complete Converter Phase 1 runtime. Standard npm maintenance scripts
+  // always include this profile so a normal build/run does not silently omit
+  // an engine because it was previously considered optional.
+  full: ['7z', 'ffmpeg', 'ffprobe', 'libreoffice', 'pandoc', 'calibre'],
   core: ['7z'],
   media: ['ffmpeg', 'ffprobe'],
   documents: ['libreoffice', 'pandoc'],
@@ -182,7 +186,7 @@ export const TOOL_PROFILES = Object.freeze({
 
 /**
  * Parse repeatable/comma-separated --profile and --tool selectors.
- * A null result means backward-compatible legacy command behavior.
+ * A null result means the caller uses the complete Phase 1 default.
  */
 export function parseToolSelection(args = [], env = process.env) {
   const profiles = new Set();
@@ -230,8 +234,7 @@ export function toolNamesForSelection(selection) {
 }
 
 export function selectionSizeEstimate(selection) {
-  const names = toolNamesForSelection(selection);
-  if (!names) return null;
+  const names = toolNamesForSelection(selection) || TOOL_PROFILES.full;
   return names.reduce(
     (total, name) => {
       const definition = getToolDef(name);
@@ -247,22 +250,13 @@ export function selectionSizeEstimate(selection) {
 export function requiredToolNames(features = featureFlags(), selection = null) {
   const selected = toolNamesForSelection(selection);
   if (selected) return selected;
-  const names = [];
+  const names = [...TOOL_PROFILES.full];
   for (const d of TOOL_DEFS) {
-    if (d.tier === 'bundled') continue;
-    if (d.tier === 'required') {
-      names.push(d.name);
-      continue;
-    }
-    if (d.name === 'pandoc' && features.pandocRequired) {
-      names.push(d.name);
-      continue;
-    }
     if (d.tier === 'feature' && d.featureGate && features[d.featureGate]) {
       names.push(d.name);
     }
   }
-  return names;
+  return [...new Set(names)];
 }
 
 /** Tools that setup-tools can install portably. */

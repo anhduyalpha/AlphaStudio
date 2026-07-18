@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * npm run reset — clean + reinstall deps + init DB + validate tools.
+ * npm run reset — clean + reinstall all deps/tools + init DB.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -15,9 +15,9 @@ if (help) {
   console.log(`Usage: npm run reset -- [--dry-run] [--skip-install]
 
   1. npm run clean
-  2. Reinstall root + server dependencies (unless --skip-install)
+  2. Reinstall all workspace dependencies from the root lockfile (unless --skip-install)
   3. Initialize SQLite database (server initDb)
-  4. Validate tools via tools:check
+  4. Install/repair the complete Converter Phase 1 toolset
 `);
   process.exit(0);
 }
@@ -65,16 +65,9 @@ if (code !== 0) {
 }
 
 if (!skipInstall) {
-  code = run('install root deps', 'npm', ['install', '--no-fund', '--no-audit']);
+  code = run('install all workspace deps', 'npm', ['ci', '--no-fund', '--no-audit']);
   if (code !== 0) {
-    console.error('ACTION REQUIRED: root npm install failed');
-    process.exit(code);
-  }
-  code = run('install server deps', 'npm', ['install', '--no-fund', '--no-audit'], {
-    cwd: path.join(projectRoot, 'server'),
-  });
-  if (code !== 0) {
-    console.error('ACTION REQUIRED: server npm install failed');
+    console.error('ACTION REQUIRED: workspace npm ci failed');
     process.exit(code);
   }
 } else {
@@ -128,14 +121,10 @@ console.log('DB initialized');
   }
 }
 
-code = run('validate tools', 'npm', ['run', 'tools:check']);
-// tools:check exits 2 when optional tools missing — treat as warning for reset
-if (code !== 0 && code !== 2) {
-  console.error('ACTION REQUIRED: tools:check failed unexpectedly');
+code = run('install complete toolset', 'npm', ['run', 'tools:install']);
+if (code !== 0) {
+  console.error('ACTION REQUIRED: complete tool installation failed');
   process.exit(code);
-}
-if (code === 2) {
-  console.log('\nNote: some tools missing. Run: npm run tools:install');
 }
 
 console.log('\nReset complete.');

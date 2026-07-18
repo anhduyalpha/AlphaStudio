@@ -7,12 +7,13 @@ Current release: **3.6.0**.
 ## Requirements
 
 - **Node.js 20+** (Windows, macOS, or Linux)
-- External conversion tools are optional and are resolved from the system first,
-  then from `.runtime/tools/<platform>-<arch>/`:
+- A standard build/run prepares the complete Converter Phase 1 runtime. Tools
+  are resolved from the system first, then downloaded into
+  `.runtime/tools/<platform>-<arch>/` when missing:
 
 ```powershell
-npm run tools:check      # OS/arch + ffmpeg/ffprobe/LibreOffice/pandoc/ImageMagick/7z
-npm run tools:install    # install only missing (portable, no admin)
+npm run tools:check      # full: 7-Zip, FFmpeg/ffprobe, LibreOffice, Pandoc, Calibre
+npm run tools:install    # download/install every missing Phase 1 tool
 npm run tools:repair     # checksum/path fix + re-scan
 npm run tools:update     # refresh project-managed tools
 npm run doctor           # full environment diagnostics
@@ -20,33 +21,37 @@ npm run doctor           # full environment diagnostics
 
 Without a tool, related formats report **Unavailable** with one actionable
 install message (never fake success). For the complete Windows/Linux build,
-selective-tool, low-memory, cleanup, LAN, and troubleshooting guide, see
+full-runtime, low-memory, cleanup, LAN, and troubleshooting guide, see
 [`docs/BUILD_AND_RUN_WINDOWS_LINUX.md`](docs/BUILD_AND_RUN_WINDOWS_LINUX.md).
 
 ## Setup (Windows and Linux)
 
 ```powershell
 # Windows PowerShell, from the project root
-npm ci
+npm run bootstrap
 copy .env.example .env
-# Optional: npm run setup:tools -- --only ffmpeg
+npm run build
+npm start
 ```
 
 ```bash
-# Linux/macOS, from the project root
-npm ci
+# Linux x64, from the project root (install prerequisites from the full guide)
+npm run bootstrap
 cp .env.example .env
-# Optional: npm run setup:tools -- --only ffmpeg
+npm run build
+npm start
 ```
 
-Bundled QR, image, text, PDF editing, and ZIP/TAR features work immediately.
-Install only the external converter groups you use; `npm run tools:install`
-installs the complete required tool profile.
+`npm run bootstrap` installs every root/workspace Node dependency from the
+lockfile and every Phase 1 external converter tool. `dev`, `build`, and `start`
+also run the full tool preparation step and reuse healthy installations.
 
 ## Scripts
 
 | Script | Description |
 |--------|-------------|
+| `npm run bootstrap` | `npm ci` for all workspaces + complete Phase 1 tool installation |
+| `npm run runtime:prepare` | Resolve/download every missing Phase 1 external tool |
 | `npm run dev` | Client + server together (`concurrently`) |
 | `npm run dev:client` | Vite on http://localhost:5173 |
 | `npm run dev:server` | Fastify API on http://127.0.0.1:8787 |
@@ -59,8 +64,8 @@ installs the complete required tool profile.
 | `npm run benchmark:upload` | Real small/large upload response and quick/deep detect benchmark |
 | `npm run clear` | Preview + remove disposable artifacts (`--dry-run`, `--all`, `--keep-workspaces`, `--keep-tools`) |
 | `npm run clean` | Build/cache/logs/coverage/temp only |
-| `npm run reset` | clean + reinstall deps + init DB + tools:check |
-| `npm run tools:check` / `install` / `repair` / `update` | Cross-platform tool lifecycle + `.runtime/manifest.json` |
+| `npm run reset` | clean + reinstall all workspace deps/tools + init DB |
+| `npm run tools:check` / `install` / `repair` / `update` | Full Phase 1 tool lifecycle + `.runtime/manifest.json` |
 | `npm run deps:check` / `deps:prune` | Dependency audit / prune+dedupe |
 | `npm run doctor` | Env, deps, DB, storage, ports, tools |
 
@@ -139,7 +144,7 @@ operations contract.
 ## Production hosting
 
 ```bash
-npm ci
+npm run bootstrap
 npm run build
 npm start
 ```

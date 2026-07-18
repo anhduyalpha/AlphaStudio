@@ -7,18 +7,21 @@ một origin.
 ## 1. Yêu cầu
 
 - Node.js 20 trở lên và npm đi kèm. Node 20 hoặc Node 24 LTS được khuyến nghị.
-- Khoảng 500 MiB trống cho source, dependency và build core.
+- Khoảng 3 GiB trống cho source, toàn bộ npm dependency, build và full runtime
+  Converter Phase 1.
 - Windows: PowerShell 7 hoặc Windows PowerShell.
-- Linux: `tar` và `unzip` nếu dùng bộ cài tool portable.
+- Linux x64: `tar`, `unzip`, `xz-utils`, `python3`, `xdg-utils`, EGL/OpenGL và
+  XCB cursor runtime cho các bộ cài portable/isolated.
 
 Không chạy `npm install` riêng trong `server/`. Repo dùng npm workspaces và một
 `package-lock.json` ở thư mục gốc.
 
-## 2. Chọn profile công cụ
+## 2. Full runtime được cài mặc định
 
-AlphaStudio chạy được ngay với dependency Node trong `npm ci`. External tool
-được chia thành profile độc lập; không cần cài FFmpeg, LibreOffice, Pandoc hay
-Calibre nếu không dùng nhóm định dạng tương ứng.
+Quy trình chuẩn không còn yêu cầu người dùng tự chọn profile. `npm run
+bootstrap`, `dev`, `build` và `start` đều gọi bước chuẩn bị runtime đầy đủ.
+`tools:check`, `tools:install`, `tools:repair` và `tools:update` trong
+`package.json` luôn gắn `--profile full`.
 
 | Profile | Công cụ | Định dạng/chức năng chính | Download / cài đặt ước tính |
 |---|---|---|---|
@@ -28,6 +31,11 @@ Calibre nếu không dùng nhóm định dạng tương ứng.
 | `documents` | LibreOffice + Pandoc | Office; Markdown/HTML/TXT/RST/AsciiDoc; DOCX/RTF | ~385 / ~1.690 MiB |
 | `ebooks` | Calibre `ebook-convert` | EPUB, MOBI, AZW3, FB2, HTMLZ và target text/document đã kiểm chứng | package native ~205 / ~430 MiB |
 | Feature tùy chọn | Tesseract + PDF rasterizer | OCR/PDF-to-image | Phụ thuộc OS/package |
+
+`full` là hợp của `core + media + documents + ebooks`, tương đương khoảng
+718 MiB download và 2,3 GiB sau cài đặt. Đây là lựa chọn mặc định bắt buộc của
+các npm script công khai. ImageMagick, Tesseract và PDF extras không bị kéo vào
+`full` vì chúng không phải engine Converter Phase 1.
 
 ImageMagick và các engine ảnh/vector chuyên dụng không thuộc Phase 1; ảnh core
 vẫn dùng Sharp. PDF input không bao giờ được chuyển qua LibreOffice.
@@ -42,33 +50,21 @@ Thứ tự ưu tiên là tool hệ thống, sau đó mới tới tool portable c
 .runtime/tools/<platform>-<arch>/
 ```
 
-Tool hệ thống tiết kiệm ổ đĩa khi nhiều ứng dụng cùng dùng một FFmpeg hoặc
-LibreOffice. Tool portable dễ mang theo nhưng LibreOffice có thể chiếm khoảng
-1,5 GiB sau giải nén trên Windows.
-
-Các profile dùng cùng một cú pháp cho `check`, `install`, `repair` và `update`:
+Tool hệ thống hợp lệ vẫn được ưu tiên để tránh tải lại. Nếu thiếu, installer tải
+toàn bộ phần còn thiếu vào runtime của project. Lệnh chuẩn:
 
 ```text
-# Chỉ kiểm tra/cài/sửa/cập nhật đúng nhóm cần dùng
-npm run tools:check -- --profile core
-npm run tools:install -- --profile media
-npm run tools:repair -- --profile documents
-npm run tools:update -- --profile ebooks
-
-# Chọn tool riêng; có thể lặp lại --tool/--profile
-npm run tools:check -- --tool pandoc
-npm run tools:install -- --profile media --tool 7z
-
-# Không có selector: giữ hành vi tương thích ngược của AlphaStudio 3.6
 npm run tools:install
 npm run tools:check -- --force
+npm run tools:repair
+npm run tools:update
 npm run doctor
 ```
 
-`tools.mjs` in download và installed-size estimate trước khi thao tác. Profile
-`documents` chỉ tải Pandoc/LibreOffice khi được chọn. Profile `ebooks` không
-bundle Calibre: nó nhận một native/system install đã có và in lệnh cài theo OS
-nếu thiếu. Cách này tránh thêm khoảng 430 MiB vào install mặc định.
+`tools.mjs` in download và installed-size estimate trước khi thao tác. FFmpeg,
+7-Zip, Pandoc, LibreOffice và Calibre đều được xử lý trong cùng một lượt.
+Calibre dùng bộ phân phối chính thức: MSI administrative extraction trên
+Windows, isolated binary trên Linux và DMG trên macOS.
 
 Installer tự xóa archive và cây giải nén trung gian sau khi binary cuối đã được
 kiểm tra. Chỉ đặt `ALPHA_KEEP_TOOL_DOWNLOADS=1` khi cần debug installer.
@@ -80,11 +76,8 @@ Mở PowerShell tại thư mục project:
 ```powershell
 node --version
 npm --version
-npm ci
+npm run bootstrap
 Copy-Item .env.example .env
-
-# Tùy chọn: cài đúng external tool cần dùng
-# npm run tools:install -- --profile media
 
 npm run build
 npm start
@@ -103,11 +96,11 @@ Tại thư mục project:
 ```bash
 node --version
 npm --version
-npm ci
+sudo apt update
+sudo apt install -y tar unzip xz-utils python3 xdg-utils \
+  libegl1 libopengl0 libxcb-cursor0 libxcb-xinerama0
+npm run bootstrap
 cp .env.example .env
-
-# Tùy chọn, ví dụ chỉ cần media:
-# npm run tools:install -- --profile media
 
 npm run build
 npm start
@@ -115,30 +108,20 @@ npm start
 
 Mở `http://127.0.0.1:8787`.
 
-LibreOffice không được auto-download trên Linux. Cài bằng package manager của
-distro, ví dụ Debian/Ubuntu:
+Trên Linux x64, installer tải LibreOffice AppImage rồi giải nén vào runtime và
+dùng Calibre isolated binary chính thức, không cần ghi vào `/usr` hoặc `/opt`.
+Calibre yêu cầu GLIBC 2.34, libstdc++ từ GCC 11.4 trở lên và các XCB/EGL
+runtime nêu ở bước prerequisite.
 
-```bash
-sudo apt update
-sudo apt install libreoffice-writer libreoffice-calc libreoffice-impress
-npm run tools:check -- --force
-```
-
-Pandoc và Calibre trên Debian/Ubuntu:
-
-```bash
-sudo apt install pandoc calibre
-npm run tools:repair -- --profile documents --profile ebooks
-```
-
-Portable FFmpeg hiện chỉ bảo đảm cho Linux x64. Trên Linux ARM64, nên cài
-FFmpeg từ package manager của hệ điều hành; không dùng URL portable x64.
+Linux ARM64 hiện vẫn cần FFmpeg và LibreOffice từ package manager vì portable
+FFmpeg/LibreOffice của project chỉ được xác minh trên x64. Sau khi cài native,
+chạy lại `npm run tools:install`; Pandoc, 7-Zip và Calibre ARM64 vẫn được xử lý
+trong lượt full install.
 
 WSL dùng tool Linux trong distribution, không dùng binary Windows trong
-`.runtime/tools/win32-*`. Với Docker, mount source/data riêng và cài profile
-trong image; ví dụ base Debian cần `ffmpeg`, `p7zip-full`, và tùy nhu cầu
-`libreoffice`, `pandoc`, `calibre`. Calibre/LibreOffice làm image tăng đáng kể,
-vì vậy nên build image theo workload thay vì một image chứa mọi profile.
+`.runtime/tools/win32-*`. Với Docker, mount source/data riêng và chạy `npm run
+bootstrap` trong image. Full runtime làm image tăng khoảng 2,3 GiB; cần cấp đủ
+disk cho layer chứa `.runtime/tools`.
 
 ## 5. Chạy development
 
@@ -180,9 +163,9 @@ npm run benchmark:workers
 npm run benchmark:upload
 ```
 
-`npm run tools:check` kiểm tra full external capability. Core app vẫn có thể
-chạy khi một external tool không có; UI sẽ đánh dấu nhóm liên quan là
-`Unavailable`.
+`npm run tools:check` kiểm tra full external capability và trả exit code khác
+0 nếu thiếu bất kỳ tool Phase 1 nào. Capability gating ở runtime vẫn giữ nguyên
+để không quảng cáo sai format khi binary hỏng hoặc bị xóa sau lúc build.
 
 Registry probe đọc demuxer/muxer/decoder/encoder của FFmpeg và format list của
 Pandoc/Calibre trên chính máy đang chạy. UI chỉ quảng cáo giao của capability
@@ -230,8 +213,8 @@ npm run build
 Lệnh `clear` cũng xóa `dist` và `server/dist`, vì vậy phải build lại. Không dùng
 `clear --all` cho bảo trì thường kỳ vì nó xóa cả `data` và `.runtime`.
 
-Nếu không dùng markup/Office, có thể xóa riêng Pandoc/LibreOffice sau khi dừng
-server. Chỉ profile/tool được chọn mới cài lại optional runtime đó.
+Không xóa riêng Pandoc/LibreOffice/Calibre nếu còn dùng quy trình chuẩn:
+`dev`, `build` hoặc `start` sẽ phát hiện thiếu và tải lại full runtime.
 
 Sau khi build/test xong, có thể thu nhỏ dependency production:
 
@@ -239,7 +222,7 @@ Sau khi build/test xong, có thể thu nhỏ dependency production:
 npm prune --omit=dev
 ```
 
-Sau đó muốn build/test lại phải chạy `npm ci`.
+Sau đó muốn build/test lại phải chạy `npm run bootstrap`.
 
 ## 8. Dữ liệu, backup và retention
 
@@ -296,27 +279,29 @@ npm run db:repair
 - Production chỉ hiện metadata API: kiểm tra `dist/index.html`,
   `SERVE_FRONTEND=1` và chạy lại `npm run build`.
 - Vừa cài tool nhưng UI vẫn báo unavailable: chạy
-  `npm run tools:repair -- --profile <profile>`, sau đó gọi
+  `npm run tools:repair`, sau đó gọi
   `POST /api/convert/matrix/refresh`. Registry cũng tự hết hạn cache; không cần
   restart backend trong trường hợp an toàn này.
 - Native package lỗi sau khi đổi Node/OS: xóa `node_modules` có chủ đích rồi
-  chạy lại `npm ci`; không cài riêng trong `server/`.
+  chạy lại `npm run bootstrap`; không cài riêng trong `server/`.
 - Database/schema lỗi: dùng `npm run db:repair`; lệnh này sửa schema mà không
   chủ động xóa workspace.
-- Thiếu LibreOffice trên Linux: cài các package writer/calc/impress của distro.
-- Thiếu Pandoc/Calibre: cài native package rồi chạy `tools:repair` cho profile
-  `documents`/`ebooks`. Ebook có DRM trả lỗi unsupported; AlphaStudio không
-  gỡ hoặc tuyên bố hỗ trợ DRM.
+- LibreOffice portable lỗi trên Linux x64: cài các package
+  writer/calc/impress của distro rồi chạy lại `npm run tools:repair`.
+- Pandoc/Calibre download lỗi: kiểm tra HTTPS/proxy và dung lượng trống rồi chạy
+  lại `npm run tools:install`. Ebook có DRM trả lỗi unsupported; AlphaStudio
+  không gỡ hoặc tuyên bố hỗ trợ DRM.
 - OCR hoặc PDF-to-image unavailable: cài Tesseract và một rasterizer như
   `pdftoppm`, sau đó bật feature và chạy lại tool check.
 
 ## 11. Phạm vi đã xác minh
 
-Ngày 18/07/2026, Phase 1 được build và kiểm thử trên Windows x64, Node 24.
+Ngày 19/07/2026, full-install flow của Phase 1 được build và kiểm thử trên
+Windows x64, Node 24.
 Regression, maintenance, audit, build, tool check và doctor phải được chạy lại
 theo mục 6 cho mỗi release; kết quả cụ thể nằm trong handoff/CI của commit.
 
 Linux container test xác minh source/build/runtime portable ở mức có thể của
 image; capability cụ thể vẫn phụ thuộc package/codec/filter của distribution.
-Luôn chạy `tools:check -- --profile ... --force` trên máy Linux đích trước khi
-quảng cáo một format.
+Luôn chạy `npm run tools:check -- --force` trên máy Linux đích trước khi quảng
+cáo một format.

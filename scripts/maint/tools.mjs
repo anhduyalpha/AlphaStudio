@@ -6,7 +6,8 @@
  * .runtime/tools/<platform>-<arch>/ without admin / global PATH mutation.
  *
  * tools:check uses the atomic manifest cache (size+mtime) and is fast when tools are valid.
- * tools:install only installs MISSING required tools — never re-downloads working ones.
+ * Without a selector, every Converter Phase 1 tool is required. tools:install
+ * installs every missing tool and never re-downloads working ones.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -58,14 +59,13 @@ if (help) {
 
   Options:
     --force / --no-cache   Bypass manifest cache (always re-probe)
-    --profile <name>       Select core, media, documents, or ebooks (repeatable)
-    --tool <name>          Select one tool; FFmpeg automatically includes ffprobe
+    --profile <name>       Advanced direct-CLI filter; npm scripts always add full
+    --tool <name>          Advanced direct-CLI filter; FFmpeg includes ffprobe
     --help / -h            Show this help
 
   Feature flags (env):
     ALPHA_FEATURE_OCR=1          require/report tesseract
     ALPHA_FEATURE_PDF_EXTRAS=1   require/report pdftoppm
-    ALPHA_SKIP_PANDOC=1          treat pandoc as optional
 `);
   process.exit(0);
 }
@@ -97,7 +97,11 @@ function printEnvHeader() {
       `  Estimate:     download ~${estimate.downloadMb} MiB, installed ~${estimate.installedMb} MiB`,
     );
   } else {
-    console.log('  Selection:    legacy required set (backward compatible)');
+    const estimate = selectionSizeEstimate(null);
+    console.log('  Selection:    full Converter Phase 1 toolset (default)');
+    console.log(
+      `  Estimate:     download ~${estimate.downloadMb} MiB, installed ~${estimate.installedMb} MiB`,
+    );
   }
   console.log('');
 }
@@ -250,7 +254,8 @@ function runInstall({ force = false } = {}) {
         : 'Nothing to install; all required tools present. Manifest synced (no downloads).',
     );
     writeLegacyConfig(projectRoot);
-    // Report optional gaps
+    // Report gaps outside the complete Phase 1 runtime (for example Phase 2
+    // image/vector tools or feature-gated OCR extras).
     const opt = before.filter((t) => !t.available && !t.skipped && !required.has(t.name));
     if (opt.length) {
       console.log(`Optional still missing: ${opt.map((t) => t.name).join(', ')}`);
