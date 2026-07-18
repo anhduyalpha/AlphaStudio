@@ -1,0 +1,6 @@
+commonmark
+gfm
+html
+markdown
+plain
+rst

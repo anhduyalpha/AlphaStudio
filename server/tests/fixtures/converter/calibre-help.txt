@@ -1,0 +1,3 @@
+ebook-convert 7.20
+Supported input formats: EPUB, MOBI, AZW3, FB2, TXT
+Supported output formats: EPUB, MOBI, AZW3, FB2, TXT, PDF, RTF, HTMLZ

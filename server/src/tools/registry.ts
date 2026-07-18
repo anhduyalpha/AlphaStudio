@@ -16,7 +16,14 @@ export const legacyToolsDir = path.join(projectRoot, '.tools');
 export const toolsConfigPath = path.join(toolsDir, 'config.json');
 export const toolsManifestPath = path.join(toolsDir, 'manifest.json');
 
-const EXTERNAL_TOOLS = ['ffmpeg', 'ffprobe', '7z', 'libreoffice', 'pandoc'] as const;
+const EXTERNAL_TOOLS = [
+  'ffmpeg',
+  'ffprobe',
+  '7z',
+  'libreoffice',
+  'pandoc',
+  'calibre',
+] as const;
 
 export type ToolEntry = {
   name: string;
@@ -299,6 +306,11 @@ function projectCandidates(tool: string): string[] {
         ]
       : ['libreoffice/program/soffice', 'libreoffice/soffice'],
     pandoc: [isWin ? 'pandoc/pandoc.exe' : 'pandoc/pandoc'],
+    calibre: [
+      isWin ? 'calibre/ebook-convert.exe' : 'calibre/ebook-convert',
+      isWin ? 'Calibre2/ebook-convert.exe' : 'Calibre2/ebook-convert',
+      isWin ? 'calibre/bin/ebook-convert.exe' : 'calibre/bin/ebook-convert',
+    ],
   };
   if (tool === '7z') return sevenZipCandidates();
   const hits: string[] = [];
@@ -309,6 +321,20 @@ function projectCandidates(tool: string): string[] {
     }
   }
   return hits;
+}
+
+function wellKnownCandidates(tool: string): string[] {
+  if (tool !== 'calibre') return [];
+  const candidates =
+    process.platform === 'win32'
+      ? [
+          'C:\\Program Files\\Calibre2\\ebook-convert.exe',
+          'C:\\Program Files (x86)\\Calibre2\\ebook-convert.exe',
+        ]
+      : process.platform === 'darwin'
+        ? ['/Applications/calibre.app/Contents/MacOS/ebook-convert']
+        : ['/usr/bin/ebook-convert', '/usr/local/bin/ebook-convert'];
+  return candidates.filter((candidate) => fs.existsSync(candidate));
 }
 
 /** Windows: always prefer soffice.com over .exe when sibling exists */
@@ -411,6 +437,7 @@ const PROBE_ARGS: Record<string, string[]> = {
   '7z': [],
   libreoffice: ['--version'],
   pandoc: ['--version'],
+  calibre: ['--version'],
 };
 
 function finalizeEntry(name: string, execPath: string, version: string | undefined, source: ToolEntry['source']): ToolEntry {
@@ -565,6 +592,12 @@ function resolveToolProbing(name: string): ToolEntry {
     if (p.ok || name === '7z') return finalizeEntry(name, candidate, p.version || 'project', 'project');
   }
 
+  for (const candidate of wellKnownCandidates(name)) {
+    const args = PROBE_ARGS[name] ?? ['--version'];
+    const p = probe(candidate, args);
+    if (p.ok) return finalizeEntry(name, candidate, p.version, 'system');
+  }
+
   // PATH names
   const pathNames =
     name === 'libreoffice'
@@ -573,6 +606,8 @@ function resolveToolProbing(name: string): ToolEntry {
         : ['soffice', 'libreoffice']
       : name === '7z'
         ? ['7z', '7za', '7zz'] // not 7zr first
+        : name === 'calibre'
+          ? ['ebook-convert']
         : [name];
 
   for (const pn of pathNames) {
@@ -678,6 +713,7 @@ export function resolveAllTools(force = false): Record<string, ToolEntry> {
     '7z': resolveToolProbing('7z'),
     libreoffice: resolveToolProbing('libreoffice'),
     pandoc: resolveToolProbing('pandoc'),
+    calibre: resolveToolProbing('calibre'),
     ...bundledTools(),
   };
 
@@ -705,6 +741,7 @@ export function requireTool(name: string): ToolEntry {
       libreoffice: `Install LibreOffice and ensure soffice is on PATH, or place a portable copy under .tools/libreoffice and run npm run tools:repair.`,
       '7z': `Install 7-Zip or place 7z.exe under .tools/7z, then run npm run tools:repair.`,
       pandoc: `Install pandoc or place binary under .tools/pandoc, then run npm run tools:repair.`,
+      calibre: `Install Calibre's ebook-convert with "npm run tools:install -- --profile ebooks", or add ebook-convert to PATH.`,
     };
     // dynamic import avoided; construct AppError-compatible throw
     const err = new Error(hints[name] || `${name} is not available. Run npm run tools:check.`) as Error & {

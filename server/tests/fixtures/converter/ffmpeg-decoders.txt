@@ -1,0 +1,7 @@
+Decoders:
+ VFS..D h264         H.264 / AVC
+ V....D vp9          Google VP9
+ V....D gif          CompuServe GIF
+ A....D mp3float     MP3
+ A....D pcm_s16le    PCM signed 16-bit little-endian
+ A....D aac          AAC

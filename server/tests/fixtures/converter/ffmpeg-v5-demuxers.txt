@@ -1,0 +1,7 @@
+Demuxers:
+ D  mp3             MP2/3 (MPEG audio layer 2/3)
+ D  wav             WAV / WAVE
+ D  mov,mp4,m4a     QuickTime / MOV
+ D  matroska,webm   Matroska / WebM
+ D  gif             CompuServe Graphics Interchange Format
+ D  dshow           DirectShow capture

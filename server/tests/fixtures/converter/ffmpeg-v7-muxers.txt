@@ -1,0 +1,6 @@
+Muxers:
+ E  mp3             MP3 (MPEG audio layer 3)
+ E  wav             WAV / WAVE
+ E  mp4             MP4 (MPEG-4 Part 14)
+ E  webm            WebM
+ E  gif             CompuServe Graphics Interchange Format
