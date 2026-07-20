@@ -65,6 +65,9 @@ export function buildConversionGroups(files = []) {
       detect.recommendedOutput ||
       outputs.find((o) => o.available)?.format ||
       null;
+    const recommendedOption = outputs.find(
+      (o) => o.available && o.format === recommended,
+    );
     return {
       id: key,
       key,
@@ -76,7 +79,11 @@ export function buildConversionGroups(files = []) {
       outputs,
       recommendedOutput: recommended,
       valid: outputs.some((o) => o.available),
-      engine: engineForFamily(detect.family),
+      engine:
+        recommendedOption?.engine?.name ||
+        detect.preferredEngine?.name ||
+        engineForFamily(detect.family),
+      preferredEngine: recommendedOption?.engine || detect.preferredEngine || null,
     };
   });
 
@@ -164,6 +171,14 @@ export function engineForFamily(family) {
     default:
       return 'Converter';
   }
+}
+
+/** Resolve the actual registry-selected engine for a group's current target. */
+export function engineForOutput(group, format) {
+  const option = (group?.outputs || []).find(
+    (output) => output.available && output.format === format,
+  );
+  return option?.engine?.name || group?.preferredEngine?.name || group?.engine || 'Converter';
 }
 
 /**
@@ -257,6 +272,7 @@ export function buildResultRows({ jobs = [], outputs = [], files = [] } = {}) {
         outputFormat: opts.format || opts.outputFormat || null,
         size: out?.size ?? null,
         duration: opts.duration ?? j.meta?.duration ?? null,
+        engine: j.meta?.conversionEngine?.name || null,
         status: j.status,
         progress: j.progress ?? 0,
         message: j.message,

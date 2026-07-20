@@ -183,6 +183,23 @@ describe('inspect API', () => {
     const body = await res.json();
     assert.ok(body.tools.sharp.available);
     assert.ok(body.families.image);
+    assert.ok(Array.isArray(body.engines));
+    assert.ok(Array.isArray(body.routes));
+    assert.ok(body.engines.some((engine: { id: string }) => engine.id === 'ffmpeg'));
+    assert.ok(
+      Object.values(body.tools).every(
+        (tool: any) => !Object.prototype.hasOwnProperty.call(tool, 'path'),
+      ),
+    );
+    assert.ok(!/executablePath|[A-Za-z]:\\\\/.test(JSON.stringify(body)));
+
+    const refreshed = await fetch(`${base}/api/convert/matrix/refresh`, {
+      method: 'POST',
+    });
+    assert.equal(refreshed.status, 200);
+    const refreshBody = await refreshed.json();
+    assert.equal(refreshBody.refreshed, true);
+    assert.ok(Array.isArray(refreshBody.engines));
   });
 });
 
@@ -207,10 +224,29 @@ describe('convert jobs', () => {
     const job = await create.json();
     const final = await waitJob(job.id);
     assert.equal(final.status, 'completed', final.error || final.message);
+    assert.equal(final.meta?.conversionEngine?.id, 'alphastudio');
+    assert.equal(final.meta?.conversionEngine?.profile, 'core');
+    assert.ok(!/path|command|executable/i.test(JSON.stringify(final.meta)));
     const dl = await fetch(`${base}/api/jobs/${job.id}/download`);
     assert.equal(dl.status, 200);
     const buf = Buffer.from(await dl.arrayBuffer());
     assert.ok(buf.length > 20);
+
+    const cachedCreate = await fetch(`${base}/api/jobs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'converter',
+        uploadIds: [up.id],
+        options: { operation: 'batch', format: 'webp' },
+      }),
+    });
+    assert.equal(cachedCreate.status, 201);
+    const cachedJob = await cachedCreate.json();
+    const cachedFinal = await waitJob(cachedJob.id);
+    assert.equal(cachedFinal.status, 'completed', cachedFinal.error);
+    assert.equal(cachedFinal.meta?.cacheHit, true);
+    assert.equal(cachedFinal.meta?.conversionEngine?.id, 'alphastudio');
   });
 
   it('txt → pdf real job', async () => {

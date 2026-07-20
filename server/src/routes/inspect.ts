@@ -3,6 +3,12 @@ import { getDb } from '../db/index.js';
 import { badRequest, notFound } from '../lib/errors.js';
 import { detectFile, type InspectResult } from '../convert/detect.js';
 import { intersectOutputs, type OutputOption } from '../convert/matrix.js';
+import {
+  capabilitySnapshot,
+  invalidateEngineRegistry,
+  publicCapabilitySnapshot,
+} from '../convert/engines/index.js';
+import { allFormatDefinitions } from '../convert/formats.js';
 
 type UploadInspectRow = {
   id: string;
@@ -127,10 +133,21 @@ export async function inspectRoutes(app: FastifyInstance): Promise<void> {
       tools: Object.fromEntries(
         Object.entries(tools).map(([k, v]) => [
           k,
-          { available: v.available, path: v.path || null, version: v.version || null, source: v.source },
+          { available: v.available, version: v.version || null, source: v.source },
         ]),
       ),
+      ...publicCapabilitySnapshot(capabilitySnapshot()),
+      formats: allFormatDefinitions(),
       families: samples,
+    };
+  });
+
+  /** Re-probe tools and rebuild the registry snapshot without a server restart. */
+  app.post('/api/convert/matrix/refresh', async () => {
+    invalidateEngineRegistry();
+    return {
+      refreshed: true,
+      ...publicCapabilitySnapshot(capabilitySnapshot(true)),
     };
   });
 }

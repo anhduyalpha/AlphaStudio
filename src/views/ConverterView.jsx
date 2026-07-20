@@ -20,6 +20,7 @@ import {
   buildResultRows,
   canConvertGroup,
   defaultGroupSettings,
+  engineForOutput,
   hasActiveDuplicateJob,
   jobTouchesFileIds,
   sharedTargetsAcrossGroups,
@@ -1198,6 +1199,7 @@ export default function ConverterView({ notify }) {
             const busyGroup = convertingKeys.has(group.id);
             const outputs = (group.outputs || []).filter((o) => o.available);
             const unavailable = (group.outputs || []).filter((o) => !o.available);
+            const selectedEngine = engineForOutput(group, settings.format);
             return (
               <article className="surface-card content-card converter-group-card" key={group.id}>
                 <div className="card-heading compact-heading">
@@ -1208,7 +1210,7 @@ export default function ConverterView({ notify }) {
                     <h3>{group.label}</h3>
                   </div>
                   <StatusBadge tone="blue">
-                    {group.fileIds.length} file{group.fileIds.length === 1 ? '' : 's'} · {group.engine}
+                    {group.fileIds.length} file{group.fileIds.length === 1 ? '' : 's'} · {selectedEngine}
                   </StatusBadge>
                 </div>
 
@@ -1255,7 +1257,7 @@ export default function ConverterView({ notify }) {
                   <p className="helper-note" style={{ marginTop: 8 }}>
                     Unavailable: {unavailable
                       .slice(0, 4)
-                      .map((o) => o.label)
+                      .map((o) => `${o.label}${o.profile ? ` [${o.profile} profile]` : ''}`)
                       .join(', ')}
                     {unavailable[0]?.reason ? ` — ${unavailable[0].reason}` : ''}
                   </p>

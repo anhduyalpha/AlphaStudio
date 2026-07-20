@@ -147,7 +147,7 @@ async function run(job: WorkerJobPayload): Promise<void> {
         outputPath: destination,
         outputName: job.cachedResult.outputName,
         outputMime: job.cachedResult.outputMime,
-        meta: { cacheHit: true },
+        meta: { ...(job.cachedResult.meta || {}), cacheHit: true },
       };
       send({
         type: 'progress',

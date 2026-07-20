@@ -1,0 +1,8 @@
+Encoders:
+ V..... libx264      H.264 / AVC
+ V..... libvpx-vp9   Google VP9
+ V..... gif          CompuServe GIF
+ A..... libmp3lame   MP3
+ A..... pcm_s16le    PCM signed 16-bit little-endian
+ A..... aac          AAC
+ A..... libopus      Opus

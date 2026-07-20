@@ -61,7 +61,8 @@ const JOB_CATEGORIES: JobCategory[] = ['image', 'pdf', 'media', 'office', 'gener
 const IMAGE_FORMATS = new Set(['avif', 'bmp', 'gif', 'heic', 'jpeg', 'jpg', 'png', 'svg', 'tif', 'tiff', 'webp']);
 const MEDIA_FORMATS = new Set(['aac', 'avi', 'flac', 'm4a', 'mkv', 'mov', 'mp3', 'mp4', 'ogg', 'opus', 'wav', 'webm']);
 const OFFICE_FORMATS = new Set(['doc', 'docx', 'odp', 'ods', 'odt', 'ppt', 'pptx', 'rtf', 'xls', 'xlsx']);
-const OFFICE_ROUTED_INPUT_FORMATS = new Set([...OFFICE_FORMATS, 'epub']);
+const OPTIONAL_DOCUMENT_FORMATS = new Set(['asciidoc', 'azw3', 'epub', 'fb2', 'htmlz', 'mobi', 'rst']);
+const OFFICE_ROUTED_INPUT_FORMATS = new Set([...OFFICE_FORMATS, ...OPTIONAL_DOCUMENT_FORMATS]);
 
 type ActiveLease = {
   job: JobRow;
@@ -121,7 +122,7 @@ export function classifyJobCategory(
   // LibreOffice is selected primarily by the input family. Check it before
   // output formats so DOCX→PDF/PPTX→PNG cannot bypass the office=1 ceiling.
   if (inputExts.some((ext) => OFFICE_ROUTED_INPUT_FORMATS.has(ext))) return 'office';
-  if (OFFICE_FORMATS.has(format)) return 'office';
+  if (OFFICE_FORMATS.has(format) || OPTIONAL_DOCUMENT_FORMATS.has(format)) return 'office';
   if (format === 'pdf') return 'pdf';
   if (MEDIA_FORMATS.has(format)) return 'media';
   if (IMAGE_FORMATS.has(format)) return 'image';
@@ -402,6 +403,7 @@ export function jobPublic(job: JobRow) {
     message: job.message,
     error: job.error,
     options: safeParse(job.options),
+    meta: job.result_json ? safeParse(job.result_json) : null,
     outputName: job.output_name,
     outputMime: job.output_mime,
     downloadUrl: job.status === 'completed' && job.output_path ? `/api/jobs/${job.id}/download` : null,
@@ -744,17 +746,27 @@ async function completeJobSuccess(
   cacheKey: string | null,
 ): Promise<void> {
   const { size } = validateJobOutput(result, finalPath);
+  const resultMeta = sanitizeResultMeta(result.meta);
 
   const doneAt = new Date().toISOString();
   const completed = getDb()
     .prepare(
       `UPDATE jobs SET status = 'completed', progress = 100, message = 'Completed',
-       output_path = ?, output_name = ?, output_mime = ?, finished_at = ?, updated_at = ?,
+       output_path = ?, output_name = ?, output_mime = ?, result_json = ?, finished_at = ?, updated_at = ?,
        error = NULL, error_code = NULL, retryable = 0, cancel_requested = 0,
        worker_id = NULL, worker_lease = NULL, last_heartbeat_at = NULL, timeout_at = NULL
        WHERE id = ? AND status = 'running' AND worker_lease = ?`,
     )
-    .run(finalPath, result.outputName, result.outputMime, doneAt, doneAt, id, lease);
+    .run(
+      finalPath,
+      result.outputName,
+      result.outputMime,
+      resultMeta ? JSON.stringify(resultMeta) : null,
+      doneAt,
+      doneAt,
+      id,
+      lease,
+    );
   if (completed.changes !== 1) {
     throw Object.assign(new Error('Worker result belongs to a stale job lease'), {
       code: 'STALE_WORKER_LEASE',
@@ -768,6 +780,7 @@ async function completeJobSuccess(
         outputPath: finalPath,
         outputName: result.outputName,
         outputMime: result.outputMime,
+        meta: resultMeta,
       });
     } catch (err) {
       logger.debug({ err }, 'job_result_cache store skipped');
@@ -935,6 +948,9 @@ function prepareWorkerPayload(job: JobRow): {
             outputPath: cached.output_path,
             outputName: cached.output_name,
             outputMime: cached.output_mime || 'application/octet-stream',
+            meta: cached.result_json
+              ? (safeParse(cached.result_json) as Record<string, unknown>)
+              : undefined,
           };
         } else {
           deleteJobResultCache(cacheKey);
@@ -1567,6 +1583,39 @@ function safeParse(raw: string): unknown {
   } catch {
     return {};
   }
+}
+
+/** Persist only bounded, browser-safe result metadata (never paths/commands). */
+export function sanitizeResultMeta(
+  meta: Record<string, unknown> | undefined,
+): Record<string, unknown> | null {
+  if (!meta) return null;
+  const sanitize = (value: unknown, depth: number): unknown => {
+    if (depth > 5 || value == null || typeof value === 'boolean' || typeof value === 'number') {
+      return value;
+    }
+    if (typeof value === 'string') {
+      if (/^[a-zA-Z]:[\\/]|^\\\\|^\//.test(value)) return undefined;
+      return value.slice(0, 2_000);
+    }
+    if (Array.isArray(value)) {
+      return value
+        .slice(0, 100)
+        .map((item) => sanitize(item, depth + 1))
+        .filter((item) => item !== undefined);
+    }
+    if (typeof value === 'object') {
+      return Object.fromEntries(
+        Object.entries(value as Record<string, unknown>)
+          .filter(([key]) => !/path|command|args|executable|environment/i.test(key))
+          .slice(0, 100)
+          .map(([key, item]) => [key, sanitize(item, depth + 1)])
+          .filter(([, item]) => item !== undefined),
+      );
+    }
+    return undefined;
+  };
+  return sanitize(meta, 0) as Record<string, unknown>;
 }
 
 /**

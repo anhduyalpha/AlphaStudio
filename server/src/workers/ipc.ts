@@ -18,6 +18,7 @@ export type WorkerJobPayload = {
     outputPath: string;
     outputName: string;
     outputMime: string;
+    meta?: Record<string, unknown>;
   } | null;
 };
 

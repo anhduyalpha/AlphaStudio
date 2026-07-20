@@ -11,9 +11,11 @@
  *   - ffmpeg + ffprobe  (same build; Windows zip / Linux static / macOS)
  *   - 7-Zip             (7zr.exe bootstrap + extra package on Windows; 7zz linux)
  *   - pandoc            (official GitHub release zip/tarball)
- *   - LibreOffice       (Windows MSI administrative extract; else actionable error)
+ *   - LibreOffice       (Windows MSI extract; Linux x64 AppImage extract)
+ *   - Calibre            (official MSI extraction/isolated binary/DMG)
  *
- * Selective install: --only ffmpeg --only 7z  or  ALPHA_TOOLS_ONLY=ffmpeg,7z
+ * Standard `npm run setup:tools` passes --full. Internal maintenance calls may
+ * use --only to install just the missing units from an already-full selection.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -54,6 +56,7 @@ for (const d of [
 function parseOnlySet() {
   const only = new Set();
   const args = process.argv.slice(2);
+  const forceFull = args.includes('--full');
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--only' && args[i + 1]) {
       only.add(String(args[++i]).toLowerCase());
@@ -65,6 +68,7 @@ function parseOnlySet() {
   for (const part of envOnly.split(/[,;\s]+/).filter(Boolean)) {
     only.add(part.toLowerCase());
   }
+  if (forceFull) return null;
   return only.size ? only : null;
 }
 
@@ -104,6 +108,12 @@ const URLS = {
   // Pin a version that exists on the CDN; bump when Document Foundation ships newer.
   libreOfficeMsi:
     'https://download.documentfoundation.org/libreoffice/stable/25.8.7/win/x86_64/LibreOffice_25.8.7_Win_x86-64.msi',
+  libreOfficeLinuxAppImage:
+    'https://appimages.libreitalia.org/LibreOffice-latest.basic-x86_64.AppImage',
+  // Stable official redirect endpoints select the current Calibre release.
+  calibreWinMsi: 'https://calibre-ebook.com/dist/win64',
+  calibreLinuxInstaller: 'https://download.calibre-ebook.com/linux-installer.sh',
+  calibreMac: 'https://calibre-ebook.com/dist/osx',
 };
 
 function ensureDir(p) {
@@ -579,6 +589,7 @@ async function setupLibreOffice(cfg) {
     path.join(toolsDir, 'libreoffice', 'program', isWin ? 'soffice.exe' : 'soffice'),
     path.join(toolsDir, 'LibreOffice', 'program', isWin ? 'soffice.com' : 'soffice'),
     path.join(toolsDir, 'LibreOffice', 'program', isWin ? 'soffice.exe' : 'soffice'),
+    path.join(toolsDir, 'libreoffice', 'usr', 'lib', 'libreoffice', 'program', 'soffice'),
   ];
 
   const pathLo =
@@ -610,14 +621,54 @@ async function setupLibreOffice(cfg) {
     }
   }
 
+  if (isLinux && archLabel === 'x64') {
+    const appImagePath = path.join(toolsDir, 'downloads', 'LibreOffice.AppImage');
+    const extractRoot = path.join(toolsDir, 'libreoffice-appimage-extract');
+    const extractedApp = path.join(extractRoot, 'squashfs-root');
+    const destRoot = path.join(toolsDir, 'libreoffice');
+    log(`libreoffice: downloading ${URLS.libreOfficeLinuxAppImage}…`);
+    try {
+      await download(URLS.libreOfficeLinuxAppImage, appImagePath);
+      fs.chmodSync(appImagePath, 0o755);
+      if (fs.existsSync(extractRoot)) fs.rmSync(extractRoot, { recursive: true, force: true });
+      ensureDir(extractRoot);
+      execFileSync(appImagePath, ['--appimage-extract'], {
+        cwd: extractRoot,
+        stdio: ['ignore', 'ignore', 'pipe'],
+        windowsHide: true,
+        timeout: 600_000,
+      });
+      if (!fs.existsSync(extractedApp)) throw new Error('AppImage extraction produced no squashfs-root');
+      ensureDir(destRoot);
+      fs.cpSync(extractedApp, destRoot, { recursive: true, force: true });
+      const final = walkFind(destRoot, ['soffice']);
+      if (!final) throw new Error('soffice not found after AppImage extraction');
+      const p = probe(final, ['--version']);
+      if (!p.ok) throw new Error('LibreOffice --version failed after AppImage extraction');
+      cfg.tools.libreoffice = { path: final, version: p.version };
+      log(`libreoffice: installed → ${final}`);
+      return;
+    } catch (error) {
+      err(
+        `ACTION REQUIRED: LibreOffice portable install failed (${error.message}).\n` +
+          '  Install libreoffice-writer libreoffice-calc libreoffice-impress with the system package manager, then retry.',
+      );
+      process.exitCode = 2;
+      return;
+    } finally {
+      cleanupInstallStaging([extractRoot, appImagePath]);
+    }
+  }
+
   if (!isWin) {
     err(
       'ACTION REQUIRED: LibreOffice not found.\n' +
         (isMac
           ? '  brew install --cask libreoffice && npm run repair:tools\n'
-          : '  sudo apt install libreoffice-writer libreoffice-calc libreoffice-impress && npm run repair:tools\n') +
+          : '  Linux portable auto-install currently supports x64 only; install the distro packages on ARM64.\n') +
         `  Or place portable soffice under .runtime/tools/${platformArch}/libreoffice/program/`,
     );
+    process.exitCode = 2;
     return;
   }
 
@@ -688,6 +739,122 @@ async function setupLibreOffice(cfg) {
   }
 }
 
+// ─── Calibre ──────────────────────────────────────────────────────────────
+
+async function setupCalibre(cfg) {
+  const local = path.join(toolsDir, 'calibre', isWin ? 'ebook-convert.exe' : 'ebook-convert');
+  const wellKnown = isWin
+    ? [
+        'C:\\Program Files\\Calibre2\\ebook-convert.exe',
+        'C:\\Program Files (x86)\\Calibre2\\ebook-convert.exe',
+      ]
+    : isMac
+      ? ['/Applications/calibre.app/Contents/MacOS/ebook-convert']
+      : ['/usr/bin/ebook-convert', '/usr/local/bin/ebook-convert'];
+  const executable =
+    findOnPath(['ebook-convert']) ||
+    wellKnown.find((candidate) => fs.existsSync(candidate)) ||
+    (fs.existsSync(local) ? local : null);
+  if (executable) {
+    const result = probe(executable, ['--version']);
+    if (result.ok) {
+      cfg.tools.calibre = { path: executable, version: result.version };
+      log(`calibre: system/native install OK (${executable})`);
+      return;
+    }
+  }
+
+  const destRoot = path.join(toolsDir, 'calibre');
+  let installerPath = '';
+  let mountDir = '';
+  let extractRoot = '';
+  try {
+    if (isWin) {
+      installerPath = path.join(toolsDir, 'downloads', 'calibre.msi');
+      extractRoot = path.join(toolsDir, 'calibre-msi-extract');
+      log(`calibre: downloading ${URLS.calibreWinMsi} (~220 MiB)…`);
+      await download(URLS.calibreWinMsi, installerPath);
+      if (fs.existsSync(extractRoot)) fs.rmSync(extractRoot, { recursive: true, force: true });
+      ensureDir(extractRoot);
+      log('calibre: extracting the official MSI without a system-wide install…');
+      execFileSync('msiexec.exe', ['/a', installerPath, '/qn', `TARGETDIR=${extractRoot}`], {
+        stdio: 'inherit',
+        windowsHide: true,
+        timeout: 900_000,
+      });
+      const extracted = walkFind(extractRoot, ['ebook-convert.exe']);
+      if (!extracted) throw new Error('ebook-convert was not found in the extracted MSI');
+      ensureDir(destRoot);
+      fs.cpSync(path.dirname(extracted), destRoot, { recursive: true, force: true });
+    } else if (isLinux) {
+      installerPath = path.join(toolsDir, 'downloads', 'calibre-linux-installer.sh');
+      log(`calibre: downloading ${URLS.calibreLinuxInstaller}…`);
+      await download(URLS.calibreLinuxInstaller, installerPath);
+      ensureDir(destRoot);
+      log('calibre: installing the official isolated binary distribution…');
+      execFileSync(
+        'sh',
+        // The official installer creates a `calibre/` child under install_dir.
+        // Passing toolsDir keeps ebook-convert at the canonical
+        // <platform>/calibre/ebook-convert path used by every resolver.
+        [installerPath, `install_dir=${toolsDir}`, 'isolated=y'],
+        { stdio: 'inherit', windowsHide: true, timeout: 900_000 },
+      );
+    } else if (isMac) {
+      installerPath = path.join(toolsDir, 'downloads', 'calibre.dmg');
+      mountDir = path.join(toolsDir, 'calibre-dmg-mount');
+      log(`calibre: downloading ${URLS.calibreMac}…`);
+      await download(URLS.calibreMac, installerPath);
+      ensureDir(mountDir);
+      execFileSync(
+        'hdiutil',
+        ['attach', installerPath, '-nobrowse', '-readonly', '-mountpoint', mountDir],
+        { stdio: 'inherit', windowsHide: true, timeout: 180_000 },
+      );
+      const appName = fs.readdirSync(mountDir).find((name) => /\.app$/i.test(name));
+      if (!appName) throw new Error('Calibre application was not found in the DMG');
+      const appDest = path.join(destRoot, appName);
+      ensureDir(destRoot);
+      fs.cpSync(path.join(mountDir, appName), appDest, { recursive: true, force: true });
+    } else {
+      throw new Error(`Unsupported platform ${platform}`);
+    }
+
+    const installed = walkFind(destRoot, [isWin ? 'ebook-convert.exe' : 'ebook-convert']);
+    if (!installed) throw new Error('ebook-convert was not found after installation');
+    if (!isWin) {
+      try {
+        fs.chmodSync(installed, 0o755);
+      } catch {
+        /* ignore */
+      }
+    }
+    const result = probe(installed, ['--version']);
+    if (!result.ok) throw new Error('ebook-convert --version failed after installation');
+    cfg.tools.calibre = { path: installed, version: result.version };
+    log(`calibre: installed → ${installed}`);
+  } catch (error) {
+    err(
+      `ACTION REQUIRED: Calibre automatic install failed (${error.message}).\n` +
+        '  Retry npm run tools:install, or install from https://calibre-ebook.com/download',
+    );
+    process.exitCode = 2;
+  } finally {
+    if (mountDir && fs.existsSync(mountDir)) {
+      try {
+        execFileSync('hdiutil', ['detach', mountDir, '-force'], {
+          stdio: 'ignore',
+          windowsHide: true,
+          timeout: 60_000,
+        });
+      } catch {
+        /* best-effort detach */
+      }
+    }
+    cleanupInstallStaging([installerPath, mountDir, extractRoot].filter(Boolean));
+  }
+}
+
 // ─── main ─────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -695,8 +862,10 @@ async function main() {
   ensureDir(path.join(toolsDir, 'downloads'));
   const onlySet = parseOnlySet();
   const pandocRequested =
-    Boolean(onlySet?.has('pandoc')) ||
+    !onlySet ||
+    Boolean(onlySet.has('pandoc')) ||
     ['1', 'true', 'yes'].includes(String(process.env.ALPHA_REQUIRE_PANDOC || '').toLowerCase());
+  const calibreRequested = !onlySet || Boolean(onlySet.has('calibre'));
   const cfg = { updatedAt: new Date().toISOString(), tools: {} };
   if (fs.existsSync(configPath)) {
     try {
@@ -716,15 +885,21 @@ async function main() {
   if (shouldSetup('7z', onlySet)) await setup7z(cfg);
   else log('7z: skipped (--only filter)');
   if (pandocRequested) await setupPandoc(cfg);
-  else log('pandoc: skipped (runtime 3.6 does not use it; request with --only pandoc)');
+  else log('pandoc: skipped (--only filter)');
   if (shouldSetup('libreoffice', onlySet)) await setupLibreOffice(cfg);
   else log('libreoffice: skipped (--only filter)');
+  if (calibreRequested) await setupCalibre(cfg);
+  else log('calibre: skipped (--only filter)');
 
   // Final probes
   for (const [name, entry] of Object.entries(cfg.tools)) {
     if (!entry?.path || !fs.existsSync(entry.path)) continue;
     const args =
-      name === 'libreoffice' || name === 'pandoc' ? ['--version'] : name === '7z' ? [] : ['-version'];
+      name === 'libreoffice' || name === 'pandoc' || name === 'calibre'
+        ? ['--version']
+        : name === '7z'
+          ? []
+          : ['-version'];
     if (name === '7z') {
       entry.version = entry.version || '7z';
       continue;

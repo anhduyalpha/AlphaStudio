@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { config } from '../config.js';
 import { detectCapabilities } from '../capabilities.js';
 import { getWorkerDiagnostics, getWorkerPoolStats } from '../workers/jobs.js';
+import { capabilitySnapshot, publicCapabilitySnapshot } from '../convert/engines/index.js';
 
 export async function systemRoutes(app: FastifyInstance): Promise<void> {
   app.get('/api/health', async () => {
@@ -30,8 +31,18 @@ export async function systemRoutes(app: FastifyInstance): Promise<void> {
     return {
       version: config.version,
       detectedAt: caps.detectedAt,
-      binaries: caps.binaries,
+      binaries: Object.fromEntries(
+        Object.entries(caps.binaries).map(([id, binary]) => [
+          id,
+          {
+            name: binary.name,
+            available: binary.available,
+            version: binary.version,
+          },
+        ]),
+      ),
       tools: caps.tools,
+      converter: publicCapabilitySnapshot(capabilitySnapshot()),
       limits: {
         maxUploadBytes: config.maxUploadBytes,
         maxOutputBytes: config.maxOutputBytes,

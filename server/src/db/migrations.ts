@@ -20,6 +20,7 @@ export function ensureRequiredTables(db: Database.Database): void {
       output_path TEXT NOT NULL,
       output_name TEXT NOT NULL,
       output_mime TEXT,
+      result_json TEXT,
       created_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_job_result_cache_created ON job_result_cache(created_at);
@@ -59,6 +60,23 @@ export function ensureRequiredTables(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_upload_chunks_session
       ON upload_chunks(session_id, chunk_index);
   `);
+
+  const cacheColumns = new Set(
+    (db.prepare(`PRAGMA table_info(job_result_cache)`).all() as { name: string }[]).map(
+      (column) => column.name,
+    ),
+  );
+  if (!cacheColumns.has('result_json')) {
+    db.exec(`ALTER TABLE job_result_cache ADD COLUMN result_json TEXT`);
+  }
+  const jobColumns = new Set(
+    (db.prepare(`PRAGMA table_info(jobs)`).all() as { name: string }[]).map(
+      (column) => column.name,
+    ),
+  );
+  if (jobColumns.size > 0 && !jobColumns.has('result_json')) {
+    db.exec(`ALTER TABLE jobs ADD COLUMN result_json TEXT`);
+  }
 }
 
 /**
@@ -330,6 +348,21 @@ export function runMigrations(db: Database.Database): void {
           SET status = 'uploading', last_error = 'Server restarted during finalize', updated_at = datetime('now')
           WHERE status = 'finalizing';
         `);
+      },
+    },
+    {
+      version: 7,
+      name: 'persist_sanitized_job_result_metadata',
+      up: () => {
+        const jobColumns = new Set(
+          (db.prepare(`PRAGMA table_info(jobs)`).all() as { name: string }[]).map(
+            (column) => column.name,
+          ),
+        );
+        if (!jobColumns.has('result_json')) {
+          db.exec(`ALTER TABLE jobs ADD COLUMN result_json TEXT`);
+        }
+        ensureRequiredTables(db);
       },
     },
   ];

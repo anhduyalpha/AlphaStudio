@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS jobs (
   output_path TEXT,
   output_name TEXT,
   output_mime TEXT,
+  result_json TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   started_at TEXT,
@@ -91,14 +92,15 @@ const SQL = {
     `INSERT INTO detect_cache (checksum, detect_json, created_at) VALUES (?, ?, ?)
      ON CONFLICT(checksum) DO UPDATE SET detect_json = excluded.detect_json, created_at = excluded.created_at`,
   getJobResultCache:
-    `SELECT cache_key, output_path, output_name, output_mime, created_at FROM job_result_cache WHERE cache_key = ?`,
+    `SELECT cache_key, output_path, output_name, output_mime, result_json, created_at FROM job_result_cache WHERE cache_key = ?`,
   setJobResultCache:
-    `INSERT INTO job_result_cache (cache_key, output_path, output_name, output_mime, created_at)
-     VALUES (?, ?, ?, ?, ?)
+    `INSERT INTO job_result_cache (cache_key, output_path, output_name, output_mime, result_json, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)
      ON CONFLICT(cache_key) DO UPDATE SET
        output_path = excluded.output_path,
        output_name = excluded.output_name,
        output_mime = excluded.output_mime,
+       result_json = excluded.result_json,
        created_at = excluded.created_at`,
   deleteJobResultCache: `DELETE FROM job_result_cache WHERE cache_key = ?`,
 } as const;
@@ -343,6 +345,7 @@ export type JobResultCacheRow = {
   output_path: string;
   output_name: string;
   output_mime: string | null;
+  result_json: string | null;
   created_at: string;
 };
 
@@ -356,6 +359,7 @@ export function setJobResultCache(entry: {
   outputPath: string;
   outputName: string;
   outputMime?: string | null;
+  meta?: Record<string, unknown> | null;
 }): void {
   if (!entry.cacheKey) return;
   const t = new Date().toISOString();
@@ -364,6 +368,7 @@ export function setJobResultCache(entry: {
     entry.outputPath,
     entry.outputName,
     entry.outputMime ?? null,
+    entry.meta ? JSON.stringify(entry.meta) : null,
     t,
   );
 }
@@ -395,6 +400,7 @@ export type JobRow = {
   output_path: string | null;
   output_name: string | null;
   output_mime: string | null;
+  result_json?: string | null;
   created_at: string;
   updated_at: string;
   started_at: string | null;

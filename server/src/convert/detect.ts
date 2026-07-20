@@ -11,6 +11,7 @@ import {
   type DetectedKind,
   type Family,
   type OutputOption,
+  type PublicEngineRoute,
   listOutputsFor,
   recommendedOutput,
   getToolsSnapshot,
@@ -77,7 +78,15 @@ const EXT_FAMILY: Record<string, { family: Family; format: string }> = {
   '.md': { family: 'text', format: 'md' },
   '.html': { family: 'text', format: 'html' },
   '.htm': { family: 'text', format: 'html' },
+  '.rst': { family: 'text', format: 'rst' },
+  '.adoc': { family: 'text', format: 'asciidoc' },
+  '.asciidoc': { family: 'text', format: 'asciidoc' },
   '.epub': { family: 'ebook', format: 'epub' },
+  '.mobi': { family: 'ebook', format: 'mobi' },
+  '.azw': { family: 'ebook', format: 'azw3' },
+  '.azw3': { family: 'ebook', format: 'azw3' },
+  '.fb2': { family: 'ebook', format: 'fb2' },
+  '.htmlz': { family: 'ebook', format: 'htmlz' },
   '.json': { family: 'text', format: 'txt' },
 };
 
@@ -113,6 +122,9 @@ const MIME_TO_FORMAT: Record<string, { family: Family; format: string }> = {
   'application/gzip': { family: 'archive', format: 'gz' },
   'application/x-7z-compressed': { family: 'archive', format: '7z' },
   'application/epub+zip': { family: 'ebook', format: 'epub' },
+  'application/x-mobipocket-ebook': { family: 'ebook', format: 'mobi' },
+  'application/vnd.amazon.ebook': { family: 'ebook', format: 'azw3' },
+  'application/x-fictionbook+xml': { family: 'ebook', format: 'fb2' },
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': {
     family: 'document',
     format: 'docx',
@@ -134,10 +146,26 @@ const MIME_TO_FORMAT: Record<string, { family: Family; format: string }> = {
   'text/plain': { family: 'text', format: 'txt' },
   'text/markdown': { family: 'text', format: 'md' },
   'text/html': { family: 'text', format: 'html' },
+  'text/x-rst': { family: 'text', format: 'rst' },
+  'text/asciidoc': { family: 'text', format: 'asciidoc' },
   'text/csv': { family: 'spreadsheet', format: 'csv' },
 };
 
-const TEXT_LIKE = new Set(['.txt', '.md', '.html', '.htm', '.csv', '.tsv', '.json', '.svg', '.rtf']);
+const TEXT_LIKE = new Set([
+  '.txt',
+  '.md',
+  '.html',
+  '.htm',
+  '.rst',
+  '.adoc',
+  '.asciidoc',
+  '.fb2',
+  '.csv',
+  '.tsv',
+  '.json',
+  '.svg',
+  '.rtf',
+]);
 
 export type DetectDepth = 'quick' | 'deep';
 
@@ -154,7 +182,8 @@ export type InspectResult = {
   meta: Record<string, unknown>;
   outputs: OutputOption[];
   recommendedOutput: string | null;
-  tools: Record<string, { available: boolean; path?: string; version?: string }>;
+  preferredEngine?: PublicEngineRoute;
+  tools: Record<string, { available: boolean; version?: string; profile?: string }>;
   /** Detection depth used to produce this result */
   depth?: DetectDepth;
   /** Content checksum when known (cache key) */
@@ -327,17 +356,17 @@ function isDeepResult(ins: InspectResult | Partial<InspectResult> | null | undef
 
 function toolsPublic(
   tools: ReturnType<typeof getToolsSnapshot>,
-): Record<string, { available: boolean; path?: string; version?: string }> {
+): Record<string, { available: boolean; version?: string; profile?: string }> {
   return Object.fromEntries(
     Object.entries(tools).map(([k, v]) => [
       k,
-      { available: v.available, path: v.path || undefined, version: v.version },
+      { available: v.available, version: v.version, profile: profileForTool(k) },
     ]),
   );
 }
 
 function withOutputs(
-  base: Omit<InspectResult, 'outputs' | 'recommendedOutput' | 'tools'>,
+  base: Omit<InspectResult, 'outputs' | 'recommendedOutput' | 'preferredEngine' | 'tools'>,
 ): InspectResult {
   const tools = getToolsSnapshot();
   const kind: DetectedKind = {
@@ -352,8 +381,16 @@ function withOutputs(
     ...base,
     outputs,
     recommendedOutput: recommended,
+    preferredEngine: outputs.find((output) => output.format === recommended)?.engine,
     tools: toolsPublic(tools),
   };
+}
+
+function profileForTool(tool: string): string {
+  if (['ffmpeg', 'ffprobe'].includes(tool)) return 'media';
+  if (['libreoffice', 'pandoc'].includes(tool)) return 'documents';
+  if (tool === 'calibre') return 'ebooks';
+  return 'core';
 }
 
 // ─── public detect API ──────────────────────────────────────────────────────
@@ -491,6 +528,10 @@ export async function detectFile(
   // Preserve lightweight magic head from quick if present
   if (quick.meta?.magicHead && !meta.magicHead) meta.magicHead = quick.meta.magicHead;
 
+  const deepKind: DetectedKind = {
+    ...kind,
+    codecs: codecsFromMeta(meta),
+  };
   const deep: InspectResult = {
     ...quick,
     meta,
@@ -499,10 +540,12 @@ export async function detectFile(
     // refresh tools/outputs (cached snapshot)
     ...(() => {
       const tools = getToolsSnapshot();
-      const outputs = listOutputsFor(kind, tools);
+      const outputs = listOutputsFor(deepKind, tools);
+      const recommended = recommendedOutput(deepKind, outputs);
       return {
         outputs,
-        recommendedOutput: recommendedOutput(kind, outputs),
+        recommendedOutput: recommended,
+        preferredEngine: outputs.find((output) => output.format === recommended)?.engine,
         tools: toolsPublic(tools),
       };
     })(),
@@ -601,7 +644,7 @@ function classify(
     // OOXML stored as zip
     if (
       detectedMime === 'application/zip' &&
-      ['.docx', '.xlsx', '.pptx', '.odt', '.ods', '.odp', '.epub'].includes(ext)
+      ['.docx', '.xlsx', '.pptx', '.odt', '.ods', '.odp', '.epub', '.htmlz'].includes(ext)
     ) {
       const byExt = EXT_FAMILY[ext];
       if (byExt) return { family: byExt.family, format: byExt.format, ext, mime: detectedMime };
@@ -675,7 +718,23 @@ function computeMatch(
   if (!detectedMime && !detectedExt) {
     if (TEXT_LIKE.has(ext)) return true;
     if (
-      ['.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.odt', '.ods', '.odp', '.rtf'].includes(ext)
+      [
+        '.doc',
+        '.docx',
+        '.xls',
+        '.xlsx',
+        '.ppt',
+        '.pptx',
+        '.odt',
+        '.ods',
+        '.odp',
+        '.rtf',
+        '.epub',
+        '.mobi',
+        '.azw',
+        '.azw3',
+        '.htmlz',
+      ].includes(ext)
     ) {
       return null; // often no simple magic
     }
@@ -704,7 +763,7 @@ function computeMatch(
     // zip container for office
     if (
       det === '.zip' &&
-      ['.docx', '.xlsx', '.pptx', '.odt', '.ods', '.odp', '.epub', '.zip'].includes(ext)
+      ['.docx', '.xlsx', '.pptx', '.odt', '.ods', '.odp', '.epub', '.htmlz', '.zip'].includes(ext)
     ) {
       return true;
     }
@@ -816,5 +875,19 @@ export function kindFromInspect(ins: InspectResult): DetectedKind {
     format: ins.format,
     ext: ins.ext,
     mime: ins.mime,
+    codecs: codecsFromMeta(ins.meta),
   };
+}
+
+function codecsFromMeta(meta: Record<string, unknown> | undefined): string[] | undefined {
+  const streams = meta?.streams;
+  if (!Array.isArray(streams)) return undefined;
+  const codecs = streams
+    .map((stream) =>
+      stream && typeof stream === 'object' && 'codec' in stream
+        ? String((stream as { codec?: unknown }).codec || '').toLowerCase()
+        : '',
+    )
+    .filter(Boolean);
+  return codecs.length ? [...new Set(codecs)] : undefined;
 }

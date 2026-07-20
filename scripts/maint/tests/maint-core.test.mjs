@@ -50,6 +50,9 @@ const {
   listToolDefs,
   resolveTool,
   requiredToolNames,
+  parseToolSelection,
+  toolNamesForSelection,
+  selectionSizeEstimate,
 } = await import('../lib/tools-probe.mjs');
 const { fileIdentity, matchesIdentity } = await import('../lib/checksum.mjs');
 const { featureFlags, detectEnvironment } = await import('../lib/platform.mjs');
@@ -306,7 +309,7 @@ describe('checksum + manifest', () => {
 describe('tools probe', () => {
   it('lists required tool names including ImageMagick, 7z, and sharp', () => {
     const names = listToolDefs();
-    for (const n of ['ffmpeg', 'ffprobe', 'libreoffice', 'pandoc', 'imagemagick', '7z', 'sharp']) {
+    for (const n of ['ffmpeg', 'ffprobe', 'libreoffice', 'pandoc', 'calibre', 'imagemagick', '7z', 'sharp']) {
       assert.ok(names.includes(n), `missing def ${n}`);
     }
   });
@@ -328,15 +331,64 @@ describe('tools probe', () => {
     }
   });
 
-  it('requiredToolNames excludes optional imagemagick and includes ffmpeg', () => {
+  it('requires the complete Phase 1 toolset by default', () => {
     const req = requiredToolNames();
-    assert.ok(req.includes('ffmpeg'));
-    assert.ok(req.includes('ffprobe'));
-    assert.ok(req.includes('libreoffice'));
-    assert.ok(req.includes('7z'));
+    for (const name of ['7z', 'ffmpeg', 'ffprobe', 'libreoffice', 'pandoc', 'calibre']) {
+      assert.ok(req.includes(name), `default full toolset is missing ${name}`);
+    }
     assert.ok(!req.includes('imagemagick'));
     assert.ok(!req.includes('sharp'));
-    assert.ok(!req.includes('pandoc'));
+  });
+
+  it('selects profiles/tools independently with FFmpeg companion expansion', () => {
+    const full = parseToolSelection(['--profile', 'full'], {});
+    assert.deepEqual(
+      toolNamesForSelection(full).sort(),
+      ['7z', 'calibre', 'ffmpeg', 'ffprobe', 'libreoffice', 'pandoc'],
+    );
+    const documents = parseToolSelection(['--profile', 'documents'], {});
+    assert.deepEqual(
+      toolNamesForSelection(documents).sort(),
+      ['libreoffice', 'pandoc'],
+    );
+    const mixed = parseToolSelection(
+      ['--profile=ebooks,core', '--tool', 'ffmpeg'],
+      {},
+    );
+    assert.deepEqual(
+      toolNamesForSelection(mixed).sort(),
+      ['7z', 'calibre', 'ffmpeg', 'ffprobe'],
+    );
+    assert.deepEqual(
+      requiredToolNames(undefined, mixed).sort(),
+      ['7z', 'calibre', 'ffmpeg', 'ffprobe'],
+    );
+  });
+
+  it('reports profile size estimates and rejects unknown selectors', () => {
+    const selection = parseToolSelection(['--profile', 'ebooks'], {});
+    const estimate = selectionSizeEstimate(selection);
+    assert.ok(estimate.downloadMb >= 0);
+    assert.ok(estimate.installedMb >= 400);
+    const defaultEstimate = selectionSizeEstimate(null);
+    assert.ok(defaultEstimate.downloadMb >= 700);
+    assert.ok(defaultEstimate.installedMb >= 2_000);
+    assert.throws(
+      () => parseToolSelection(['--profile', 'everything'], {}),
+      /Unknown profile/,
+    );
+    assert.throws(
+      () => parseToolSelection(['--tool', 'convertx'], {}),
+      /Unknown tool/,
+    );
+  });
+
+  it('checkAllTools can restrict probes to a selected profile', () => {
+    const selected = checkAllTools(repoRoot, {
+      toolNames: ['calibre'],
+      forceProbe: false,
+    });
+    assert.deepEqual(selected.map((tool) => tool.name), ['calibre']);
   });
 
   it('resolveTool uses cache when manifest identity is valid', () => {
@@ -382,6 +434,26 @@ describe('package.json script surface', () => {
       assert.ok(pkg.scripts[name], `missing script ${name}`);
       assert.match(pkg.scripts[name], /^node /);
     }
+    for (const name of ['tools:check', 'tools:install', 'tools:repair', 'tools:update']) {
+      assert.match(pkg.scripts[name], /--profile full/, `${name} must always select the full profile`);
+    }
+    assert.match(pkg.scripts.bootstrap, /npm ci/);
+    assert.match(pkg.scripts.bootstrap, /runtime:prepare/);
+    for (const name of ['predev', 'prebuild', 'prestart']) {
+      assert.equal(pkg.scripts[name], 'npm run runtime:prepare');
+    }
+    assert.match(pkg.scripts['setup:tools'], /--full/);
+  });
+
+  it('reset reinstalls workspace dependencies and the complete toolset', () => {
+    const r = spawnSync(
+      process.execPath,
+      [path.join(repoRoot, 'scripts/maint/reset.mjs'), '--dry-run'],
+      { cwd: repoRoot, encoding: 'utf8', windowsHide: true },
+    );
+    assert.equal(r.status, 0, r.stderr || r.stdout);
+    assert.match(r.stdout, /npm ci --no-fund --no-audit/);
+    assert.match(r.stdout, /npm run tools:install/);
   });
 });
 
