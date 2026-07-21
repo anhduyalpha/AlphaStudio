@@ -20,6 +20,8 @@ export type ToolCapability = {
   available: boolean;
   reason?: string;
   requires?: string[];
+  /** Detected or preferred engine for this capability when known */
+  engine?: string;
 };
 
 function detectBinary(name: string, args: string[] = ['-version']): BinaryStatus {
@@ -76,9 +78,13 @@ const BUNDLED_CAPABILITIES = new Set([
   'pdf.rotate',
   'pdf.reorder',
   'pdf.compress',
+  'pdf.compress.structural',
   'pdf.extract',
+  'pdf.delete-pages',
+  'pdf.duplicate-pages',
   'pdf.from-images',
   'pdf.to-text',
+  'pdf.inspect',
   'converter.batch',
   'archive.zip',
   'archive.tar',
@@ -183,18 +189,44 @@ export function detectCapabilities(force = false) {
     { id: 'image.convert', label: 'Image convert', available: true, requires: ['sharp'] },
     { id: 'image.compress', label: 'Image compress/optimize', available: true, requires: ['sharp'] },
     { id: 'image.strip-metadata', label: 'Strip image metadata', available: true, requires: ['sharp'] },
-    { id: 'pdf.merge', label: 'PDF merge', available: true, requires: ['pdf-lib'] },
-    { id: 'pdf.split', label: 'PDF split', available: true, requires: ['pdf-lib'] },
-    { id: 'pdf.rotate', label: 'PDF rotate', available: true, requires: ['pdf-lib'] },
-    { id: 'pdf.reorder', label: 'PDF reorder', available: true, requires: ['pdf-lib'] },
+    { id: 'pdf.merge', label: 'PDF merge', available: true, requires: ['pdf-lib'], engine: 'pdf-lib' },
+    { id: 'pdf.split', label: 'PDF split', available: true, requires: ['pdf-lib'], engine: 'pdf-lib' },
+    { id: 'pdf.rotate', label: 'PDF rotate', available: true, requires: ['pdf-lib'], engine: 'pdf-lib' },
+    { id: 'pdf.reorder', label: 'PDF reorder', available: true, requires: ['pdf-lib'], engine: 'pdf-lib' },
+    { id: 'pdf.extract', label: 'PDF extract pages', available: true, requires: ['pdf-lib'], engine: 'pdf-lib' },
+    { id: 'pdf.delete-pages', label: 'PDF delete pages', available: true, requires: ['pdf-lib'], engine: 'pdf-lib' },
+    { id: 'pdf.duplicate-pages', label: 'PDF duplicate pages', available: true, requires: ['pdf-lib'], engine: 'pdf-lib' },
     {
       id: 'pdf.compress',
       label: 'PDF structural optimize',
       available: true,
-      reason: 'Structural optimization only (object streams); image re-encoding requires a rasterizer',
+      reason: 'Structural optimization only (object streams); use advanced compress for image re-encoding',
       requires: ['pdf-lib'],
+      engine: 'pdf-lib',
     },
-    { id: 'pdf.extract', label: 'PDF extract pages', available: true, requires: ['pdf-lib'] },
+    {
+      id: 'pdf.compress.structural',
+      label: 'PDF structural optimization',
+      available: true,
+      reason: 'Object streams / structural rewrite; not major image re-compression',
+      requires: ['pdf-lib'],
+      engine: 'pdf-lib',
+    },
+    {
+      id: 'pdf.compress.advanced',
+      label: 'PDF advanced compression',
+      available: optional.ghostscript.available || optional.qpdf.available,
+      reason:
+        optional.ghostscript.available || optional.qpdf.available
+          ? undefined
+          : 'Requires Ghostscript (preferred) or qpdf for advanced compression',
+      requires: ['ghostscript', 'qpdf'],
+      engine: optional.ghostscript.available
+        ? 'ghostscript'
+        : optional.qpdf.available
+          ? 'qpdf'
+          : undefined,
+    },
     {
       id: 'pdf.to-images',
       label: 'PDF to images',
@@ -203,13 +235,25 @@ export function detectCapabilities(force = false) {
         ? undefined
         : 'Requires pdftoppm, mutool, or Ghostscript (LibreOffice is not used for PDF input)',
       requires: ['pdf-rasterizer'],
+      engine: optional.pdftoppm.available
+        ? 'pdftoppm'
+        : optional.mutool.available
+          ? 'mutool'
+          : optional.ghostscript.available
+            ? 'ghostscript'
+            : undefined,
     },
     {
       id: 'pdf.to-text',
       label: 'PDF text extraction',
       available: true,
-      reason: 'Native/pdftotext; OCR optional when Tesseract + rasterizer present',
+      reason: 'Native/pdftotext/MuPDF; OCR optional when Tesseract + rasterizer present',
       requires: ['pdf-text'],
+      engine: optional.pdftotext.available
+        ? 'pdftotext'
+        : optional.mutool.available
+          ? 'mutool'
+          : 'native',
     },
     {
       id: 'pdf.ocr',
@@ -219,8 +263,48 @@ export function detectCapabilities(force = false) {
         ? undefined
         : 'OCR requires Tesseract and a PDF rasterizer',
       requires: ['tesseract', 'pdf-rasterizer'],
+      engine: hasOcrStack() ? 'tesseract' : undefined,
     },
-    { id: 'pdf.from-images', label: 'Images to PDF', available: true, requires: ['pdf-lib', 'sharp'] },
+    {
+      id: 'pdf.ocr.searchable',
+      label: 'PDF searchable OCR',
+      available: false,
+      reason: 'Searchable PDF OCR is not available with the current toolchain',
+      requires: ['tesseract', 'pdf-rasterizer'],
+    },
+    {
+      id: 'pdf.inspect',
+      label: 'PDF inspect',
+      available: true,
+      requires: ['pdf-lib'],
+      engine: 'pdf-lib',
+    },
+    {
+      id: 'pdf.repair',
+      label: 'PDF repair',
+      available: optional.qpdf.available || optional.ghostscript.available,
+      reason:
+        optional.qpdf.available || optional.ghostscript.available
+          ? undefined
+          : 'Requires qpdf (preferred) or Ghostscript',
+      requires: ['qpdf', 'ghostscript'],
+      engine: optional.qpdf.available
+        ? 'qpdf'
+        : optional.ghostscript.available
+          ? 'ghostscript'
+          : undefined,
+    },
+    {
+      id: 'pdf.decrypt',
+      label: 'PDF decrypt',
+      available: optional.qpdf.available,
+      reason: optional.qpdf.available
+        ? undefined
+        : 'Password decryption requires qpdf; pdf-lib cannot fully decrypt PDFs',
+      requires: ['qpdf'],
+      engine: optional.qpdf.available ? 'qpdf' : undefined,
+    },
+    { id: 'pdf.from-images', label: 'Images to PDF', available: true, requires: ['pdf-lib', 'sharp'], engine: 'pdf-lib+sharp' },
     {
       id: 'converter.batch',
       label: 'Universal conversion',

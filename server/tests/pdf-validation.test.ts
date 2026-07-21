@@ -300,6 +300,11 @@ describe('PDF edit helpers', () => {
     assert.deepEqual(parsePages('2-', 4), [1, 2, 3]);
     assert.deepEqual(parsePages('-2', 4), [0, 1]);
   });
+
+  it('parsePages rejects out-of-range and invalid syntax', () => {
+    assert.throws(() => parsePages('99', 3), /out of range/i);
+    assert.throws(() => parsePages('nope', 3), /invalid/i);
+  });
 });
 
 describe('assertMeaningfulTextOutput', () => {

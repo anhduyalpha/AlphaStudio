@@ -29,6 +29,10 @@ import { killJobChildren, killProcessTreeByPid } from '../lib/child-registry.js'
 import { emitWorkspaceEvent, nextEventVersion } from '../lib/workspace-events.js';
 import { sanitizeUserError } from '../lib/sanitize.js';
 import {
+  extractPassword,
+  redactSensitiveOptions,
+} from '../pdf/operation-options.js';
+import {
   WORKER_PROTOCOL_VERSION,
   boundedWorkerMessage,
   isWorkerToApiMessage,
@@ -39,6 +43,22 @@ import {
 
 export const jobEvents = new EventEmitter();
 jobEvents.setMaxListeners(200);
+
+/**
+ * Ephemeral password vault: passwords exist only for the job duration in the
+ * API process memory, never written to SQLite options/result JSON.
+ * Re-injected into worker IPC payload only when the job starts.
+ */
+const jobPasswordVault = new Map<string, string>();
+
+export function clearJobPassword(jobId: string): void {
+  jobPasswordVault.delete(jobId);
+}
+
+/** Test helper: inspect whether a password is vaulted (never returns the secret). */
+export function hasVaultedPassword(jobId: string): boolean {
+  return jobPasswordVault.has(jobId);
+}
 
 /** Progress DB write: delta ≥ 5% OR message change OR force; also flush pending every 500ms. */
 export const PROGRESS_MIN_DELTA = 5;
@@ -218,7 +238,10 @@ export function createJob(input: CreateJobInput): JobRow {
   if (!type) throw badRequest('type required');
 
   // Clone so we can attach _uploadIds / idempotency tokens without mutating caller state
-  const options: Record<string, unknown> = { ...(input.options || {}) };
+  const incoming = { ...(input.options || {}) };
+  // Capture password for in-memory vault only — never persist secrets to SQLite
+  const capturedPassword = extractPassword(incoming);
+  const options: Record<string, unknown> = redactSensitiveOptions(incoming);
   const clientRequestId =
     input.clientRequestId != null
       ? String(input.clientRequestId)
@@ -312,6 +335,10 @@ export function createJob(input: CreateJobInput): JobRow {
     config.maxJobAttempts,
   );
 
+  if (capturedPassword) {
+    jobPasswordVault.set(id, capturedPassword);
+  }
+
   // job_files links (workspace files table)
   const link = db.prepare(
     `INSERT OR IGNORE INTO job_files (job_id, file_id, role) VALUES (?, ?, 'input')`,
@@ -394,6 +421,13 @@ export function cancelJob(id: string): JobRow {
 }
 
 export function jobPublic(job: JobRow) {
+  const rawOptions = safeParse(job.options) as Record<string, unknown>;
+  const safeOptions = redactSensitiveOptions(
+    rawOptions && typeof rawOptions === 'object' ? rawOptions : {},
+  );
+  const rawMeta = job.result_json ? (safeParse(job.result_json) as Record<string, unknown>) : null;
+  const safeMeta =
+    rawMeta && typeof rawMeta === 'object' ? redactSensitiveOptions(rawMeta) : rawMeta;
   return {
     id: job.id,
     type: job.type,
@@ -402,8 +436,8 @@ export function jobPublic(job: JobRow) {
     progress: job.progress,
     message: job.message,
     error: job.error,
-    options: safeParse(job.options),
-    meta: job.result_json ? safeParse(job.result_json) : null,
+    options: safeOptions,
+    meta: safeMeta,
     outputName: job.output_name,
     outputMime: job.output_mime,
     downloadUrl: job.status === 'completed' && job.output_path ? `/api/jobs/${job.id}/download` : null,
@@ -573,6 +607,12 @@ export function normalizeOptionsForCache(options: Record<string, unknown>): unkn
     'onProgress',
     'clientRequestId',
     'dedupeKey',
+    // Never include secrets in cache keys or dedupe comparisons
+    'password',
+    'userPassword',
+    'ownerPassword',
+    'pdfPassword',
+    'pass',
   ]);
   const walk = (v: unknown): unknown => {
     if (v === null || typeof v !== 'object') return v;
@@ -808,6 +848,7 @@ async function completeJobSuccess(
     status: 'completed',
     detail: result.outputName,
   });
+  clearJobPassword(id);
   emitJob(getJob(id)!);
 }
 
@@ -971,9 +1012,12 @@ function prepareWorkerPayload(job: JobRow): {
     detectByPath[input.path] = detected;
     detectByPath[path.resolve(input.path)] = detected;
   });
+  // Re-inject vaulted password for this job only (never from DB)
+  const vaultPassword = jobPasswordVault.get(job.id);
   const optionsWithDetect = {
     ...options,
     ...(Object.keys(detectByPath).length > 0 ? { _detectByPath: detectByPath } : {}),
+    ...(vaultPassword ? { password: vaultPassword } : {}),
   };
   const category = JOB_CATEGORIES.includes(job.job_category as JobCategory)
     ? (job.job_category as JobCategory)
@@ -1512,6 +1556,9 @@ function finish(
       fields.lease ?? null,
       fields.lease ?? null,
     );
+  if (fields.status === 'failed' || fields.status === 'cancelled' || fields.status === 'completed') {
+    clearJobPassword(id);
+  }
   const j = getJob(id);
   if (j) emitJob(j, 'updated');
 }
@@ -1607,7 +1654,12 @@ export function sanitizeResultMeta(
     if (typeof value === 'object') {
       return Object.fromEntries(
         Object.entries(value as Record<string, unknown>)
-          .filter(([key]) => !/path|command|args|executable|environment/i.test(key))
+          .filter(
+            ([key]) =>
+              !/path|command|args|executable|environment|password|userPassword|ownerPassword|pdfPassword/i.test(
+                key,
+              ),
+          )
           .slice(0, 100)
           .map(([key, item]) => [key, sanitize(item, depth + 1)])
           .filter(([, item]) => item !== undefined),
