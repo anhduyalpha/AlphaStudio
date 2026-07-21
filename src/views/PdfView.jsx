@@ -76,36 +76,31 @@ export default function PdfView({ notify }) {
   const [quality, setQuality] = useState('balanced');
   const [splitMode, setSplitMode] = useState('every-page');
   const [everyN, setEveryN] = useState('2');
+  const [splitGroups, setSplitGroups] = useState('1-2;3-4');
   const [ocr, setOcr] = useState(false);
   const [ocrLang, setOcrLang] = useState('eng');
   const [pageSize, setPageSize] = useState('fit-to-image');
   const [fit, setFit] = useState('contain');
   const [margin, setMargin] = useState('0');
   const [allowDuplicates, setAllowDuplicates] = useState(false);
+  const [insertAt, setInsertAt] = useState('');
   const [editPlan, setEditPlan] = useState(null);
   const [lastOutput, setLastOutput] = useState(null);
   const [inspectData, setInspectData] = useState(null);
 
-  const { busy, progress, status, job, run, cancel } = useJobRunner(notify);
+  // autoResume: re-reads alphastudio.pdf.activeJobId and reattaches SSE/poll (no new job)
+  const { busy, progress, status, job, run, cancel } = useJobRunner(notify, {
+    storageKey: 'alphastudio.pdf.activeJobId',
+    autoResume: true,
+  });
   const { isAvailable, reason, loading: capsLoading, caps } = useCapabilities();
-
-  // Persist active job identity so Workspace tab can reconnect after tab switch
-  useEffect(() => {
-    if (job?.id) {
-      try {
-        sessionStorage.setItem('alphastudio.pdf.activeJobId', job.id);
-      } catch {
-        /* ignore */
-      }
-    }
-  }, [job?.id]);
 
   useEffect(() => {
     if (job?.status === 'completed') {
       setLastOutput(job);
       setFiles([]);
       // Parse inspect JSON meta if present
-      if (job.meta && (operation === 'inspect' || job.meta.pageCount != null && job.meta.checksum)) {
+      if (job.meta && (operation === 'inspect' || (job.meta.pageCount != null && job.meta.checksum))) {
         setInspectData(job.meta);
       }
     }
@@ -145,6 +140,9 @@ export default function PdfView({ notify }) {
       return 'Page order is required (e.g. 3,1,2)';
     }
     if (operation === 'merge' && files.length < 1) return 'Add at least one PDF';
+    if (operation === 'split' && splitMode === 'groups' && !splitGroups.trim()) {
+      return 'Enter custom groups (semicolon-separated page specs, e.g. 1-2;3;4-5)';
+    }
     return null;
   };
 
@@ -158,8 +156,10 @@ export default function PdfView({ notify }) {
     if (opMeta.needsOcrToggle && ocr) parts.push(`OCR (${ocrLang})`);
     if (opMeta.needsOcrLang) parts.push(`lang: ${ocrLang}`);
     if (operation === 'split') parts.push(`mode: ${splitMode}`);
+    if (operation === 'split' && splitMode === 'groups') parts.push(`groups: ${splitGroups}`);
+    if (operation === 'duplicate-pages' && insertAt !== '') parts.push(`insertAt: ${insertAt}`);
     return parts.join(' · ');
-  }, [opMeta, files.length, pages, angle, format, quality, ocr, ocrLang, operation, splitMode]);
+  }, [opMeta, files.length, pages, angle, format, quality, ocr, ocrLang, operation, splitMode, splitGroups, insertAt]);
 
   const start = async () => {
     if (unavailable) {
@@ -180,13 +180,19 @@ export default function PdfView({ notify }) {
         format,
         quality,
         splitMode: operation === 'split' ? splitMode : undefined,
-        everyN: splitMode === 'every-n' ? Number(everyN) || 2 : undefined,
+        everyN: operation === 'split' && splitMode === 'every-n' ? Number(everyN) || 2 : undefined,
+        groups: operation === 'split' && splitMode === 'groups' ? splitGroups : undefined,
         ocr: operation === 'to-text' ? ocr : operation === 'ocr' ? true : undefined,
         ocrLang: opMeta.needsOcrLang || ocr ? ocrLang : undefined,
         pageSize: operation === 'from-images' ? pageSize : undefined,
         fit: operation === 'from-images' ? fit : undefined,
         margin: operation === 'from-images' ? Number(margin) || 0 : undefined,
         allowDuplicates: operation === 'reorder' ? allowDuplicates : undefined,
+        // 0-based insertion index for duplicate-pages (empty = after each source page)
+        insertAt:
+          operation === 'duplicate-pages' && insertAt !== '' && Number.isFinite(Number(insertAt))
+            ? Number(insertAt)
+            : undefined,
         compressMode:
           operation === 'compress-advanced'
             ? 'advanced'
@@ -308,7 +314,24 @@ export default function PdfView({ notify }) {
                     {splitMode === 'every-n' ? (
                       <TextField label="Pages per part (N)" value={everyN} onChange={(e) => setEveryN(e.target.value)} />
                     ) : null}
+                    {splitMode === 'groups' ? (
+                      <TextField
+                        label="Groups (semicolon-separated page specs)"
+                        value={splitGroups}
+                        onChange={(e) => setSplitGroups(e.target.value)}
+                        placeholder="1-2;3;4-6"
+                      />
+                    ) : null}
                   </>
+                ) : null}
+
+                {operation === 'duplicate-pages' ? (
+                  <TextField
+                    label="Insert copies at position (0-based, empty = after each original)"
+                    value={insertAt}
+                    onChange={(e) => setInsertAt(e.target.value)}
+                    placeholder="e.g. 0 for start, 2 for after page 2"
+                  />
                 ) : null}
 
                 {opMeta.needsFormat ? (

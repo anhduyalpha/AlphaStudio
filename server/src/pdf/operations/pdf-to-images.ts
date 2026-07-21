@@ -28,21 +28,12 @@ export async function pdfToImages(ctx: PdfOpContext) {
     originalName: ctx.primaryName,
   });
 
-  // Optional page range: use maxPages when contiguous from start; otherwise full then filter is not ideal.
-  // For selected ranges, pass maxPages only when pages is a prefix; otherwise rasterize all with max cap.
+  // Explicit zero-based selection — convertPdfToImages filters raster output to these pages.
+  let pageIndices: number[] | undefined;
   let maxPages: number | undefined;
   if (opts.pages) {
-    const selected = parsePageSelection(opts.pages, inspect.pageCount, { emptyMeansAll: false });
-    // If selection is 1..N contiguous from start, limit
-    const isPrefix =
-      selected.length > 0 &&
-      selected.every((v, i) => v === i) &&
-      selected[selected.length - 1] === selected.length - 1;
-    if (isPrefix) maxPages = selected.length;
-    else {
-      // For arbitrary ranges, rasterize up to last selected page
-      maxPages = Math.max(...selected) + 1;
-    }
+    pageIndices = parsePageSelection(opts.pages, inspect.pageCount, { emptyMeansAll: false });
+    maxPages = Math.max(...pageIndices) + 1;
   }
 
   const result = await convertPdfToImages({
@@ -58,9 +49,9 @@ export async function pdfToImages(ctx: PdfOpContext) {
     workDir: path.join(ctx.workDir, 'pdf-to-images'),
     maxPages,
     dpi,
+    pageIndices,
   });
 
-  // Prefer naming helpers when multi-page zip / single image
   const outputName =
     result.outputMime === 'application/zip'
       ? OutputNames.pageImagesZip(ctx.primaryName)
@@ -73,7 +64,7 @@ export async function pdfToImages(ctx: PdfOpContext) {
     outputMime: result.outputMime,
     meta: {
       ...result.meta,
-      // engine must be pdftoppm|mutool|ghostscript when provided by convertPdfToImages
+      selectedPages: pageIndices ? pageIndices.map((i) => i + 1) : result.meta?.selectedPages,
     },
   };
 }

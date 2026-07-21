@@ -108,6 +108,37 @@ describe('duplicate-pages', () => {
     assert.equal(out.getPageCount(), 5);
     assert.match(result.outputName, /duplicated/i);
   });
+
+  it('inserts duplicates at non-default insertAt position', async () => {
+    const p = await multiPagePdf(3, 'DupIns');
+    // Duplicate page 2 (index 1), insert both copies at position 0 (start)
+    const result = await processPdf(
+      ctx({
+        inputPaths: [p],
+        inputNames: ['report.pdf'],
+        options: { operation: 'duplicate-pages', pages: '2', insertAt: 0 },
+      }),
+    );
+    const out = await PDFDocument.load(fs.readFileSync(result.outputPath));
+    // original 3 + 1 copy = 4; copy of page 2 placed at start
+    assert.equal(out.getPageCount(), 4);
+    assert.equal(result.meta?.duplicated, 1);
+  });
+});
+
+describe('split groups mode', () => {
+  it('splits into user-defined groups via semicolon specs', async () => {
+    const p = await multiPagePdf(4, 'Groups');
+    const result = await processPdf(
+      ctx({
+        inputPaths: [p],
+        inputNames: ['report.pdf'],
+        options: { operation: 'split', splitMode: 'groups', groups: '1-2;3-4' },
+      }),
+    );
+    assert.equal(result.outputMime, 'application/zip');
+    assert.equal(result.meta?.parts, 2);
+  });
 });
 
 describe('inspect', () => {

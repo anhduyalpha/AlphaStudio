@@ -114,6 +114,30 @@ export async function rasterizePdfPagesWithEngine(
 }
 
 /**
+ * Select rasterized pages by zero-based PDF page indices.
+ * `rasterPages[i]` is assumed to correspond to PDF page index `i` when raster
+ * started at page 1 (default). Order of `pageIndices` is preserved.
+ * Exported for unit tests.
+ */
+export function filterRasterPagesByIndices<T>(
+  rasterPages: T[],
+  pageIndices: number[] | undefined,
+): T[] {
+  if (!pageIndices || !pageIndices.length) return rasterPages;
+  const out: T[] = [];
+  for (const idx of pageIndices) {
+    if (!Number.isInteger(idx) || idx < 0 || idx >= rasterPages.length) {
+      throw pdfError(
+        'PAGE_OUT_OF_RANGE',
+        `Page ${idx + 1} is out of range for rasterized output (${rasterPages.length} page(s) rendered)`,
+      );
+    }
+    out.push(rasterPages[idx]!);
+  }
+  return out;
+}
+
+/**
  * Convert PDF → images for the universal converter (single image or zip of pages).
  */
 export async function convertPdfToImages(opts: {
@@ -127,10 +151,22 @@ export async function convertPdfToImages(opts: {
   workDir?: string;
   maxPages?: number;
   dpi?: number;
+  /**
+   * Zero-based page indices to keep (user selection). Raster may produce a
+   * contiguous prefix/range; this filters to the exact selected pages in order.
+   */
+  pageIndices?: number[];
 }): Promise<{ outputPath: string; outputName: string; outputMime: string; meta?: Record<string, unknown> }> {
   const format = opts.format === 'jpg' ? 'jpeg' : opts.format;
   const work = opts.workDir || path.join(opts.outputDir, `raster-${randomBytes(4).toString('hex')}`);
   fs.mkdirSync(work, { recursive: true });
+
+  // When selecting non-prefix pages, render through the last selected page then filter.
+  let maxPages = opts.maxPages;
+  if (opts.pageIndices?.length) {
+    const last = Math.max(...opts.pageIndices) + 1;
+    maxPages = maxPages != null ? Math.max(maxPages, last) : last;
+  }
 
   let pages: { path: string; name: string }[] = [];
   let engine: RasterEngine = 'pdftoppm';
@@ -142,10 +178,10 @@ export async function convertPdfToImages(opts: {
       jobId: opts.jobId,
       isCancelled: opts.isCancelled,
       onProgress: opts.onProgress,
-      maxPages: opts.maxPages,
+      maxPages,
       dpi: opts.dpi,
     });
-    pages = raster.pages;
+    pages = filterRasterPagesByIndices(raster.pages, opts.pageIndices);
     engine = raster.engine;
   } catch (e) {
     try {
@@ -170,12 +206,16 @@ export async function convertPdfToImages(opts: {
     path.basename(opts.inputPath, path.extname(opts.inputPath));
   const ext = format === 'jpeg' ? '.jpg' : '.png';
   const mime = format === 'jpeg' ? 'image/jpeg' : 'image/png';
+  const selectedLabels =
+    opts.pageIndices?.length
+      ? opts.pageIndices.map((i) => i + 1)
+      : pages.map((_, i) => i + 1);
 
   // Single page → single image in outputDir
   if (pages.length === 1) {
     const finalName = randomServerName(ext);
     const finalPath = path.join(opts.outputDir, finalName);
-    fs.copyFileSync(pages[0].path, finalPath);
+    fs.copyFileSync(pages[0]!.path, finalPath);
     assertValidOutput(finalPath, { label: 'PDF page image', expectedExt: ext });
     try {
       fs.rmSync(work, { recursive: true, force: true });
@@ -183,11 +223,12 @@ export async function convertPdfToImages(opts: {
       /* ignore */
     }
     opts.onProgress?.(100, 'completed');
+    const pageNo = selectedLabels[0] ?? 1;
     return {
       outputPath: finalPath,
-      outputName: `${base}${ext}`,
+      outputName: `${base}-page-${pageNo}${ext}`,
       outputMime: mime,
-      meta: { pages: 1, engine },
+      meta: { pages: 1, engine, selectedPages: selectedLabels },
     };
   }
 
@@ -202,11 +243,10 @@ export async function convertPdfToImages(opts: {
     archive.on('error', reject);
   });
   archive.pipe(output);
-  let i = 0;
   const safeBase = base.replace(/[/\\]/g, '_');
-  for (const page of pages) {
-    i += 1;
-    archive.file(page.path, { name: `${safeBase}-page-${i}${ext}` });
+  for (let i = 0; i < pages.length; i++) {
+    const pageNo = selectedLabels[i] ?? i + 1;
+    archive.file(pages[i]!.path, { name: `${safeBase}-page-${pageNo}${ext}` });
   }
   await archive.finalize();
   await done;
@@ -221,7 +261,7 @@ export async function convertPdfToImages(opts: {
     outputPath: zipPath,
     outputName: `${safeBase}-pages.zip`,
     outputMime: 'application/zip',
-    meta: { pages: pages.length, engine },
+    meta: { pages: pages.length, engine, selectedPages: selectedLabels },
   };
 }
 
