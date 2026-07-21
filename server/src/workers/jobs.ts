@@ -443,12 +443,12 @@ export function deleteJob(id: string): { ok: true; id: string; deletedOutput: bo
   // Clear ephemeral cancel/password state
   cancelFlags.delete(id);
 
-  logActivity({
-    tool: job.type || 'job',
-    action: `${job.type || 'job'}:history-deleted`,
-    status: 'info',
-    detail: `Deleted history for ${job.output_name || id.slice(0, 8)}`,
-  });
+  // Do NOT write a new activity timeline row here — that would re-surface the
+  // deleted job's filename in history. Server log is enough for audit.
+  logger.info(
+    { jobId: id, type: job.type, outputName: job.output_name, deletedOutput },
+    'Job history entry deleted',
+  );
 
   return { ok: true, id, deletedOutput };
 }

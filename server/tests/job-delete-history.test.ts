@@ -139,34 +139,99 @@ describe('job history deletion', () => {
     assert.equal(up.status, 200);
   });
 
-  it('rejects deleting unknown job and refuses active-job silent delete', async () => {
+  it('rejects deleting unknown job', async () => {
     const miss = await fetch(`${base}/api/jobs/does-not-exist-id`, { method: 'DELETE' });
     assert.equal(miss.status, 404);
+  });
 
-    // Create a job and try to delete while it might still be running — if already completed, skip active branch
-    const up = await uploadPdf(await makePdf('Q'), 'quick.pdf');
-    const create = await fetch(`${base}/api/jobs`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'pdf',
-        uploadIds: [up.id],
-        options: { operation: 'inspect' },
-      }),
-    });
-    const job = await create.json();
-    // Immediate delete may hit running or completed; either must not 500
-    const del = await fetch(`${base}/api/jobs/${job.id}`, { method: 'DELETE' });
+  it('deterministically rejects deleting a queued (active) job', async () => {
+    // Insert a queued row directly — no race with worker completion
+    const id = 'active-queued-job-for-delete-test';
+    const now = new Date().toISOString();
+    getDb()
+      .prepare(
+        `INSERT INTO jobs (
+          id, type, status, progress, message, error, input_files, options,
+          output_path, output_name, output_mime, result_json,
+          created_at, updated_at, started_at, finished_at, cancel_requested
+        ) VALUES (?, 'pdf', 'queued', 0, 'Queued', NULL, '[]', '{}',
+          NULL, NULL, NULL, NULL, ?, ?, NULL, NULL, 0)`,
+      )
+      .run(id, now, now);
+
+    const del = await fetch(`${base}/api/jobs/${id}`, { method: 'DELETE' });
     const body = await del.json();
-    if (del.status === 400) {
-      assert.match(String(body.error?.message || body.message || ''), /active|Cancel/i);
-      // Finish then delete
-      await waitJob(job.id);
-      const del2 = await fetch(`${base}/api/jobs/${job.id}`, { method: 'DELETE' });
-      assert.equal(del2.status, 200);
-    } else {
-      assert.equal(del.status, 200, JSON.stringify(body));
-    }
+    assert.equal(del.status, 400, JSON.stringify(body));
+    assert.match(String(body.error?.message || body.message || JSON.stringify(body)), /active|Cancel/i);
+
+    // Still present
+    const still = getDb().prepare('SELECT status FROM jobs WHERE id = ?').get(id) as { status: string };
+    assert.equal(still.status, 'queued');
+
+    // Cleanup test row
+    getDb().prepare('DELETE FROM jobs WHERE id = ?').run(id);
+  });
+
+  it('deterministically rejects deleting a running (active) job', async () => {
+    const id = 'active-running-job-for-delete-test';
+    const now = new Date().toISOString();
+    getDb()
+      .prepare(
+        `INSERT INTO jobs (
+          id, type, status, progress, message, error, input_files, options,
+          output_path, output_name, output_mime, result_json,
+          created_at, updated_at, started_at, finished_at, cancel_requested
+        ) VALUES (?, 'pdf', 'running', 10, 'Running', NULL, '[]', '{}',
+          NULL, NULL, NULL, NULL, ?, ?, ?, NULL, 0)`,
+      )
+      .run(id, now, now, now);
+
+    const del = await fetch(`${base}/api/jobs/${id}`, { method: 'DELETE' });
+    const body = await del.json();
+    assert.equal(del.status, 400, JSON.stringify(body));
+    assert.match(String(body.error?.message || body.message || JSON.stringify(body)), /active|Cancel/i);
+
+    getDb().prepare('DELETE FROM jobs WHERE id = ?').run(id);
+  });
+
+  it('refuses to delete files outside outputsDir (path safety)', async () => {
+    // Plant a sentinel file OUTSIDE the configured outputs directory
+    const outsideDir = path.join(testData, 'outside-trusted');
+    fs.mkdirSync(outsideDir, { recursive: true });
+    const outsideFile = path.join(outsideDir, 'must-not-delete.txt');
+    fs.writeFileSync(outsideFile, 'sentinel-keep-me');
+
+    const id = 'path-safety-job-delete-test';
+    const now = new Date().toISOString();
+    getDb()
+      .prepare(
+        `INSERT INTO jobs (
+          id, type, status, progress, message, error, input_files, options,
+          output_path, output_name, output_mime, result_json,
+          created_at, updated_at, started_at, finished_at, cancel_requested
+        ) VALUES (?, 'pdf', 'completed', 100, 'Done', NULL, '[]', '{}',
+          ?, 'evil.pdf', 'application/pdf', NULL, ?, ?, ?, ?, 0)`,
+      )
+      .run(id, outsideFile, now, now, now, now);
+
+    // Confirm outside outputsDir
+    const resolvedOut = path.resolve(config.outputsDir);
+    const resolvedEvil = path.resolve(outsideFile);
+    assert.ok(
+      !resolvedEvil.startsWith(resolvedOut + path.sep) && resolvedEvil !== resolvedOut,
+      'test setup: file must be outside outputsDir',
+    );
+
+    const del = await fetch(`${base}/api/jobs/${id}`, { method: 'DELETE' });
+    const body = await del.json();
+    assert.equal(del.status, 200, JSON.stringify(body));
+    // Job row removed, but outside file must survive (no path traversal / unsafe delete)
+    assert.equal(body.deletedOutput, false);
+    assert.ok(fs.existsSync(outsideFile), 'file outside outputsDir must not be deleted');
+    const gone = getDb().prepare('SELECT id FROM jobs WHERE id = ?').get(id);
+    assert.equal(gone, undefined);
+
+    fs.rmSync(outsideDir, { recursive: true, force: true });
   });
 
   it('activity DELETE withJob removes job history entry', async () => {
