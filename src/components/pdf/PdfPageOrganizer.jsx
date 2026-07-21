@@ -106,18 +106,20 @@ export default function PdfPageOrganizer({
     };
   }, [file]);
 
-  // Publish plan to parent
+  // Publish plan to parent (include pageCount for client validation e.g. delete-all)
   useEffect(() => {
     if (!onPlanChange) return;
     if (operation === 'reorder') {
       const order1 = order.map((i) => i + 1).join(',');
-      onPlanChange({ order: order1, pages: order1 });
+      onPlanChange({ order: order1, pages: order1, pageCount });
       onPagesChange?.(order1);
     } else if (selected.size) {
       const list = [...selected].sort((a, b) => a - b).map((i) => i + 1).join(',');
-      onPlanChange({ pages: list });
+      onPlanChange({ pages: list, pageCount });
+    } else if (pageCount) {
+      onPlanChange({ pageCount });
     }
-  }, [order, selected, operation, onPlanChange, onPagesChange]);
+  }, [order, selected, operation, onPlanChange, onPagesChange, pageCount]);
 
   const toggle = useCallback((idx) => {
     setSelected((prev) => {

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import FilePicker from '../components/FilePicker';
 import JobOutputCard from '../components/JobOutputCard';
 import {
@@ -13,15 +13,23 @@ import {
 import useJobRunner from '../hooks/useJobRunner';
 import useCapabilities from '../hooks/useCapabilities';
 import PdfPageOrganizer from '../components/pdf/PdfPageOrganizer';
+import {
+  GATED_OP_IDS,
+  PASSWORD_CAPABLE_OPS,
+  buildPdfJobOptions,
+  defaultFormStateForOperation,
+  validatePdfClient,
+} from '../lib/pdfJobOptions';
 
-/** Operation catalog grouped for the PDF workspace */
+/** Operation catalog grouped for the PDF workspace — ids align with backend ops + capabilities */
 const GROUPS = [
   {
     id: 'organize',
     label: 'Organize',
     ops: [
       { id: 'merge', label: 'Merge', capability: 'pdf.merge', engine: 'pdf-lib', multi: true, needsPages: false },
-      { id: 'split', label: 'Split', capability: 'pdf.split', engine: 'pdf-lib', needsPages: true, needsSplitMode: true },
+      // Split uses mode-specific page fields (not a generic pages field for every-page)
+      { id: 'split', label: 'Split', capability: 'pdf.split', engine: 'pdf-lib', needsPages: false, needsSplitMode: true },
       { id: 'reorder', label: 'Reorder', capability: 'pdf.reorder', engine: 'pdf-lib', needsPages: true, needsOrder: true, preview: true },
       { id: 'rotate', label: 'Rotate', capability: 'pdf.rotate', engine: 'pdf-lib', needsPages: true, needsAngle: true, preview: true },
       { id: 'extract', label: 'Extract', capability: 'pdf.extract', engine: 'pdf-lib', needsPages: true, preview: true },
@@ -34,7 +42,7 @@ const GROUPS = [
     label: 'Convert',
     ops: [
       { id: 'from-images', label: 'Images → PDF', capability: 'pdf.from-images', engine: 'pdf-lib+sharp', images: true, needsPageMode: true },
-      { id: 'to-images', label: 'PDF → Images', capability: 'pdf.to-images', engine: 'pdftoppm|mutool|ghostscript', needsPages: true, needsFormat: true, needsQuality: true },
+      { id: 'to-images', label: 'PDF → Images', capability: 'pdf.to-images', engine: 'pdftoppm|mutool|ghostscript', needsPages: true, needsFormat: true, needsQuality: true, needsDpi: true },
       { id: 'to-text', label: 'PDF → Text', capability: 'pdf.to-text', engine: 'pdftotext|mutool|native', needsOcrToggle: true },
     ],
   },
@@ -42,7 +50,14 @@ const GROUPS = [
     id: 'optimize',
     label: 'Optimize',
     ops: [
-      { id: 'compress-structural', label: 'Structural optimization', capability: 'pdf.compress.structural', engine: 'pdf-lib', needsQuality: true },
+      {
+        id: 'compress-structural',
+        label: 'Structural optimization',
+        capability: 'pdf.compress.structural',
+        engine: 'pdf-lib',
+        needsQuality: true,
+        structuralNote: true,
+      },
       { id: 'compress-advanced', label: 'Advanced compression', capability: 'pdf.compress.advanced', engine: 'ghostscript|qpdf', needsQuality: true },
       { id: 'repair', label: 'Repair', capability: 'pdf.repair', engine: 'qpdf|ghostscript' },
     ],
@@ -52,7 +67,7 @@ const GROUPS = [
     label: 'Analyze',
     ops: [
       { id: 'inspect', label: 'Inspect', capability: 'pdf.inspect', engine: 'pdf-lib' },
-      { id: 'ocr', label: 'OCR', capability: 'pdf.ocr', engine: 'tesseract', needsOcrLang: true },
+      { id: 'ocr', label: 'OCR', capability: 'pdf.ocr', engine: 'tesseract', needsOcrLang: true, needsPages: true },
     ],
   },
 ];
@@ -74,19 +89,24 @@ export default function PdfView({ notify }) {
   const [angle, setAngle] = useState('90');
   const [format, setFormat] = useState('png');
   const [quality, setQuality] = useState('balanced');
+  const [dpi, setDpi] = useState('150');
   const [splitMode, setSplitMode] = useState('every-page');
   const [everyN, setEveryN] = useState('2');
   const [splitGroups, setSplitGroups] = useState('1-2;3-4');
   const [ocr, setOcr] = useState(false);
   const [ocrLang, setOcrLang] = useState('eng');
   const [pageSize, setPageSize] = useState('fit-to-image');
+  const [orientation, setOrientation] = useState('auto');
   const [fit, setFit] = useState('contain');
   const [margin, setMargin] = useState('0');
   const [allowDuplicates, setAllowDuplicates] = useState(false);
   const [insertAt, setInsertAt] = useState('');
+  const [password, setPassword] = useState('');
   const [editPlan, setEditPlan] = useState(null);
   const [lastOutput, setLastOutput] = useState(null);
   const [inspectData, setInspectData] = useState(null);
+  /** Job id already handled for completion side-effects (clear files / Export tab) */
+  const handledCompleteIdRef = useRef(null);
 
   // Opt-in resume only for PDF jobs (other views use useJobRunner defaults: no auto-resume)
   const { busy, progress, status, job, run, cancel } = useJobRunner(notify, {
@@ -96,56 +116,68 @@ export default function PdfView({ notify }) {
   });
   const { isAvailable, reason, loading: capsLoading, caps } = useCapabilities();
 
+  // Run completion side-effects once per completed job id — never re-fire when
+  // the user changes Operation/Category after a finished job (that was wiping
+  // newly selected files and forcing Export, unmounting the Workspace form).
   useEffect(() => {
-    if (job?.status === 'completed') {
-      setLastOutput(job);
-      setFiles([]);
-      // Parse inspect JSON meta if present
-      if (job.meta && (operation === 'inspect' || (job.meta.pageCount != null && job.meta.checksum))) {
-        setInspectData(job.meta);
-      }
+    if (job?.status !== 'completed' || !job.id) return;
+    if (handledCompleteIdRef.current === job.id) return;
+    handledCompleteIdRef.current = job.id;
+    setLastOutput(job);
+    setFiles([]);
+    setEditPlan(null);
+    // Inspect report meta (pageCount + checksum) — do not depend on current operation
+    if (job.meta && job.meta.pageCount != null && job.meta.checksum) {
+      setInspectData(job.meta);
     }
-  }, [job?.status, job, operation]);
+    setTab('Export');
+  }, [job?.status, job?.id, job]);
 
-  const visibleOps = useMemo(() => {
-    return ALL_OPS.filter((o) => {
-      const avail = isAvailable(o.capability);
-      // Always list bundled ops; hide unavailable optional ones from primary list but show with reason
-      if (o.id === 'to-images' || o.id === 'ocr' || o.id === 'compress-advanced' || o.id === 'repair') {
-        return avail === true || avail === false; // show both, disabled if false
-      }
-      return true;
-    });
-  }, [isAvailable, capsLoading]);
+  // Reset incompatible form options when operation changes (no stale angle/OCR/pages leakage)
+  useEffect(() => {
+    const d = defaultFormStateForOperation(operation);
+    setPages(d.pages);
+    setAngle(d.angle);
+    setFormat(d.format);
+    setQuality(d.quality);
+    setDpi(d.dpi);
+    setSplitMode(d.splitMode);
+    setEveryN(d.everyN);
+    setSplitGroups(d.splitGroups);
+    setOcr(d.ocr);
+    setOcrLang(d.ocrLang);
+    setPageSize(d.pageSize);
+    setOrientation(d.orientation);
+    setFit(d.fit);
+    setMargin(d.margin);
+    setAllowDuplicates(d.allowDuplicates);
+    setInsertAt(d.insertAt);
+    setPassword(d.password);
+    setEditPlan(null);
+  }, [operation]);
+
+  // Catalog is static; availability comes from live capability response (not a silent subset).
+  const visibleOps = useMemo(() => ALL_OPS, []);
 
   const opMeta = visibleOps.find((o) => o.id === operation) || visibleOps[0] || ALL_OPS[0];
   const available = isAvailable(opMeta.capability);
   const unavailable = available === false;
   const engineLabel =
-    (job?.meta && job.meta.engine) || expectedEngine(opMeta, caps);
+    (job?.meta && job.meta.engine) ||
+    (lastOutput?.meta && !busy && lastOutput.meta.engine) ||
+    expectedEngine(opMeta, caps);
 
-  const validateClient = () => {
-    if (!files.length) return 'Choose PDF or image files first';
-    if (opMeta.images) {
-      const bad = files.find((f) => f.type && !String(f.type).startsWith('image/') && !/\.(png|jpe?g|webp|tiff?|gif|bmp)$/i.test(f.name || ''));
-      if (bad) return 'Images → PDF requires image files';
-    } else if (operation !== 'from-images') {
-      const bad = files.find((f) => f.type === 'application/pdf' ? false : f.name && !/\.pdf$/i.test(f.name) && f.type && f.type !== 'application/pdf');
-      // soft check
-      void bad;
-    }
-    if (opMeta.needsPages && (operation === 'extract' || operation === 'delete-pages' || operation === 'duplicate-pages')) {
-      if (!pages.trim() && !editPlan?.pages) return 'Page selection is required for this operation';
-    }
-    if (operation === 'reorder' && !pages.trim() && !editPlan?.order) {
-      return 'Page order is required (e.g. 3,1,2)';
-    }
-    if (operation === 'merge' && files.length < 1) return 'Add at least one PDF';
-    if (operation === 'split' && splitMode === 'groups' && !splitGroups.trim()) {
-      return 'Enter custom groups (semicolon-separated page specs, e.g. 1-2;3;4-5)';
-    }
-    return null;
-  };
+  const validateClient = () =>
+    validatePdfClient({
+      operation,
+      files,
+      opMeta,
+      pages,
+      editPlan,
+      splitMode,
+      splitGroups,
+      everyN,
+    });
 
   const jobSummary = useMemo(() => {
     const parts = [`${opMeta.groupLabel} → ${opMeta.label}`];
@@ -154,13 +186,34 @@ export default function PdfView({ notify }) {
     if (opMeta.needsAngle) parts.push(`${angle}°`);
     if (opMeta.needsFormat) parts.push(format);
     if (opMeta.needsQuality) parts.push(`quality: ${quality}`);
+    if (opMeta.needsDpi && dpi) parts.push(`dpi: ${dpi}`);
     if (opMeta.needsOcrToggle && ocr) parts.push(`OCR (${ocrLang})`);
     if (opMeta.needsOcrLang) parts.push(`lang: ${ocrLang}`);
     if (operation === 'split') parts.push(`mode: ${splitMode}`);
     if (operation === 'split' && splitMode === 'groups') parts.push(`groups: ${splitGroups}`);
+    if (operation === 'from-images') {
+      parts.push(pageSize);
+      if (orientation !== 'auto') parts.push(orientation);
+    }
     if (operation === 'duplicate-pages' && insertAt !== '') parts.push(`insertAt: ${insertAt}`);
     return parts.join(' · ');
-  }, [opMeta, files.length, pages, angle, format, quality, ocr, ocrLang, operation, splitMode, splitGroups, insertAt]);
+  }, [
+    opMeta,
+    files.length,
+    pages,
+    angle,
+    format,
+    quality,
+    dpi,
+    ocr,
+    ocrLang,
+    operation,
+    splitMode,
+    splitGroups,
+    insertAt,
+    pageSize,
+    orientation,
+  ]);
 
   const start = async () => {
     if (unavailable) {
@@ -172,49 +225,52 @@ export default function PdfView({ notify }) {
       notify(err);
       return;
     }
+    // Clear previous result so the UI cannot show a stale completed download as the new run
+    setLastOutput(null);
+    if (operation !== 'inspect') setInspectData(null);
+    // Snapshot plan + password for this submit only; clear password immediately (ephemeral)
+    const planForJob = editPlan;
+    const passwordForJob = password;
+    setPassword('');
     try {
-      const options = {
-        operation,
-        pages: editPlan?.pages || pages || undefined,
-        order: editPlan?.order || pages || undefined,
-        angle: Number(angle) || 90,
-        format,
-        quality,
-        splitMode: operation === 'split' ? splitMode : undefined,
-        everyN: operation === 'split' && splitMode === 'every-n' ? Number(everyN) || 2 : undefined,
-        groups: operation === 'split' && splitMode === 'groups' ? splitGroups : undefined,
-        ocr: operation === 'to-text' ? ocr : operation === 'ocr' ? true : undefined,
-        ocrLang: opMeta.needsOcrLang || ocr ? ocrLang : undefined,
-        pageSize: operation === 'from-images' ? pageSize : undefined,
-        fit: operation === 'from-images' ? fit : undefined,
-        margin: operation === 'from-images' ? Number(margin) || 0 : undefined,
-        allowDuplicates: operation === 'reorder' ? allowDuplicates : undefined,
-        // 0-based insertion index for duplicate-pages (empty = after each source page)
-        insertAt:
-          operation === 'duplicate-pages' && insertAt !== '' && Number.isFinite(Number(insertAt))
-            ? Number(insertAt)
-            : undefined,
-        compressMode:
-          operation === 'compress-advanced'
-            ? 'advanced'
-            : operation === 'compress-structural'
-              ? 'structural'
-              : undefined,
-      };
-      // Strip undefined
-      Object.keys(options).forEach((k) => options[k] === undefined && delete options[k]);
-
       await run('pdf', {
         files,
-        options,
+        options: buildPdfJobOptions({
+          operation,
+          pages,
+          editPlan: planForJob,
+          angle,
+          format,
+          quality,
+          dpi,
+          splitMode,
+          everyN,
+          splitGroups,
+          ocr,
+          ocrLang,
+          pageSize,
+          orientation,
+          fit,
+          margin,
+          allowDuplicates,
+          insertAt,
+          password: passwordForJob,
+          opMeta,
+        }),
         autoDownload: false,
       });
     } catch {
-      /* handled by hook */
+      /* handled by hook — password already cleared from React state */
     }
   };
 
-  const displayJob = job || lastOutput;
+  const showPagesField =
+    (opMeta.needsPages || opMeta.needsOrder) ||
+    (operation === 'split' && splitMode === 'ranges');
+  const showPasswordField = PASSWORD_CAPABLE_OPS.has(operation) && !opMeta.images;
+
+  // While busy, only show in-flight job (never fall back to previous completed output)
+  const displayJob = busy ? job : job || lastOutput;
 
   return (
     <div className="view-stack">
@@ -255,6 +311,7 @@ export default function PdfView({ notify }) {
                 onChange={setFiles}
                 disabled={busy}
                 multiple={opMeta.multi || opMeta.images || operation === 'merge'}
+                reorderable={operation === 'merge' || opMeta.images}
               />
             </article>
 
@@ -278,8 +335,9 @@ export default function PdfView({ notify }) {
                 <SelectField label="Operation" value={opMeta.id} onChange={(e) => setOperation(e.target.value)}>
                   {GROUPS.find((g) => g.id === opMeta.group)?.ops.map((o) => {
                     const avail = isAvailable(o.capability);
+                    const gatedOff = avail === false || (capsLoading && GATED_OP_IDS.has(o.id));
                     return (
-                      <option key={o.id} value={o.id} disabled={avail === false}>
+                      <option key={o.id} value={o.id} disabled={gatedOff}>
                         {o.label}
                         {avail === false ? ' (unavailable)' : ''}
                       </option>
@@ -287,9 +345,15 @@ export default function PdfView({ notify }) {
                   })}
                 </SelectField>
 
-                {opMeta.needsPages || opMeta.needsOrder ? (
+                {showPagesField ? (
                   <TextField
-                    label="Pages / order (1-based)"
+                    label={
+                      operation === 'rotate' || operation === 'ocr'
+                        ? 'Pages (1-based, empty = all)'
+                        : operation === 'split'
+                          ? 'Page ranges (1-based)'
+                          : 'Pages / order (1-based)'
+                    }
                     value={pages}
                     onChange={(e) => setPages(e.target.value)}
                     placeholder="e.g. all, odd, 1-3,5, 1-, last"
@@ -342,6 +406,15 @@ export default function PdfView({ notify }) {
                   </SelectField>
                 ) : null}
 
+                {opMeta.needsDpi ? (
+                  <TextField
+                    label="DPI (36–600)"
+                    value={dpi}
+                    onChange={(e) => setDpi(e.target.value)}
+                    placeholder="150"
+                  />
+                ) : null}
+
                 {opMeta.needsQuality ? (
                   <SelectField label="Quality preset" value={quality} onChange={(e) => setQuality(e.target.value)}>
                     <option value="fast">Fast</option>
@@ -374,6 +447,11 @@ export default function PdfView({ notify }) {
                       <option value="letter">Letter</option>
                       <option value="original">Original image size</option>
                     </SelectField>
+                    <SelectField label="Orientation" value={orientation} onChange={(e) => setOrientation(e.target.value)}>
+                      <option value="auto">Auto</option>
+                      <option value="portrait">Portrait</option>
+                      <option value="landscape">Landscape</option>
+                    </SelectField>
                     <SelectField label="Fit mode" value={fit} onChange={(e) => setFit(e.target.value)}>
                       <option value="contain">Contain</option>
                       <option value="cover">Cover</option>
@@ -393,7 +471,36 @@ export default function PdfView({ notify }) {
                     <option value="yes">Yes</option>
                   </SelectField>
                 ) : null}
+
+                {showPasswordField ? (
+                  <TextField
+                    label="PDF password (optional, not stored)"
+                    type="password"
+                    autoComplete="off"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Only if the PDF is encrypted"
+                  />
+                ) : null}
               </div>
+              {operation === 'compress-structural' ? (
+                <p className="helper-note" style={{ marginTop: '0.75rem' }}>
+                  Structural optimization rewrites object streams only — it is not strong image re-compression.
+                  Use Advanced compression when Ghostscript/qpdf are available.
+                </p>
+              ) : null}
+              {operation === 'repair' ? (
+                <p className="helper-note" style={{ marginTop: '0.75rem' }}>
+                  {unavailable
+                    ? reason(opMeta.capability) || 'Requires qpdf (preferred) or Ghostscript.'
+                    : `Repair uses ${engineLabel}. Damaged PDFs may still fail if the structure is unrecoverable.`}
+                </p>
+              ) : null}
+              {operation === 'ocr' && !isAvailable('pdf.ocr.searchable') ? (
+                <p className="helper-note" style={{ marginTop: '0.75rem' }}>
+                  Output is plain text (.txt). Searchable PDF OCR is not available with the current toolchain.
+                </p>
+              ) : null}
               <p className="helper-note" style={{ marginTop: '0.75rem' }}>
                 Job: {jobSummary}
               </p>
@@ -412,7 +519,7 @@ export default function PdfView({ notify }) {
               />
             ) : null}
 
-            {inspectData && operation === 'inspect' ? (
+            {inspectData ? (
               <article className="surface-card content-card">
                 <div className="card-heading">
                   <div>
@@ -430,12 +537,28 @@ export default function PdfView({ notify }) {
                     <strong>{inspectData.size != null ? `${Math.round(inspectData.size / 1024)} KB` : '—'}</strong>
                   </div>
                   <div>
+                    <span>Dimensions</span>
+                    <strong>
+                      {inspectData.pageDimensions
+                        ? `${Math.round(inspectData.pageDimensions.width)}×${Math.round(inspectData.pageDimensions.height)} ${inspectData.pageDimensions.unit || 'pt'}`
+                        : '—'}
+                    </strong>
+                  </div>
+                  <div>
                     <span>Encrypted</span>
                     <strong>{inspectData.encryption?.encrypted ? 'Yes' : 'No'}</strong>
                   </div>
                   <div>
                     <span>Scanned likely</span>
                     <strong>{inspectData.scannedLikely ? 'Yes' : 'No'}</strong>
+                  </div>
+                  <div>
+                    <span>Extractable text</span>
+                    <strong>
+                      {inspectData.extractableText?.available
+                        ? `Yes (${inspectData.extractableText.charCount ?? 0} chars)`
+                        : 'No / limited'}
+                    </strong>
                   </div>
                   <div>
                     <span>PDF version</span>
@@ -452,6 +575,14 @@ export default function PdfView({ notify }) {
                     <strong>{inspectData.engine || 'pdf-lib'}</strong>
                   </div>
                 </div>
+                {inspectData.metadata && typeof inspectData.metadata === 'object' ? (
+                  <p className="helper-note" style={{ marginTop: '0.5rem' }}>
+                    Metadata:{' '}
+                    {[inspectData.metadata.title, inspectData.metadata.author, inspectData.metadata.producer]
+                      .filter(Boolean)
+                      .join(' · ') || '—'}
+                  </p>
+                ) : null}
                 {Array.isArray(inspectData.warnings) && inspectData.warnings.length ? (
                   <ul className="helper-note">
                     {inspectData.warnings.map((w) => (
@@ -503,6 +634,28 @@ export default function PdfView({ notify }) {
             <p className="helper-note">
               Completed jobs stay available for download. Switching tabs does not cancel running jobs.
             </p>
+            {displayJob ? (
+              <div className="summary-list" style={{ marginTop: '1rem' }}>
+                <div>
+                  <span>Status</span>
+                  <strong>{displayJob.status}</strong>
+                </div>
+                <div>
+                  <span>Filename</span>
+                  <strong>{displayJob.outputName || '—'}</strong>
+                </div>
+                <div>
+                  <span>Engine</span>
+                  <strong>{displayJob.meta?.engine || engineLabel}</strong>
+                </div>
+                <div>
+                  <span>Pages</span>
+                  <strong>{displayJob.meta?.pageCount ?? displayJob.meta?.pages ?? '—'}</strong>
+                </div>
+              </div>
+            ) : (
+              <p className="helper-note">No completed PDF job yet. Run an operation from Workspace.</p>
+            )}
           </article>
         </section>
       ) : null}

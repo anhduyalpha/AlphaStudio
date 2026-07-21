@@ -4,6 +4,7 @@ import { emptyIllustrations } from '../assets/registry';
 
 /**
  * Real file picker + dropzone wired to local API uploads.
+ * When reorderable, exposes move up/down so multi-file ops (e.g. PDF merge) can set order.
  */
 export default function FilePicker({
   title = 'Drop files here',
@@ -13,12 +14,23 @@ export default function FilePicker({
   files = [],
   onChange,
   disabled = false,
+  reorderable = false,
 }) {
   const inputRef = useRef(null);
 
   const handleFiles = (list) => {
     if (!list?.length) return;
     const next = multiple ? [...files, ...Array.from(list)] : [list[0]];
+    onChange?.(next);
+  };
+
+  const move = (index, delta) => {
+    if (disabled || !reorderable) return;
+    const target = index + delta;
+    if (target < 0 || target >= files.length) return;
+    const next = [...files];
+    const [item] = next.splice(index, 1);
+    next.splice(target, 0, item);
     onChange?.(next);
   };
 
@@ -45,7 +57,11 @@ export default function FilePicker({
         )}
         <strong>{title}</strong>
         <span>{subtitle}</span>
-        <small>{files.length ? `${files.length} file(s) selected` : 'Files stay on your machine and the local API'}</small>
+        <small>
+          {files.length
+            ? `${files.length} file(s) selected${reorderable && files.length > 1 ? ' — use arrows to set order' : ''}`
+            : 'Files stay on your machine and the local API'}
+        </small>
       </button>
       <input
         ref={inputRef}
@@ -61,16 +77,46 @@ export default function FilePicker({
       {files.length > 0 ? (
         <div className="file-queue-list">
           {files.map((file, index) => (
-            <div className="file-queue-row" key={`${file.name}-${index}`}>
+            <div className="file-queue-row" key={`${file.name}-${index}-${file.size}`}>
               <div className="file-type-icon"><Icon name="file" size={18} /></div>
               <div className="file-info">
-                <strong>{file.name}</strong>
+                <strong>
+                  {reorderable && files.length > 1 ? `${index + 1}. ` : ''}
+                  {file.name}
+                </strong>
                 <span>{file.type || 'file'} • {formatBytes(file.size)}</span>
               </div>
+              {reorderable && files.length > 1 ? (
+                <>
+                  <button
+                    className="icon-button quiet"
+                    type="button"
+                    aria-label={`Move ${file.name} up`}
+                    disabled={disabled || index === 0}
+                    onClick={() => move(index, -1)}
+                  >
+                    <span style={{ display: 'inline-flex', transform: 'rotate(-90deg)' }} aria-hidden="true">
+                      <Icon name="arrow" size={17} />
+                    </span>
+                  </button>
+                  <button
+                    className="icon-button quiet"
+                    type="button"
+                    aria-label={`Move ${file.name} down`}
+                    disabled={disabled || index === files.length - 1}
+                    onClick={() => move(index, 1)}
+                  >
+                    <span style={{ display: 'inline-flex', transform: 'rotate(90deg)' }} aria-hidden="true">
+                      <Icon name="arrow" size={17} />
+                    </span>
+                  </button>
+                </>
+              ) : null}
               <button
                 className="icon-button quiet"
                 type="button"
                 aria-label={`Remove ${file.name}`}
+                disabled={disabled}
                 onClick={() => onChange?.(files.filter((_, i) => i !== index))}
               >
                 <Icon name="trash" size={17} />
