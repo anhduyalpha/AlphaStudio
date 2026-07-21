@@ -1,13 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, isUnavailable } from '../api/client';
 
-const ACTIVE_JOB_KEY = 'alphastudio.pdf.activeJobId';
+/** PDF workspace storage key — only PdfView should pass this with autoResume:true */
+export const PDF_ACTIVE_JOB_KEY = 'alphastudio.pdf.activeJobId';
 
 /**
  * Shared job runner: upload → create → progress → download helpers.
- * Supports resume-after-reload via sessionStorage + waitForJob (SSE → poll).
+ * Optional resume-after-reload via sessionStorage + waitForJob (SSE → poll).
+ *
+ * Defaults are safe for all tools: no auto-resume and no sessionStorage writes.
+ * Callers that need resume (e.g. PdfView) must opt in explicitly:
+ *   useJobRunner(notify, { storageKey: PDF_ACTIVE_JOB_KEY, autoResume: true, expectedJobType: 'pdf' })
  */
-export default function useJobRunner(notify, { storageKey = ACTIVE_JOB_KEY, autoResume = true } = {}) {
+export default function useJobRunner(
+  notify,
+  { storageKey = null, autoResume = false, expectedJobType = null } = {},
+) {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('');
@@ -101,9 +109,10 @@ export default function useJobRunner(notify, { storageKey = ACTIVE_JOB_KEY, auto
     [applyJobUpdate, notify, persistJobId],
   );
 
-  // Mount-time resume: reattach to active job without creating a duplicate
+  // Mount-time resume: reattach to active job without creating a duplicate.
+  // Only runs when autoResume is explicitly true AND a storageKey is set.
   useEffect(() => {
-    if (!autoResume || resumedRef.current) return;
+    if (!autoResume || !storageKey || resumedRef.current) return;
     resumedRef.current = true;
     if (typeof sessionStorage === 'undefined') return;
     let id = null;
@@ -118,6 +127,15 @@ export default function useJobRunner(notify, { storageKey = ACTIVE_JOB_KEY, auto
       try {
         const existing = await api.getJob(id);
         if (cancelled) return;
+        // Do not steal another tool's job (e.g. ImageView must never resume a PDF job)
+        if (expectedJobType && existing.type && existing.type !== expectedJobType) {
+          try {
+            sessionStorage.removeItem(storageKey);
+          } catch {
+            /* ignore */
+          }
+          return;
+        }
         if (['completed', 'failed', 'cancelled'].includes(existing.status)) {
           setJob(existing);
           if (existing.status === 'completed') {
@@ -142,7 +160,7 @@ export default function useJobRunner(notify, { storageKey = ACTIVE_JOB_KEY, auto
     return () => {
       cancelled = true;
     };
-  }, [autoResume, storageKey, attachToJob, persistJobId]);
+  }, [autoResume, storageKey, expectedJobType, attachToJob, persistJobId]);
 
   const cancel = useCallback(async () => {
     if (abortRef.current) abortRef.current.abort();
@@ -253,4 +271,5 @@ export default function useJobRunner(notify, { storageKey = ACTIVE_JOB_KEY, auto
   };
 }
 
-export { ACTIVE_JOB_KEY };
+/** @deprecated use PDF_ACTIVE_JOB_KEY */
+export const ACTIVE_JOB_KEY = PDF_ACTIVE_JOB_KEY;

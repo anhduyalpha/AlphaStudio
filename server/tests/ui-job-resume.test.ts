@@ -12,26 +12,51 @@ const runner = fs.readFileSync(path.join(root, 'src/hooks/useJobRunner.js'), 'ut
 const pdfView = fs.readFileSync(path.join(root, 'src/views/PdfView.jsx'), 'utf8');
 
 describe('job resume-after-reload (shipped source)', () => {
-  it('useJobRunner reads sessionStorage active job id on mount', () => {
-    assert.match(runner, /sessionStorage\.getItem/);
-    assert.match(runner, /alphastudio\.pdf\.activeJobId|storageKey/);
-    assert.match(runner, /autoResume/);
+  it('defaults autoResume to false and storageKey to null (safe for Image/Media/QR)', () => {
+    // Signature must not default autoResume=true or PDF storage key for all callers
+    assert.match(
+      runner,
+      /autoResume\s*=\s*false/,
+      'autoResume must default false so non-PDF views do not resume PDF jobs',
+    );
+    assert.match(
+      runner,
+      /storageKey\s*=\s*null/,
+      'storageKey must default null so non-PDF views do not write the PDF key',
+    );
+    // Must not default storageKey to the PDF key
+    assert.doesNotMatch(
+      runner,
+      /storageKey\s*=\s*ACTIVE_JOB_KEY|storageKey\s*=\s*PDF_ACTIVE_JOB_KEY|storageKey\s*=\s*['"]alphastudio\.pdf\.activeJobId['"]/,
+    );
   });
 
-  it('useJobRunner reattaches via getJob + waitForJob without createJob on resume', () => {
+  it('useJobRunner resume path uses getJob + waitForJob when opted in', () => {
+    assert.match(runner, /sessionStorage\.getItem/);
     assert.match(runner, /attachToJob|resume/);
     assert.match(runner, /getJob/);
     assert.match(runner, /waitForJob/);
-    // resume path must not call createJob
-    const attachBlock = runner.includes('Reconnecting') || runner.includes('attachToJob');
-    assert.ok(attachBlock);
-    // ensure waitForJob is used for progress (SSE→poll inside api client)
-    assert.match(runner, /waitForJob/);
+    assert.match(runner, /expectedJobType/);
   });
 
-  it('PdfView enables autoResume with active job storage key', () => {
+  it('PdfView opts in to autoResume with PDF storage key and expectedJobType pdf', () => {
     assert.match(pdfView, /autoResume:\s*true/);
     assert.match(pdfView, /alphastudio\.pdf\.activeJobId/);
+    assert.match(pdfView, /expectedJobType:\s*['"]pdf['"]/);
+  });
+
+  it('other views call useJobRunner(notify) without autoResume opt-in', () => {
+    const image = fs.readFileSync(path.join(root, 'src/views/ImageView.jsx'), 'utf8');
+    const media = fs.readFileSync(path.join(root, 'src/views/MediaView.jsx'), 'utf8');
+    const qr = fs.readFileSync(path.join(root, 'src/views/QrView.jsx'), 'utf8');
+    for (const [name, src] of [
+      ['ImageView', image],
+      ['MediaView', media],
+      ['QrView', qr],
+    ]) {
+      assert.match(src, /useJobRunner\(\s*notify\s*\)/, `${name} should use default (no autoResume)`);
+      assert.doesNotMatch(src, /autoResume:\s*true/, `${name} must not enable autoResume`);
+    }
   });
 
   it('split groups and duplicate insertAt are wired in PdfView', () => {

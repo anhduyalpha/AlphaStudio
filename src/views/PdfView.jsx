@@ -88,10 +88,11 @@ export default function PdfView({ notify }) {
   const [lastOutput, setLastOutput] = useState(null);
   const [inspectData, setInspectData] = useState(null);
 
-  // autoResume: re-reads alphastudio.pdf.activeJobId and reattaches SSE/poll (no new job)
+  // Opt-in resume only for PDF jobs (other views use useJobRunner defaults: no auto-resume)
   const { busy, progress, status, job, run, cancel } = useJobRunner(notify, {
     storageKey: 'alphastudio.pdf.activeJobId',
     autoResume: true,
+    expectedJobType: 'pdf',
   });
   const { isAvailable, reason, loading: capsLoading, caps } = useCapabilities();
 
