@@ -185,4 +185,4 @@ No CORS failures (Vite proxies `/api` to 8787).
 
 ## 21. Final commit hash
 
-See git log on `features/pdftools` after commit (filled at commit time).
+`50b3a87f97a6d9372074490e51db754c8f5ab54d` on `features/pdftools`
