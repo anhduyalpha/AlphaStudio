@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Icon from '../components/Icon';
 import { PageIntro, SecondaryButton, StatusBadge } from '../components/Common';
 import { api } from '../api/client';
@@ -6,6 +6,9 @@ import { api } from '../api/client';
 export default function ActivityView({ notify }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState(null);
+  const [clearing, setClearing] = useState(false);
+  const inFlightDelete = useRef(new Set());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -24,12 +27,50 @@ export default function ActivityView({ notify }) {
   }, [load]);
 
   const clear = async () => {
+    if (clearing) return;
+    const ok = window.confirm(
+      'Clear the entire activity log? This removes history entries only and does not delete job output files. Active jobs are unaffected.',
+    );
+    if (!ok) return;
+    setClearing(true);
     try {
       await api.clearActivity();
       setRows([]);
       notify('Activity history cleared');
     } catch (err) {
       notify(err.message || 'Clear failed');
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  const deleteRow = async (row) => {
+    if (!row?.id || deletingId || inFlightDelete.current.has(row.id)) return;
+    const label = row.detail || row.action || row.id.slice(0, 8);
+    const hasJob = Boolean(row.jobId);
+    const ok = window.confirm(
+      hasJob
+        ? `Delete history entry “${label}” and its generated output file (if any)? Source uploads used by other jobs are kept. Active jobs cannot be deleted.`
+        : `Delete history entry “${label}”?`,
+    );
+    if (!ok) return;
+
+    inFlightDelete.current.add(row.id);
+    setDeletingId(row.id);
+    // Optimistic remove — roll back on failure
+    const prev = rows;
+    setRows((list) => list.filter((r) => r.id !== row.id));
+    try {
+      await api.deleteActivity(row.id, { withJob: true });
+      notify?.('History entry deleted');
+      // If job delete removed multiple activity rows, refresh for consistency
+      if (hasJob) await load();
+    } catch (err) {
+      setRows(prev);
+      notify?.(err.message || 'Delete failed');
+    } finally {
+      inFlightDelete.current.delete(row.id);
+      setDeletingId(null);
     }
   };
 
@@ -38,11 +79,15 @@ export default function ActivityView({ notify }) {
       <PageIntro
         eyebrow="Manage / Activity"
         title="Review your recent activity."
-        description="Persistent activity log backed by SQLite — survives restarts."
+        description="Persistent activity log backed by SQLite — survives restarts. Delete removes a history entry and its job output when safe."
         actions={
           <>
-            <SecondaryButton icon="refresh" onClick={load}>Refresh</SecondaryButton>
-            <SecondaryButton icon="trash" onClick={clear}>Clear history</SecondaryButton>
+            <SecondaryButton icon="refresh" onClick={load} disabled={loading || Boolean(deletingId)}>
+              Refresh
+            </SecondaryButton>
+            <SecondaryButton icon="trash" onClick={clear} disabled={clearing || Boolean(deletingId) || !rows.length}>
+              {clearing ? 'Clearing…' : 'Clear history'}
+            </SecondaryButton>
           </>
         }
       />
@@ -66,9 +111,21 @@ export default function ActivityView({ notify }) {
                 <div className="timeline-content">
                   <span>{row.tool}</span>
                   <strong>{row.action}</strong>
-                  <small>{formatTime(row.createdAt)}{row.detail ? ` · ${row.detail}` : ''}</small>
+                  <small>
+                    {formatTime(row.createdAt)}
+                    {row.detail ? ` · ${row.detail}` : ''}
+                    {row.jobId ? ` · job ${String(row.jobId).slice(0, 8)}` : ''}
+                  </small>
                 </div>
                 <StatusBadge tone={toneFor(row.status)}>{row.status}</StatusBadge>
+                <SecondaryButton
+                  icon="trash"
+                  disabled={deletingId === row.id || Boolean(deletingId)}
+                  onClick={() => deleteRow(row)}
+                  aria-label={`Delete history entry ${row.detail || row.action || row.id}`}
+                >
+                  {deletingId === row.id ? 'Deleting…' : 'Delete'}
+                </SecondaryButton>
               </div>
             ))}
           </div>

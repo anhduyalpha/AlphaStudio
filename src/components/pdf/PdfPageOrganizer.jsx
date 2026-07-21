@@ -1,15 +1,22 @@
 /**
  * Lightweight client-side page organizer for Reorder / Rotate / Extract / Delete / Duplicate.
- * Uses browser PDF.js via dynamic import when available; falls back to page-count list
- * without embedding the full PDF as base64.
+ * Uses browser PDF.js via dynamic import; falls back to page-count list without base64 upload.
  *
- * Does NOT send the full PDF to the server as base64 — edit plans are page indices only.
- * Backend remains the authority for validation.
+ * Lifecycle:
+ * - Generation token ignores stale async completions after file change / unmount.
+ * - loadingTask cancelled + PDFDocumentProxy.destroy() on cleanup.
+ * - Thumbnails cleared immediately when the selected file identity changes.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SecondaryButton, StatusBadge } from '../Common';
 
 const PREVIEW_PAGE_LIMIT = 40;
+
+/** Stable identity for a browser File (reference changes even for same content). */
+function fileIdentity(file) {
+  if (!file) return '';
+  return `${file.name}|${file.size}|${file.lastModified || 0}`;
+}
 
 export default function PdfPageOrganizer({
   file,
@@ -31,80 +38,183 @@ export default function PdfPageOrganizer({
   const [truncated, setTruncated] = useState(false);
   const [dragIdx, setDragIdx] = useState(null);
 
-  // Load page count + lazy thumbs via pdfjs if present, else file size heuristic skip
+  const genRef = useRef(0);
+  const docRef = useRef(null);
+  const taskRef = useRef(null);
+  const identity = fileIdentity(file);
+
+  // Load page count + lazy thumbs; full cleanup on identity change / unmount
   useEffect(() => {
+    const gen = ++genRef.current;
     let cancelled = false;
-    let urls = [];
+
+    // Tear down previous document immediately so stale renders cannot finish into state
+    const prevDoc = docRef.current;
+    const prevTask = taskRef.current;
+    docRef.current = null;
+    taskRef.current = null;
+    try {
+      prevTask?.destroy?.();
+    } catch {
+      /* ignore */
+    }
+    try {
+      prevDoc?.destroy?.();
+    } catch {
+      /* ignore */
+    }
+
+    setThumbs([]);
+    setSelected(new Set());
+    setOrder([]);
+    setRotations({});
+    setPageCount(0);
+    setError('');
+    setTruncated(false);
+
+    if (!file) {
+      setLoading(false);
+      return undefined;
+    }
+
+    setLoading(true);
+
     async function load() {
-      if (!file) return;
-      setLoading(true);
-      setError('');
-      setThumbs([]);
-      setSelected(new Set());
       try {
         const buf = await file.arrayBuffer();
-        // Try pdfjs from CDN-less dynamic — package may not be installed; use minimal header parse
+        if (cancelled || gen !== genRef.current) return;
+
         let count = 0;
         try {
-          // pdfjs-dist (Apache-2.0): client-side page count + lazy thumbnails only.
-          // Never uploads the PDF as base64; edit plans are page indices for the job API.
           const pdfjs = await import('pdfjs-dist');
+          if (cancelled || gen !== genRef.current) return;
+
+          // Vite resolves this to a correct asset URL in dev and production builds.
           if (pdfjs.GlobalWorkerOptions) {
-            pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+            const workerUrl = new URL(
               'pdfjs-dist/build/pdf.worker.min.mjs',
               import.meta.url,
             ).toString();
+            pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
           }
+
+          const data = new Uint8Array(buf);
           const loadingTask = pdfjs.getDocument({
-            data: new Uint8Array(buf),
+            data,
             isEvalSupported: false,
             useSystemFonts: true,
+            disableAutoFetch: true,
+            disableStream: true,
           });
+          taskRef.current = loadingTask;
           const doc = await loadingTask.promise;
-          count = doc.numPages;
+          if (cancelled || gen !== genRef.current) {
+            try {
+              await doc.destroy();
+            } catch {
+              /* ignore */
+            }
+            return;
+          }
+          docRef.current = doc;
+          count = doc.numPages || 0;
           const limit = Math.min(count, PREVIEW_PAGE_LIMIT);
-          setTruncated(count > PREVIEW_PAGE_LIMIT);
+          if (gen === genRef.current && !cancelled) {
+            setTruncated(count > PREVIEW_PAGE_LIMIT);
+            setPageCount(count);
+            setOrder(Array.from({ length: count }, (_, i) => i));
+          }
+
           const nextThumbs = [];
           for (let i = 1; i <= limit; i++) {
-            if (cancelled) break;
+            if (cancelled || gen !== genRef.current) break;
             const page = await doc.getPage(i);
+            if (cancelled || gen !== genRef.current) {
+              try {
+                page.cleanup?.();
+              } catch {
+                /* ignore */
+              }
+              break;
+            }
             const viewport = page.getViewport({ scale: 0.25 });
             const canvas = document.createElement('canvas');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            const ctx2d = canvas.getContext('2d');
-            await page.render({ canvasContext: ctx2d, viewport }).promise;
+            canvas.width = Math.max(1, Math.floor(viewport.width));
+            canvas.height = Math.max(1, Math.floor(viewport.height));
+            const ctx2d = canvas.getContext('2d', { alpha: false });
+            const renderTask = page.render({ canvasContext: ctx2d, viewport, canvas });
+            try {
+              await renderTask.promise;
+            } catch (renderErr) {
+              if (cancelled || gen !== genRef.current) break;
+              throw renderErr;
+            }
             const url = canvas.toDataURL('image/jpeg', 0.7);
-            urls.push(url);
+            // Drop canvas backing store promptly
+            canvas.width = 0;
+            canvas.height = 0;
+            try {
+              page.cleanup?.();
+            } catch {
+              /* ignore */
+            }
             nextThumbs.push({ index: i - 1, url });
-            if (i % 4 === 0) setThumbs([...nextThumbs]);
+            if (i % 4 === 0 && gen === genRef.current && !cancelled) {
+              setThumbs([...nextThumbs]);
+            }
           }
-          if (!cancelled) setThumbs(nextThumbs);
-        } catch {
-          // Fallback: count /Type /Page occurrences (best-effort, no dependency)
+          if (gen === genRef.current && !cancelled) {
+            setThumbs(nextThumbs);
+            setError('');
+          }
+        } catch (pdfErr) {
+          if (cancelled || gen !== genRef.current) return;
+          // Fallback: best-effort /Type /Page count (no thumbnails)
           const text = new TextDecoder('latin1').decode(
             buf.slice(0, Math.min(buf.byteLength, 2_000_000)),
           );
           const matches = text.match(/\/Type\s*\/Page(?!s)/g);
           count = matches && matches.length ? matches.length : 1;
+          setPageCount(count);
+          setOrder(Array.from({ length: count }, (_, i) => i));
           setTruncated(count > PREVIEW_PAGE_LIMIT);
+          setThumbs([]);
+          setError(
+            pdfErr instanceof Error
+              ? `Thumbnail render limited: ${pdfErr.message}`
+              : 'Thumbnail render limited; page list only',
+          );
         }
-        if (cancelled) return;
-        setPageCount(count);
-        setOrder(Array.from({ length: count }, (_, i) => i));
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Preview failed');
+        if (!cancelled && gen === genRef.current) {
+          setError(e instanceof Error ? e.message : 'Preview failed');
+          setPageCount(0);
+          setThumbs([]);
+        }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && gen === genRef.current) setLoading(false);
       }
     }
+
     load();
+
     return () => {
       cancelled = true;
-      // object URLs from data: do not need revoke; keep clean
-      void urls;
+      genRef.current += 1; // invalidate in-flight work
+      try {
+        taskRef.current?.destroy?.();
+      } catch {
+        /* ignore */
+      }
+      try {
+        docRef.current?.destroy?.();
+      } catch {
+        /* ignore */
+      }
+      taskRef.current = null;
+      docRef.current = null;
     };
-  }, [file]);
+  }, [identity, file]);
 
   // Publish plan to parent (include pageCount for client validation e.g. delete-all)
   useEffect(() => {
@@ -146,6 +256,7 @@ export default function PdfPageOrganizer({
     if (!selected.size) return;
     const list = [...selected].sort((a, b) => a - b).map((i) => i + 1).join(',');
     onPagesChange?.(list);
+    onPlanChange?.({ pages: list, pageCount });
   };
 
   const onDragStart = (idx) => setDragIdx(idx);
@@ -180,19 +291,23 @@ export default function PdfPageOrganizer({
   }
 
   return (
-    <article className="surface-card content-card">
+    <article className="surface-card content-card" data-pdf-organizer="true">
       <div className="card-heading">
         <div>
           <p className="eyebrow">Page organizer</p>
           <h3>
-            {pageCount || '…'} page{pageCount === 1 ? '' : 's'}
+            {loading && !pageCount ? '…' : pageCount || '…'} page{pageCount === 1 ? '' : 's'}
           </h3>
         </div>
         <StatusBadge tone="cyan">{selected.size} selected</StatusBadge>
       </div>
 
-      {loading ? <p className="helper-note">Loading preview…</p> : null}
-      {error ? <p className="helper-note">{error}</p> : null}
+      {loading ? <p className="helper-note" role="status">Loading preview…</p> : null}
+      {error ? (
+        <p className="helper-note" role="alert">
+          {error}
+        </p>
+      ) : null}
       {truncated ? (
         <p className="helper-note">
           Preview limited to first {PREVIEW_PAGE_LIMIT} pages for performance. The backend still
@@ -201,6 +316,7 @@ export default function PdfPageOrganizer({
       ) : null}
 
       <div
+        className="pdf-page-organizer-grid"
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))',
@@ -215,7 +331,7 @@ export default function PdfPageOrganizer({
           const rot = rotations[pageIndex] || 0;
           return (
             <div
-              key={`${pageIndex}-${displayPos}`}
+              key={`${identity}-${pageIndex}-${displayPos}`}
               draggable={operation === 'reorder' && !disabled}
               onDragStart={() => onDragStart(displayPos)}
               onDragOver={(e) => e.preventDefault()}
@@ -244,7 +360,7 @@ export default function PdfPageOrganizer({
                 />
               ) : (
                 <div style={{ height: 80, display: 'grid', placeItems: 'center', opacity: 0.6 }}>
-                  {pageIndex + 1}
+                  {loading ? '…' : pageIndex + 1}
                 </div>
               )}
               <div>p.{pageIndex + 1}</div>
@@ -265,10 +381,11 @@ export default function PdfPageOrganizer({
         {operation === 'reorder' ? (
           <SecondaryButton
             type="button"
-            disabled={disabled}
+            disabled={disabled || !order.length}
             onClick={() => {
               const order1 = order.map((i) => i + 1).join(',');
               onPagesChange?.(order1);
+              onPlanChange?.({ order: order1, pages: order1, pageCount });
             }}
           >
             Apply order
@@ -281,3 +398,5 @@ export default function PdfPageOrganizer({
     </article>
   );
 }
+
+export { fileIdentity, PREVIEW_PAGE_LIMIT };

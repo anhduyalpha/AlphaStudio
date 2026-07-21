@@ -52,10 +52,14 @@ export async function pdfToImages(ctx: PdfOpContext) {
     pageIndices,
   });
 
+  const selectedPages = pageIndices
+    ? pageIndices.map((i) => i + 1)
+    : (result.meta?.selectedPages as number[] | undefined);
+  const ext = opts.format === 'jpeg' ? '.jpg' : '.png';
   const outputName =
     result.outputMime === 'application/zip'
       ? OutputNames.pageImagesZip(ctx.primaryName)
-      : result.outputName;
+      : OutputNames.pageImage(ctx.primaryName, selectedPages?.[0] || 1, ext);
 
   ctx.progress.complete('completed');
   return {
@@ -64,7 +68,7 @@ export async function pdfToImages(ctx: PdfOpContext) {
     outputMime: result.outputMime,
     meta: {
       ...result.meta,
-      selectedPages: pageIndices ? pageIndices.map((i) => i + 1) : result.meta?.selectedPages,
+      selectedPages: selectedPages || result.meta?.selectedPages,
     },
   };
 }

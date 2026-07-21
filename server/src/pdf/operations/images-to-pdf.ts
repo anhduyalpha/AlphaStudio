@@ -82,10 +82,11 @@ export async function imagesToPdf(ctx: PdfOpContext) {
   }
 
   ctx.progress.batch('processing', n, n, `Added ${n} image(s)`);
+  const firstImage = ctx.inputNames[0] || ctx.primaryName || 'images';
   return savePdfDocument({
     doc: out,
     outputDir: ctx.outputDir,
-    outputName: OutputNames.imagesToPdf(),
+    outputName: OutputNames.imagesToPdf(firstImage),
     progress: ctx.progress,
     meta: {
       pages: n,

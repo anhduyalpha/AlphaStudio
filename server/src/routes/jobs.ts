@@ -4,12 +4,14 @@ import { badRequest, notFound } from '../lib/errors.js';
 import {
   cancelJob,
   createJob,
+  deleteJob,
   getJob,
   jobEvents,
   jobPublic,
   listJobs,
 } from '../workers/jobs.js';
 import { corsAllowOriginHeader } from '../lib/cors-origin.js';
+import { contentDispositionAttachment } from '../pdf/output-names.js';
 
 export async function jobRoutes(app: FastifyInstance): Promise<void> {
   app.post('/api/jobs', async (req, reply) => {
@@ -51,6 +53,15 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
     return jobPublic(cancelJob(id));
   });
 
+  /**
+   * Delete a completed/failed/cancelled job from history and remove its output file
+   * when safely under the configured outputs directory. Active jobs must be cancelled first.
+   */
+  app.delete('/api/jobs/:id', async (req) => {
+    const { id } = req.params as { id: string };
+    return deleteJob(id);
+  });
+
   app.get('/api/jobs/:id/download', async (req, reply) => {
     const { id } = req.params as { id: string };
     const job = getJob(id);
@@ -61,7 +72,7 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
     if (!fs.existsSync(job.output_path)) throw notFound('Output file missing');
     const filename = job.output_name || 'download';
     reply.header('Content-Type', job.output_mime || 'application/octet-stream');
-    reply.header('Content-Disposition', `attachment; filename="${filename.replace(/"/g, '')}"`);
+    reply.header('Content-Disposition', contentDispositionAttachment(filename));
     return reply.send(fs.createReadStream(job.output_path));
   });
 

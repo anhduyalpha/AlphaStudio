@@ -156,7 +156,7 @@ describe('inspect', () => {
     assert.equal(json.pageCount, 2);
     assert.ok(json.checksum);
     assert.equal(json.engine, 'pdf-lib');
-    assert.match(result.outputName, /inspect\.json$/);
+    assert.match(result.outputName, /inspection\.json$/);
   });
 });
 
@@ -201,7 +201,7 @@ describe('split modes', () => {
       }),
     );
     assert.equal(result.outputMime, 'application/zip');
-    assert.match(result.outputName, /pages\.zip$/);
+    assert.match(result.outputName, /split\.zip$/);
     assert.equal(result.meta?.parts, 2);
   });
 });

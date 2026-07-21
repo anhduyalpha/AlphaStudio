@@ -2330,9 +2330,15 @@ kbd {
   position: relative;
   min-height: 78px;
   display: grid;
-  grid-template-columns: 42px 1fr auto;
+  grid-template-columns: 42px minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 0.8rem;
+}
+
+.timeline-row > .button {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
 }
 
 .timeline-row:not(:last-child)::after {

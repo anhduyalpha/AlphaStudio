@@ -158,4 +158,23 @@ describe('PdfPageOrganizer', () => {
   it('publishes pageCount in edit plan for validation', () => {
     assert.match(organizer, /pageCount/);
   });
+
+  it('uses generation tokens and destroys PDF.js docs on cleanup', () => {
+    assert.match(organizer, /genRef|generation/i);
+    assert.match(organizer, /destroy/);
+    assert.match(organizer, /fileIdentity|lastModified/);
+    assert.match(organizer, /workerSrc|pdf\.worker/);
+  });
+});
+
+describe('Activity history delete UI', () => {
+  it('exposes per-entry delete wired to api.deleteActivity', () => {
+    const activity = fs.readFileSync(path.join(root, 'src/views/ActivityView.jsx'), 'utf8');
+    assert.match(activity, /deleteActivity/);
+    assert.match(activity, /Delete/);
+    assert.match(activity, /confirm/i);
+    const client = fs.readFileSync(path.join(root, 'src/api/client.js'), 'utf8');
+    assert.match(client, /deleteJob/);
+    assert.match(client, /deleteActivity/);
+  });
 });

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { getDb, type ActivityRow } from '../db/index.js';
-import { badRequest } from '../lib/errors.js';
+import { badRequest, notFound } from '../lib/errors.js';
 
 export async function activityRoutes(app: FastifyInstance): Promise<void> {
   app.get('/api/activity', async (req) => {
@@ -22,7 +22,34 @@ export async function activityRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
+  /**
+   * Delete a single activity timeline row.
+   * When the row references a job, prefer deleting the job (which also cleans output + activity).
+   * Query: ?withJob=1 (default) attempts job delete when job_id is set and terminal.
+   */
+  app.delete('/api/activity/:id', async (req) => {
+    const { id } = req.params as { id: string };
+    const q = req.query as { withJob?: string };
+    const withJob = q.withJob !== '0' && q.withJob !== 'false';
+    const row = getDb().prepare('SELECT * FROM activity WHERE id = ?').get(id) as ActivityRow | undefined;
+    if (!row) throw notFound('Activity entry not found');
+
+    if (withJob && row.job_id) {
+      const { getJob, deleteJob } = await import('../workers/jobs.js');
+      const job = getJob(row.job_id);
+      if (job) {
+        // deleteJob rejects active jobs with a clear error
+        const result = deleteJob(row.job_id);
+        return { deletedJob: true, ...result };
+      }
+    }
+
+    getDb().prepare('DELETE FROM activity WHERE id = ?').run(id);
+    return { ok: true, deletedJob: false, id };
+  });
+
   app.delete('/api/activity', async () => {
+    // Bulk clear activity log only — does not delete jobs or output files
     getDb().prepare('DELETE FROM activity').run();
     return { ok: true };
   });

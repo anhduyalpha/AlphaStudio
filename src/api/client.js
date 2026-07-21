@@ -167,6 +167,13 @@ export const api = {
 
   getActivity: (limit = 50) => request(`/api/activity?limit=${limit}`),
   clearActivity: () => request('/api/activity', { method: 'DELETE' }),
+  /** Delete one activity row; when linked to a terminal job, deletes job + output (default). */
+  deleteActivity: (id, { withJob = true } = {}) =>
+    request(`/api/activity/${encodeURIComponent(id)}?withJob=${withJob ? '1' : '0'}`, {
+      method: 'DELETE',
+    }),
+  /** Delete a terminal job history entry and its trusted output file. */
+  deleteJob: (id) => request(`/api/jobs/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 
   getProfile: () => request('/api/profile'),
   saveProfile: (body) => request('/api/profile', { method: 'PUT', body: JSON.stringify(body) }),
