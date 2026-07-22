@@ -9,6 +9,7 @@ import { assertPairAllowed, routeConversion } from '../convert/matrix.js';
 import {
   convertWithCalibre,
   convertWithPandoc,
+  convertWithPython,
   executeEngineFallback,
   validateEngineOutput,
   type EngineRoute,
@@ -252,6 +253,19 @@ async function convertOne(
 
   if (selectedRoute.engineId === 'libreoffice') {
     return convertOfficeRoute(ctx, input, name, inputFormat, out);
+  }
+
+  if (selectedRoute.engineId === 'python') {
+    return convertWithPython({
+      inputPath: input,
+      outputDir: ctx.outputDir,
+      outputFormat: out,
+      operation: String(selectedRoute.metadata?.operation || 'data.json-transform'),
+      originalBaseName: base(name),
+      jobId: ctx.jobId,
+      isCancelled: ctx.isCancelled,
+      options: { format: out },
+    });
   }
 
   // Same-format pairs never route to LibreOffice.

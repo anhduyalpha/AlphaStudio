@@ -256,6 +256,7 @@ export type RouteDecision = {
     | 'pandoc'
     | 'calibre'
     | 'sevenzip'
+    | 'python'
     | 'alphastudio'
     | 'pure'
     | 'unsupported';
