@@ -17,9 +17,15 @@
     "build": "npm run build:client && npm run build:server",
     "build:client": "vite build",
     "build:server": "npm run build -w alphastudio-server",
+    "typecheck": "tsc -p server/tsconfig.json --noEmit",
     "prestart": "npm run runtime:prepare",
     "start": "npm run start -w alphastudio-server",
     "test": "npm run test -w alphastudio-server",
+    "test:pdf": "node --import tsx --test --test-concurrency=1 server/tests/pdf-*.test.ts server/tests/ui-pdf-struct.test.ts",
+    "test:e2e": "node scripts/test/run-playwright.mjs",
+    "test:e2e:install": "playwright install chromium",
+    "fixtures:pdf": "node scripts/test/generate-pdf-fixtures.mjs",
+    "fixtures:pdf:verify": "node scripts/test/verify-pdf-fixtures.mjs",
     "test:maint": "node --test scripts/maint/tests/*.test.mjs",
     "test:audit": "node --test scripts/audit/tests/*.test.mjs",
     "benchmark:workers": "node scripts/benchmark-worker-latency.mjs",
@@ -46,6 +52,7 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "concurrently": "^9.1.2",
     "vite": "6.4.3"
   },

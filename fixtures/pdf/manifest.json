@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2024-01-01T00:00:00.000Z",
+  "fixtures": [
+    {
+      "name": "corrupt-truncated.pdf",
+      "sha256": "245aebd303bce28929a4504f2f147bb12e4b60eee8d87beef848938558600557",
+      "size": 83,
+      "kind": "corrupt",
+      "pages": null
+    },
+    {
+      "name": "encrypted-password-alpha.pdf",
+      "sha256": "97181c26f293066205a1ee21931741e2344bb453902e71394c595fdc431f9c74",
+      "size": 914,
+      "kind": "encrypted",
+      "pages": 1,
+      "password": "alphastudio",
+      "securityHandler": "Standard V1/R2 40-bit RC4"
+    },
+    {
+      "name": "large-205-pages.pdf",
+      "sha256": "fde6e8b9c96e543ea5ba08c26de24c5aa08500e848981bef90b6950b0da82c80",
+      "size": 113912,
+      "kind": "large",
+      "pages": 205
+    },
+    {
+      "name": "organizer-8-pages.pdf",
+      "sha256": "f38f49105b0511591a5f6f44fbc45021924bf82d36437838815831f79e4200c5",
+      "size": 5486,
+      "kind": "organizer",
+      "pages": 8
+    },
+    {
+      "name": "quarterly.report.final.v1.pdf",
+      "sha256": "72bb1564ee7048a6c1be3209b6ca6c3a8af9c4df519140e733d55265bc03c1c8",
+      "size": 1737,
+      "kind": "multi-dot-filename",
+      "pages": 1
+    },
+    {
+      "name": "scanned-image-only.pdf",
+      "sha256": "c311a28aa46892ef84fe3f595b51cba23a56067c0e4bc5828e3a5d9d5e741050",
+      "size": 2429,
+      "kind": "scanned-image-only",
+      "pages": 1
+    },
+    {
+      "name": "text-basic.pdf",
+      "sha256": "e281ec072966eeef988a6514d5bec4b4d484603d708c08764be776ae840587ab",
+      "size": 2408,
+      "kind": "text",
+      "pages": 2
+    },
+    {
+      "name": "unicode-ภาษาไทย-报告.pdf",
+      "sha256": "31d22ff99042c19ec74363a30db67f1299a4ba446ee0a77ea923d4a683ae89d0",
+      "size": 2256,
+      "kind": "unicode-filename",
+      "pages": 2
+    }
+  ]
+}
