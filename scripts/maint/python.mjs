@@ -14,9 +14,10 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import https from 'node:https';
 import { spawnSync } from 'node:child_process';
 import { projectRoot } from './lib/platform.mjs';
-import { hashString } from './lib/checksum.mjs';
+import { hashString, hashFile } from './lib/checksum.mjs';
 import { safeRemoveUnderTools } from './lib/paths.mjs';
 
 const PROFILES = ['core', 'data', 'documents', 'vision', 'ocr', 'ai'];
@@ -36,6 +37,9 @@ const venvPython =
     : path.join(venvDir, 'bin', 'python');
 const fingerprintPath = path.join(pythonRoot, 'fingerprint.json');
 const pythonSourceDir = path.join(projectRoot, 'python');
+// Model weights are shared across platforms and installed on demand.
+const modelsDir = path.join(pythonRoot, 'models');
+const modelsLockPath = path.join(pythonSourceDir, 'models.lock.json');
 
 if (help) {
   console.log(`Usage: node scripts/maint/python.mjs <install|check|repair|test> [--profile <name>]
@@ -44,6 +48,7 @@ if (help) {
   check    Report venv health, interpreter version, and fingerprint match.
   repair   Delete and recreate the venv for the profile.
   test     Run the Python bridge unit tests (python/tests) with the venv or system interpreter.
+  models   Install optional model weights on demand (--list | --model <name> [--allow-unverified]).
 
   Profiles: ${PROFILES.join(', ')} (default: core; heavy profiles are never auto-installed)
 `);
@@ -250,13 +255,131 @@ function runTests() {
   );
 }
 
+function loadModelsLock() {
+  try {
+    return JSON.parse(fs.readFileSync(modelsLockPath, 'utf8')).models || {};
+  } catch {
+    return {};
+  }
+}
+
+function downloadFile(url, dest) {
+  return new Promise((resolve, reject) => {
+    const get = (current, redirects = 0) => {
+      if (redirects > 5) {
+        reject(new Error('Too many redirects'));
+        return;
+      }
+      https
+        .get(current, (res) => {
+          if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+            res.resume();
+            get(new URL(res.headers.location, current).toString(), redirects + 1);
+            return;
+          }
+          if (res.statusCode !== 200) {
+            res.resume();
+            reject(new Error(`HTTP ${res.statusCode}`));
+            return;
+          }
+          const file = fs.createWriteStream(dest);
+          res.pipe(file);
+          file.on('finish', () => file.close(() => resolve()));
+          file.on('error', reject);
+        })
+        .on('error', reject);
+    };
+    get(url);
+  });
+}
+
+function models() {
+  const lock = loadModelsLock();
+  const modelIndex = process.argv.indexOf('--model');
+  if (process.argv.includes('--list') || modelIndex < 0) {
+    console.log('Available models (dir: ' + path.relative(projectRoot, modelsDir) + '):');
+    for (const [name, spec] of Object.entries(lock)) {
+      const present =
+        spec.engine === 'file'
+          ? fs.existsSync(path.join(modelsDir, spec.dest))
+            ? 'installed'
+            : 'missing'
+          : 'via ai profile';
+      console.log(`  ${name}  [${spec.engine}]  ${present}`);
+    }
+    console.log('\nInstall with: npm run python:models -- --model <name>');
+    return;
+  }
+
+  const name = process.argv[modelIndex + 1];
+  const spec = lock[name];
+  if (!spec) {
+    console.error(`Unknown model "${name}". Run: npm run python:models -- --list`);
+    process.exit(1);
+  }
+  fs.mkdirSync(modelsDir, { recursive: true });
+
+  if (spec.engine === 'faster-whisper') {
+    if (!fs.existsSync(venvPython)) {
+      console.error('Install the ai profile first: npm run python:install -- --profile ai');
+      process.exit(1);
+    }
+    console.log(`Fetching Whisper model "${spec.size}" into ${path.relative(projectRoot, modelsDir)}...`);
+    run(
+      venvPython,
+      ['-c', `from faster_whisper import WhisperModel; WhisperModel(${JSON.stringify(spec.size)}, download_root=${JSON.stringify(modelsDir)})`],
+      { label: 'whisper download' },
+    );
+    console.log('Whisper model ready.');
+    return;
+  }
+
+  // file engine
+  const allowUnverified = process.argv.includes('--allow-unverified');
+  if (!spec.sha256 && !allowUnverified) {
+    console.error(
+      `No checksum is configured for "${name}". Set sha256 in python/models.lock.json or re-run with --allow-unverified.`,
+    );
+    process.exit(1);
+  }
+  const dest = path.join(modelsDir, spec.dest);
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  const tmp = `${dest}.download`;
+  console.log(`Downloading ${name} from ${spec.url}...`);
+  downloadFile(spec.url, tmp)
+    .then(() => {
+      if (spec.sha256) {
+        const actual = hashFile(tmp);
+        if (actual.toLowerCase() !== String(spec.sha256).toLowerCase()) {
+          fs.rmSync(tmp, { force: true });
+          console.error(`Checksum mismatch for ${name}: expected ${spec.sha256}, got ${actual}`);
+          process.exit(1);
+        }
+      }
+      fs.renameSync(tmp, dest);
+      console.log(
+        `Installed ${name} -> ${path.relative(projectRoot, dest)}${spec.sha256 ? ' (verified)' : ' (UNVERIFIED)'}`,
+      );
+    })
+    .catch((error) => {
+      try {
+        fs.rmSync(tmp, { force: true });
+      } catch {
+        /* ignore */
+      }
+      console.error(`Download failed: ${error.message}`);
+      process.exit(1);
+    });
+}
+
 try {
   if (cmd === 'install') install();
   else if (cmd === 'check') check();
   else if (cmd === 'repair') repair();
   else if (cmd === 'test') runTests();
+  else if (cmd === 'models') models();
   else {
-    console.error(`Unknown command "${cmd}". Use install | check | repair | test (see --help).`);
+    console.error(`Unknown command "${cmd}". Use install | check | repair | test | models (see --help).`);
     process.exit(1);
   }
 } catch (error) {

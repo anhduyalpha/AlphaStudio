@@ -41,6 +41,7 @@
     "python:check": "node scripts/maint/python.mjs check --profile core",
     "python:repair": "node scripts/maint/python.mjs repair --profile core",
     "test:python": "node scripts/maint/python.mjs test",
+    "python:models": "node scripts/maint/python.mjs models",
     "db:repair": "node scripts/maint/db-repair.mjs",
     "deps:check": "node scripts/maint/deps.mjs check",
     "deps:prune": "node scripts/maint/deps.mjs prune",

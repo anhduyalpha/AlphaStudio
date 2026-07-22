@@ -72,4 +72,16 @@ describe('python specialized operations (pyop)', () => {
       /Unknown Python operation/,
     );
   });
+
+  it('registers the Phase 4 operations and gates them by ai/vision profile', () => {
+    const ops = PYTHON_OPERATIONS.map((spec) => spec.operation);
+    assert.ok(ops.includes('media.transcribe'));
+    assert.ok(ops.includes('image.background-removal'));
+
+    assert.equal(pythonOperationStatus('media.transcribe', selfcheckRunner({ faster_whisper: true })).available, true);
+    assert.match(String(pythonOperationStatus('media.transcribe', noModules).reason), /ai profile/);
+
+    assert.equal(pythonOperationStatus('image.background-removal', selfcheckRunner({ rembg: true })).available, true);
+    assert.match(String(pythonOperationStatus('image.background-removal', noModules).reason), /vision profile/);
+  });
 });

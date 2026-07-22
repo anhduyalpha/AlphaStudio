@@ -1,4 +1,4 @@
-# Python runtime integration (Phases 1-3)
+# Python runtime integration (Phases 1-4)
 
 AlphaStudio can invoke an optional Python runtime for specialized processing
 without changing the Node/Fastify architecture. Python is **not** a server and
@@ -40,12 +40,31 @@ through a dedicated `pyop` job type instead of the converter route table:
 | `image.deskew` | image -> same format | vision | opencv, numpy |
 | `image.autocrop` | image -> same format | vision | opencv, numpy |
 | `pdf.extract-tables` | pdf -> csv (zipped if many) | documents | camelot-py |
+| `media.transcribe` | audio/video -> txt/srt/vtt | ai | faster-whisper (+ model) |
+| `image.background-removal` | image -> transparent png | vision | rembg (+ u2net model) |
 
 `POST /api/jobs { type: "pyop", uploadIds, options: { operation, ... } }`.
 Availability is gated in `assertJobCapable` via `pythonOperationStatus` (same
 selfcheck), and each op is listed in `/api/capabilities` with an install hint
 when its profile is absent. A single artifact is returned directly; multiple
 artifacts are zipped (same pattern as the batch converter).
+
+### Model management
+
+AI/vision model weights are never downloaded during a job. They are installed
+explicitly into `.runtime/python/models/` (shared across platforms, git-ignored):
+
+```
+npm run python:models -- --list                 # show models + local presence
+npm run python:models -- --model whisper-base    # faster-whisper weights (ai profile)
+npm run python:models -- --model u2net           # rembg weights (verified when a sha256 is set)
+```
+
+`python/models.lock.json` is the registry. File-engine models refuse to install
+without a configured `sha256` unless `--allow-unverified` is passed; Whisper
+weights are fetched and integrity-checked by faster-whisper/Hugging Face into the
+models dir. `media.transcribe` and `image.background-removal` fail with an
+actionable hint when the model is missing (never auto-downloading).
 
 ## Design
 
@@ -164,7 +183,7 @@ Phase 1 reuses the existing safety envelope and adds Python-specific limits:
 
 ## Roadmap
 
-Phases 1-3 (this document) ship the foundation plus data, document, OCR and
-vision operations. Phases 4-5 add transcription/subtitles and optional
-local-LLM operations behind their own opt-in profiles and are delivered as
-separate pull requests.
+Phases 1-4 (this document) ship the foundation plus data, document, OCR, vision,
+transcription and background-removal operations, with on-demand model
+management. Phase 5 adds the optional local-LLM summarizer behind the ai
+profile and is delivered as a separate pull request.

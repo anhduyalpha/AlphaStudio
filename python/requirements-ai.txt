@@ -1,0 +1,11 @@
+# python-ai profile — Phase 4/5.
+#
+# Audio transcription + subtitles (media.transcribe) via faster-whisper, and the
+# optional local-LLM summarizer (Phase 5) via llama-cpp-python. Whisper/LLM model
+# weights are installed separately and on demand with:
+#   npm run python:models -- --model whisper-base
+# Never installed automatically; opt in with:
+#   npm run python:install -- --profile ai
+faster-whisper>=1.0
+onnxruntime>=1.17
+llama-cpp-python>=0.2.70

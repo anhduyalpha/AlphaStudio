@@ -7,3 +7,6 @@
 opencv-python-headless>=4.9
 numpy>=1.26
 Pillow>=10.0
+# Background removal (image.background-removal). Model installed via python:models.
+rembg>=2.0
+onnxruntime>=1.17

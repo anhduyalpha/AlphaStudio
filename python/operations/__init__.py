@@ -123,6 +123,8 @@ def _load_builtin_operations() -> None:
     from . import ocr_pdf  # noqa: F401  (import side effect: registration)
     from . import image_ops  # noqa: F401  (import side effect: registration)
     from . import pdf_tables  # noqa: F401  (import side effect: registration)
+    from . import transcribe  # noqa: F401  (import side effect: registration)
+    from . import background_removal  # noqa: F401  (import side effect: registration)
 
 
 _load_builtin_operations()

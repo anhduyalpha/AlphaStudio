@@ -235,6 +235,8 @@ export const PYTHON_OPERATIONS: PythonOperationSpec[] = [
   { operation: 'image.deskew', label: 'Image deskew', profile: 'vision', requires: ['cv2'], suffix: 'deskew' },
   { operation: 'image.autocrop', label: 'Image auto-crop', profile: 'vision', requires: ['cv2'], suffix: 'autocrop' },
   { operation: 'pdf.extract-tables', label: 'PDF table extraction', profile: 'documents', requires: ['camelot'], suffix: 'tables' },
+  { operation: 'media.transcribe', label: 'Audio transcription / subtitles', profile: 'ai', requires: ['faster_whisper'], suffix: 'transcript' },
+  { operation: 'image.background-removal', label: 'Background removal', profile: 'vision', requires: ['rembg'], suffix: 'nobg' },
 ];
 
 export function findPythonOperation(operation: string): PythonOperationSpec | undefined {
@@ -316,7 +318,10 @@ export async function runPythonOperation(options: {
       '--operation', options.operation,
       ...options.inputPaths.flatMap((input) => ['--input', input, '--input-name', path.basename(input)]),
       '--output-dir', isolatedDir,
-      '--options', JSON.stringify(options.options || {}),
+      '--options', JSON.stringify({
+        ...(options.options || {}),
+        modelsDir: path.join(runtimeDir, 'python', 'models'),
+      }),
       '--limits', JSON.stringify({
         maxOutputBytes: config.maxOutputBytes,
         maxMemoryMb: config.pythonMaxMemoryMb,

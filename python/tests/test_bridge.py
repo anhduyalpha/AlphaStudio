@@ -249,6 +249,12 @@ class BridgeSpecializedOpsTest(unittest.TestCase):
     def test_extract_tables_gated_on_documents_profile(self) -> None:
         self._assert_gated("pdf.extract-tables", "report.pdf", "camelot", "documents")
 
+    def test_transcribe_gated_on_ai_profile(self) -> None:
+        self._assert_gated("media.transcribe", "clip.wav", "faster_whisper", "ai")
+
+    def test_background_removal_gated_on_vision_profile(self) -> None:
+        self._assert_gated("image.background-removal", "photo.png", "rembg", "vision")
+
 
 if __name__ == "__main__":
     unittest.main()

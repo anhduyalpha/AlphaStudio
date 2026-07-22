@@ -1,0 +1,21 @@
+{
+  "models": {
+    "u2net": {
+      "engine": "file",
+      "url": "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx",
+      "sha256": "",
+      "dest": "u2net/u2net.onnx",
+      "note": "rembg background removal. Set sha256 to enable a verified install, or pass --allow-unverified."
+    },
+    "whisper-base": {
+      "engine": "faster-whisper",
+      "size": "base",
+      "note": "faster-whisper CTranslate2 weights; fetched + integrity-checked by faster-whisper/Hugging Face into the models dir (requires the ai profile)."
+    },
+    "whisper-small": {
+      "engine": "faster-whisper",
+      "size": "small",
+      "note": "faster-whisper CTranslate2 weights; requires the ai profile."
+    }
+  }
+}
