@@ -180,7 +180,7 @@ describe('PDF magic and validation', () => {
           jobId: 'mm',
           inputPaths: [p],
           inputNames: ['report.docx'],
-          options: { operation: 'merge' },
+          options: { operation: 'rotate', angle: 90 },
           workDir,
           outputDir,
           onProgress: () => {},
@@ -299,6 +299,11 @@ describe('PDF edit helpers', () => {
     assert.deepEqual(parsePages('1,3,5', 5), [0, 2, 4]);
     assert.deepEqual(parsePages('2-', 4), [1, 2, 3]);
     assert.deepEqual(parsePages('-2', 4), [0, 1]);
+  });
+
+  it('parsePages rejects out-of-range and invalid syntax', () => {
+    assert.throws(() => parsePages('99', 3), /out of range/i);
+    assert.throws(() => parsePages('nope', 3), /invalid/i);
   });
 });
 

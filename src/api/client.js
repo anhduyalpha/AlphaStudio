@@ -51,6 +51,9 @@ async function request(path, options = {}) {
       }),
     });
   } catch (err) {
+    if (options.signal?.aborted || err?.name === 'AbortError') {
+      throw new ApiError('Request aborted', { status: 0, code: 'ABORTED' });
+    }
     throw new ApiError(err.message || 'Network error — is the API server running?', {
       status: 0,
       code: 'NETWORK_ERROR',
@@ -74,7 +77,8 @@ export const api = {
 
   health: () => request('/api/health'),
   version: () => request('/api/version'),
-  capabilities: () => request('/api/capabilities'),
+  capabilities: ({ refresh = false } = {}) =>
+    request(`/api/capabilities${refresh ? '?refresh=1' : ''}`),
   convertMatrix: () => request('/api/convert/matrix'),
   inspect: (uploadIds) =>
     request('/api/inspect', { method: 'POST', body: JSON.stringify({ uploadIds }) }),
@@ -167,6 +171,13 @@ export const api = {
 
   getActivity: (limit = 50) => request(`/api/activity?limit=${limit}`),
   clearActivity: () => request('/api/activity', { method: 'DELETE' }),
+  /** Delete one activity row; when linked to a terminal job, deletes job + output (default). */
+  deleteActivity: (id, { withJob = true } = {}) =>
+    request(`/api/activity/${encodeURIComponent(id)}?withJob=${withJob ? '1' : '0'}`, {
+      method: 'DELETE',
+    }),
+  /** Delete a terminal job history entry and its trusted output file. */
+  deleteJob: (id) => request(`/api/jobs/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 
   getProfile: () => request('/api/profile'),
   saveProfile: (body) => request('/api/profile', { method: 'PUT', body: JSON.stringify(body) }),
@@ -183,9 +194,13 @@ export const api = {
    * onProgress receives a metrics object:
    *   { loaded, total, percent, speedBps, etaSeconds, startedAt }
    */
-  async upload(file, { onProgress, workspaceId } = {}) {
+  async upload(file, { onProgress, workspaceId, signal } = {}) {
     // XHR for upload progress; workspaceId binds file to persistent workspace
     return new Promise((resolve, reject) => {
+      if (signal?.aborted) {
+        reject(new ApiError('Upload aborted', { code: 'ABORTED' }));
+        return;
+      }
       const xhr = new XMLHttpRequest();
       const qs = workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : '';
       const startedAt = Date.now();
@@ -198,20 +213,35 @@ export const api = {
         const metrics = computeUploadMetrics(e.loaded, e.total, elapsed);
         onProgress({ ...metrics, startedAt });
       };
+      let settled = false;
+      const cleanup = () => signal?.removeEventListener('abort', onAbort);
+      const finish = (fn) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        fn();
+      };
+      const onAbort = () => {
+        xhr.abort();
+        finish(() => reject(new ApiError('Upload aborted', { code: 'ABORTED' })));
+      };
+      signal?.addEventListener('abort', onAbort, { once: true });
       xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) resolve(xhr.response);
-        else {
+        if (xhr.status < 200 || xhr.status >= 300) {
           const err = xhr.response?.error || {};
-          reject(
+          finish(() => reject(
             new ApiError(err.message || 'Upload failed', {
               status: xhr.status,
               code: err.code || 'UPLOAD_FAILED',
               details: err.details,
             }),
-          );
+          ));
+        } else {
+          finish(() => resolve(xhr.response));
         }
       };
-      xhr.onerror = () => reject(new ApiError('Upload network error', { code: 'NETWORK_ERROR' }));
+      xhr.onerror = () => finish(() => reject(new ApiError('Upload network error', { code: 'NETWORK_ERROR' })));
+      xhr.onabort = () => finish(() => reject(new ApiError('Upload aborted', { code: 'ABORTED' })));
       const form = new FormData();
       form.append('file', file, file.name);
       if (workspaceId) form.append('workspaceId', workspaceId);
@@ -234,14 +264,15 @@ export const api = {
       if (Date.now() - start > timeoutMs) {
         throw new ApiError('Timed out waiting for file finalize', { code: 'TIMEOUT' });
       }
-      await sleep(intervalMs);
+      await sleep(intervalMs, signal);
     }
     throw new ApiError('Aborted', { code: 'ABORTED' });
   },
 
   getUpload: (id) => request(`/api/uploads/${id}`),
 
-  createJob: (body) => request('/api/jobs', { method: 'POST', body: JSON.stringify(body) }),
+  createJob: (body, { signal } = {}) =>
+    request('/api/jobs', { method: 'POST', body: JSON.stringify(body), signal }),
   getJob: (id) => request(`/api/jobs/${id}`),
   listJobs: (limit = 50) => request(`/api/jobs?limit=${limit}`),
   cancelJob: (id) => request(`/api/jobs/${id}/cancel`, { method: 'POST' }),
@@ -264,7 +295,7 @@ export const api = {
       const job = await this.getJob(id);
       onUpdate?.(job);
       if (['completed', 'failed', 'cancelled'].includes(job.status)) return job;
-      await sleep(intervalMs);
+      await sleep(intervalMs, signal);
     }
     throw new ApiError('Job wait aborted', { code: 'ABORTED' });
   },
@@ -276,6 +307,7 @@ export const api = {
       uploadIds: existingIds = [],
       options = {},
       workspaceId,
+      clientRequestId,
       onUploadProgress,
       onJobUpdate,
       signal,
@@ -285,11 +317,16 @@ export const api = {
     if (!uploadIds.length) {
       for (const file of files) {
         if (signal?.aborted) throw new ApiError('Cancelled', { code: 'ABORTED' });
-        const up = await this.upload(file, { onProgress: onUploadProgress, workspaceId });
+        const up = await this.upload(file, { onProgress: onUploadProgress, workspaceId, signal });
         uploadIds.push(up.id);
       }
     }
-    const job = await this.createJob({ type, uploadIds, options, workspaceId });
+    if (signal?.aborted) throw new ApiError('Cancelled', { code: 'ABORTED' });
+    const requestId = clientRequestId || createClientRequestId();
+    const job = await this.createJob(
+      { type, uploadIds, options, workspaceId, clientRequestId: requestId },
+      { signal },
+    );
     onJobUpdate?.(job);
     const final = await this.waitForJob(job.id, { onUpdate: onJobUpdate, signal });
     if (final.status === 'failed') {
@@ -379,9 +416,19 @@ export const api = {
 function waitViaSse(id, { onUpdate, signal }) {
   return new Promise((resolve, reject) => {
     const es = new EventSource(apiUrl(`/api/jobs/${id}/events`));
-    const abort = () => {
+    let settled = false;
+    const cleanup = () => {
       es.close();
-      reject(new ApiError('Job wait aborted', { code: 'ABORTED' }));
+      signal?.removeEventListener('abort', abort);
+    };
+    const finish = (fn) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      fn();
+    };
+    const abort = () => {
+      finish(() => reject(new ApiError('Job wait aborted', { code: 'ABORTED' })));
     };
     signal?.addEventListener('abort', abort);
     es.onmessage = (ev) => {
@@ -389,19 +436,14 @@ function waitViaSse(id, { onUpdate, signal }) {
         const job = JSON.parse(ev.data);
         onUpdate?.(job);
         if (['completed', 'failed', 'cancelled'].includes(job.status)) {
-          es.close();
-          signal?.removeEventListener('abort', abort);
-          resolve(job);
+          finish(() => resolve(job));
         }
       } catch (e) {
-        es.close();
-        reject(e);
+        finish(() => reject(e));
       }
     };
     es.onerror = () => {
-      es.close();
-      signal?.removeEventListener('abort', abort);
-      reject(new ApiError('SSE connection failed', { code: 'SSE_ERROR' }));
+      finish(() => reject(new ApiError('SSE connection failed', { code: 'SSE_ERROR' })));
     };
   });
 }
@@ -462,8 +504,28 @@ function subscribeViaFetch(url, { onEvent, onError, onOpen, signal }) {
   return cleanup;
 }
 
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
+function sleep(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new ApiError('Aborted', { code: 'ABORTED' }));
+      return;
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', abort);
+      resolve();
+    }, ms);
+    const abort = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', abort);
+      reject(new ApiError('Aborted', { code: 'ABORTED' }));
+    };
+    signal?.addEventListener('abort', abort, { once: true });
+  });
+}
+
+export function createClientRequestId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `client-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 export function isUnavailable(err) {

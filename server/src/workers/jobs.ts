@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import zlib from 'node:zlib';
 import { createHash } from 'node:crypto';
 import { fork, type ChildProcess } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -23,11 +24,21 @@ import {
 } from '../db/index.js';
 import { logger } from '../lib/logger.js';
 import { badRequest, notFound } from '../lib/errors.js';
+import { deleteTerminalJob, type JobDeletionResult } from '../services/job-deletion.js';
 import { assertJobCapable } from '../processors/index.js';
 import type { ProcessResult } from '../processors/types.js';
 import { killJobChildren, killProcessTreeByPid } from '../lib/child-registry.js';
 import { emitWorkspaceEvent, nextEventVersion } from '../lib/workspace-events.js';
 import { sanitizeUserError } from '../lib/sanitize.js';
+import {
+  extractPassword,
+  redactSensitiveOptions,
+} from '../pdf/operation-options.js';
+import { pdfError } from '../pdf/errors.js';
+import {
+  PDF_MAX_INPUT_FILES,
+  PDF_OPERATION_DESCRIPTORS,
+} from '../pdf/operation-contract.js';
 import {
   WORKER_PROTOCOL_VERSION,
   boundedWorkerMessage,
@@ -39,6 +50,22 @@ import {
 
 export const jobEvents = new EventEmitter();
 jobEvents.setMaxListeners(200);
+
+/**
+ * Ephemeral password vault: passwords exist only for the job duration in the
+ * API process memory, never written to SQLite options/result JSON.
+ * Re-injected into worker IPC payload only when the job starts.
+ */
+const jobPasswordVault = new Map<string, string>();
+
+export function clearJobPassword(jobId: string): void {
+  jobPasswordVault.delete(jobId);
+}
+
+/** Test helper: inspect whether a password is vaulted (never returns the secret). */
+export function hasVaultedPassword(jobId: string): boolean {
+  return jobPasswordVault.has(jobId);
+}
 
 /** Progress DB write: delta ≥ 5% OR message change OR force; also flush pending every 500ms. */
 export const PROGRESS_MIN_DELTA = 5;
@@ -218,7 +245,10 @@ export function createJob(input: CreateJobInput): JobRow {
   if (!type) throw badRequest('type required');
 
   // Clone so we can attach _uploadIds / idempotency tokens without mutating caller state
-  const options: Record<string, unknown> = { ...(input.options || {}) };
+  const incoming = { ...(input.options || {}) };
+  // Capture password for in-memory vault only — never persist secrets to SQLite
+  const capturedPassword = extractPassword(incoming);
+  const options: Record<string, unknown> = redactSensitiveOptions(incoming);
   const clientRequestId =
     input.clientRequestId != null
       ? String(input.clientRequestId)
@@ -255,6 +285,21 @@ export function createJob(input: CreateJobInput): JobRow {
     if (!fs.existsSync(row.path)) throw badRequest(`Upload missing on disk: ${id}`);
     return row;
   });
+
+  if (type === 'pdf') {
+    const operation = String(options.operation || 'merge').toLowerCase().trim();
+    const descriptor = PDF_OPERATION_DESCRIPTORS.find((candidate) => candidate.id === operation);
+    if (!descriptor) throw badRequest(`Unknown PDF operation: ${operation}`);
+    if (uploads.length < descriptor.cardinality.minFiles) {
+      throw badRequest(`${operation} requires at least ${descriptor.cardinality.minFiles} file(s)`);
+    }
+    if (
+      descriptor.cardinality.maxFiles != null &&
+      uploads.length > descriptor.cardinality.maxFiles
+    ) {
+      throw badRequest(`${operation} accepts at most ${descriptor.cardinality.maxFiles} file(s)`);
+    }
+  }
 
   // Text-only jobs may have no uploads
   const needsFile = !['text'].includes(type) && !(type === 'qr' && options.operation === 'generate') && !(type === 'security' && options.operation === 'password');
@@ -312,6 +357,10 @@ export function createJob(input: CreateJobInput): JobRow {
     config.maxJobAttempts,
   );
 
+  if (capturedPassword) {
+    jobPasswordVault.set(id, capturedPassword);
+  }
+
   // job_files links (workspace files table)
   const link = db.prepare(
     `INSERT OR IGNORE INTO job_files (job_id, file_id, role) VALUES (?, ?, 'input')`,
@@ -346,6 +395,29 @@ export function listJobs(limit = 50): JobRow[] {
   return getDb()
     .prepare('SELECT * FROM jobs ORDER BY created_at DESC LIMIT ?')
     .all(limit) as JobRow[];
+}
+
+/**
+ * Permanently delete a terminal job history entry (completed/failed/cancelled).
+ * - Rejects active queued/running jobs (cancel first).
+ * - Removes trusted output file(s) under outputsDir only.
+ * - Removes related activity rows and best-effort result cache by output path.
+ * Does NOT delete source uploads shared with other jobs.
+ */
+export function deleteJob(id: string): JobDeletionResult {
+  const job = getJob(id);
+  if (!job) throw notFound('Job not found');
+  const result = deleteTerminalJob(job);
+  cancelFlags.delete(id);
+  clearJobPassword(id);
+
+  // Do NOT write a new activity timeline row here — that would re-surface the
+  // deleted job's filename in history. Server log is enough for audit.
+  logger.info(
+    { jobId: id, type: job.type, outputName: job.output_name, deletedOutput: result.deletedOutput, cleanup: result.cleanup },
+    'Job history entry deleted',
+  );
+  return result;
 }
 
 export function cancelJob(id: string): JobRow {
@@ -394,6 +466,13 @@ export function cancelJob(id: string): JobRow {
 }
 
 export function jobPublic(job: JobRow) {
+  const rawOptions = safeParse(job.options) as Record<string, unknown>;
+  const safeOptions = redactSensitiveOptions(
+    rawOptions && typeof rawOptions === 'object' ? rawOptions : {},
+  );
+  const rawMeta = job.result_json ? (safeParse(job.result_json) as Record<string, unknown>) : null;
+  const safeMeta =
+    rawMeta && typeof rawMeta === 'object' ? redactSensitiveOptions(rawMeta) : rawMeta;
   return {
     id: job.id,
     type: job.type,
@@ -402,8 +481,8 @@ export function jobPublic(job: JobRow) {
     progress: job.progress,
     message: job.message,
     error: job.error,
-    options: safeParse(job.options),
-    meta: job.result_json ? safeParse(job.result_json) : null,
+    options: safeOptions,
+    meta: safeMeta,
     outputName: job.output_name,
     outputMime: job.output_mime,
     downloadUrl: job.status === 'completed' && job.output_path ? `/api/jobs/${job.id}/download` : null,
@@ -573,6 +652,12 @@ export function normalizeOptionsForCache(options: Record<string, unknown>): unkn
     'onProgress',
     'clientRequestId',
     'dedupeKey',
+    // Never include secrets in cache keys or dedupe comparisons
+    'password',
+    'userPassword',
+    'ownerPassword',
+    'pdfPassword',
+    'pass',
   ]);
   const walk = (v: unknown): unknown => {
     if (v === null || typeof v !== 'object') return v;
@@ -677,15 +762,18 @@ export function validateJobOutput(
   try {
     const fd = fs.openSync(finalPath, 'r');
     const buf = Buffer.alloc(Math.min(16, st.size));
-    fs.readSync(fd, buf, 0, buf.length, 0);
-    fs.closeSync(fd);
+    try {
+      fs.readSync(fd, buf, 0, buf.length, 0);
+    } finally {
+      fs.closeSync(fd);
+    }
 
     const name = (result.outputName || path.basename(finalPath)).toLowerCase();
     const mime = (result.outputMime || '').toLowerCase();
     const ext = path.extname(name).toLowerCase();
 
-    if ((ext === '.pdf' || mime.includes('pdf')) && st.size >= 5) {
-      if (buf.subarray(0, 5).toString('utf8') !== '%PDF-') {
+    if (ext === '.pdf' || mime.includes('pdf')) {
+      if (buf.length < 5 || buf.subarray(0, 5).toString('utf8') !== '%PDF-') {
         throw badRequest('Output validation failed: claimed as PDF but content is not a PDF');
       }
     }
@@ -706,16 +794,36 @@ export function validateJobOutput(
         if (sampleFd != null) fs.closeSync(sampleFd);
       }
     }
-    if ((ext === '.png' || mime === 'image/png') && buf.length >= 8) {
+    if (ext === '.png' || mime === 'image/png') {
       const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-      if (!buf.subarray(0, 8).equals(png)) {
+      if (buf.length < 8 || !buf.subarray(0, 8).equals(png)) {
         throw badRequest('Output claimed as PNG but content is not a PNG');
       }
     }
-    if ((ext === '.zip' || mime.includes('zip')) && buf.length >= 2) {
-      if (buf[0] !== 0x50 || buf[1] !== 0x4b) {
-        throw badRequest('Output claimed as ZIP but content is not a ZIP');
+    if (ext === '.jpg' || ext === '.jpeg' || mime === 'image/jpeg') {
+      if (buf.length < 3 || buf[0] !== 0xff || buf[1] !== 0xd8 || buf[2] !== 0xff) {
+        throw badRequest('Output claimed as JPEG but content is not a JPEG');
       }
+      const tail = Buffer.alloc(2);
+      const tailFd = fs.openSync(finalPath, 'r');
+      try {
+        fs.readSync(tailFd, tail, 0, 2, st.size - 2);
+      } finally {
+        fs.closeSync(tailFd);
+      }
+      if (tail[0] !== 0xff || tail[1] !== 0xd9) {
+        throw badRequest('Output validation failed: truncated JPEG');
+      }
+    }
+    if (ext === '.json' || mime.includes('json')) {
+      try {
+        JSON.parse(fs.readFileSync(finalPath, 'utf8'));
+      } catch {
+        throw badRequest('Output validation failed: invalid JSON');
+      }
+    }
+    if (isZipContainerOutput(ext, mime)) {
+      validateZipStructure(finalPath, st.size, maxBytes);
     }
   } catch (err) {
     if (err && typeof err === 'object' && (err as { code?: string }).code === 'BAD_REQUEST') throw err;
@@ -733,7 +841,246 @@ export function validateJobOutput(
     }
   }
 
+  const allowedByMime: Record<string, string[]> = {
+    'application/pdf': ['.pdf'],
+    'application/zip': ['.zip', '.htmlz'],
+    'application/x-zip-compressed': ['.zip', '.htmlz'],
+    'application/epub+zip': ['.epub'],
+    'application/json': ['.json'],
+    'text/plain': ['.txt'],
+    'image/png': ['.png'],
+    'image/jpeg': ['.jpg', '.jpeg'],
+  };
+  const mime = String(result.outputMime || '').toLowerCase().split(';')[0]!.trim();
+  const allowed = allowedByMime[mime];
+  if (allowed) {
+    if (!declaredExt || !storedExt || !allowed.includes(declaredExt) || !allowed.includes(storedExt)) {
+      throw badRequest(
+        `Output MIME ${mime} requires ${allowed.join(' or ')} for both declared and stored names`,
+      );
+    }
+  }
+
+  const recognizedExtensions = new Set(Object.values(allowedByMime).flat());
+  if (recognizedExtensions.has(declaredExt) || recognizedExtensions.has(storedExt)) {
+    if (!allowed || !allowed.includes(declaredExt) || !allowed.includes(storedExt)) {
+      throw badRequest(
+        `Output extension ${declaredExt || storedExt} requires a matching supported MIME type`,
+      );
+    }
+  }
+
   return { size: st.size };
+}
+
+function isZipContainerOutput(ext: string, mime: string): boolean {
+  const normalizedMime = mime.toLowerCase().split(';')[0]!.trim();
+  return (
+    ['.zip', '.epub', '.htmlz'].includes(ext.toLowerCase()) ||
+    normalizedMime === 'application/zip' ||
+    normalizedMime === 'application/x-zip-compressed' ||
+    normalizedMime.endsWith('+zip')
+  );
+}
+
+function validateZipStructure(filePath: string, size: number, maxBytes: number): void {
+  if (size < 22) throw badRequest('Output validation failed: truncated ZIP');
+  const tailLength = Math.min(size, 65_557);
+  const tail = Buffer.alloc(tailLength);
+  const fd = fs.openSync(filePath, 'r');
+  try {
+    fs.readSync(fd, tail, 0, tail.length, size - tail.length);
+  } finally {
+    fs.closeSync(fd);
+  }
+  let eocd = -1;
+  for (let i = tail.length - 22; i >= 0; i -= 1) {
+    if (tail.readUInt32LE(i) === 0x06054b50) {
+      eocd = i;
+      break;
+    }
+  }
+  if (eocd < 0) throw badRequest('Output validation failed: ZIP directory is missing');
+  const diskNumber = tail.readUInt16LE(eocd + 4);
+  const centralDisk = tail.readUInt16LE(eocd + 6);
+  const entriesOnDisk = tail.readUInt16LE(eocd + 8);
+  const entries = tail.readUInt16LE(eocd + 10);
+  const centralSize = tail.readUInt32LE(eocd + 12);
+  const centralOffset = tail.readUInt32LE(eocd + 16);
+  const commentLength = tail.readUInt16LE(eocd + 20);
+  const eocdOffset = size - tail.length + eocd;
+  if (
+    diskNumber !== 0 ||
+    centralDisk !== 0 ||
+    entries < 1 ||
+    entries !== entriesOnDisk ||
+    entries > config.maxArchiveEntries ||
+    centralOffset + centralSize !== eocdOffset ||
+    eocd + 22 + commentLength !== tail.length
+  ) {
+    throw badRequest('Output validation failed: invalid ZIP directory');
+  }
+
+  const archiveFd = fs.openSync(filePath, 'r');
+  try {
+    let centralPosition = centralOffset;
+    let totalUncompressed = 0;
+    for (let index = 0; index < entries; index += 1) {
+      const central = Buffer.alloc(46);
+      if (fs.readSync(archiveFd, central, 0, central.length, centralPosition) !== central.length) {
+        throw badRequest('Output validation failed: truncated ZIP central entry');
+      }
+      if (central.readUInt32LE(0) !== 0x02014b50) {
+        throw badRequest('Output validation failed: invalid ZIP central directory');
+      }
+      const flags = central.readUInt16LE(8);
+      const method = central.readUInt16LE(10);
+      const expectedCrc = central.readUInt32LE(16);
+      const compressedSize = central.readUInt32LE(20);
+      const uncompressedSize = central.readUInt32LE(24);
+      const nameLength = central.readUInt16LE(28);
+      const extraLength = central.readUInt16LE(30);
+      const entryCommentLength = central.readUInt16LE(32);
+      const localOffset = central.readUInt32LE(42);
+      const nextCentral = centralPosition + 46 + nameLength + extraLength + entryCommentLength;
+      if (flags & 0x1 || ![0, 8].includes(method) || nextCentral > centralOffset + centralSize) {
+        throw badRequest('Output validation failed: unsupported or invalid ZIP entry');
+      }
+
+      const local = Buffer.alloc(30);
+      if (fs.readSync(archiveFd, local, 0, local.length, localOffset) !== local.length || local.readUInt32LE(0) !== 0x04034b50) {
+        throw badRequest('Output validation failed: ZIP local entry is missing');
+      }
+      const localNameLength = local.readUInt16LE(26);
+      const localExtraLength = local.readUInt16LE(28);
+      const dataOffset = localOffset + 30 + localNameLength + localExtraLength;
+      if (dataOffset + compressedSize > centralOffset || compressedSize > maxBytes) {
+        throw badRequest('Output validation failed: invalid ZIP entry bounds');
+      }
+      const compressed = Buffer.alloc(compressedSize);
+      if (fs.readSync(archiveFd, compressed, 0, compressed.length, dataOffset) !== compressed.length) {
+        throw badRequest('Output validation failed: truncated ZIP entry data');
+      }
+      let plain: Buffer;
+      try {
+        plain = method === 0
+          ? compressed
+          : zlib.inflateRawSync(compressed, {
+              maxOutputLength: Math.max(1, Math.min(maxBytes - totalUncompressed + 1, uncompressedSize + 1)),
+            });
+      } catch {
+        throw badRequest('Output validation failed: ZIP entry could not be decompressed');
+      }
+      totalUncompressed += plain.length;
+      if (
+        plain.length !== uncompressedSize ||
+        totalUncompressed > maxBytes ||
+        crc32(plain) !== expectedCrc
+      ) {
+        throw badRequest('Output validation failed: ZIP entry checksum or size mismatch');
+      }
+      centralPosition = nextCentral;
+    }
+    if (centralPosition !== centralOffset + centralSize) {
+      throw badRequest('Output validation failed: ZIP central directory size mismatch');
+    }
+  } finally {
+    fs.closeSync(archiveFd);
+  }
+}
+
+function crc32(buffer: Buffer): number {
+  let crc = 0xffffffff;
+  for (const byte of buffer) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+export async function validateJobOutputDeep(result: ProcessResult, finalPath: string): Promise<number | null> {
+  const ext = path.extname(result.outputName || finalPath).toLowerCase();
+  const mime = String(result.outputMime || '').toLowerCase();
+  if (ext === '.pdf' || mime.includes('pdf')) {
+    try {
+    const { PDFDocument } = await import('pdf-lib');
+    const doc = await PDFDocument.load(await fs.promises.readFile(finalPath), {
+      ignoreEncryption: true,
+    });
+    const pageCount = doc.getPageCount();
+    if (pageCount < 1) throw new Error('PDF contains no pages');
+    return pageCount;
+    } catch {
+      throw badRequest('Output validation failed: PDF could not be reparsed');
+    }
+  }
+  if (ext === '.png' || ext === '.jpg' || ext === '.jpeg' || mime === 'image/png' || mime === 'image/jpeg') {
+    try {
+      const { default: sharp } = await import('sharp');
+      const image = sharp(finalPath, {
+        failOn: 'error',
+        sequentialRead: true,
+        limitInputPixels: Math.max(1, Math.min(50_000_000, Math.floor(config.maxOutputBytes / 4))),
+      });
+      const metadata = await image.metadata();
+      const expectedFormat = ext === '.png' || mime === 'image/png' ? 'png' : 'jpeg';
+      if (metadata.format !== expectedFormat || !metadata.width || !metadata.height) {
+        throw new Error('Image format or dimensions are invalid');
+      }
+      const decoded = await image.clone().raw().toBuffer({ resolveWithObject: true });
+      if (!decoded.data.length || decoded.info.width !== metadata.width || decoded.info.height !== metadata.height) {
+        throw new Error('Image pixels could not be decoded');
+      }
+    } catch {
+      throw badRequest('Output validation failed: image could not be reparsed');
+    }
+  }
+  return null;
+}
+
+function normalizeCompletedMeta(
+  result: ProcessResult,
+  size: number,
+  parsedPageCount: number | null,
+): Record<string, unknown> {
+  const raw = result.meta && typeof result.meta === 'object' ? { ...result.meta } : {};
+  const mime = String(result.outputMime || '').toLowerCase();
+  const ext = path.extname(result.outputName || '').toLowerCase();
+  const outputKind =
+    (mime.includes('pdf') || ext === '.pdf'
+      ? 'pdf'
+      : isZipContainerOutput(ext, mime)
+        ? 'zip'
+        : mime.includes('json') || ext === '.json'
+          ? 'json'
+          : mime === 'image/png' || ext === '.png'
+            ? 'png'
+            : mime === 'image/jpeg' || ext === '.jpg' || ext === '.jpeg'
+              ? 'jpeg'
+              : mime.startsWith('text/') || ext === '.txt'
+                ? 'text'
+                : 'binary');
+  const pageCount = parsedPageCount ?? raw.pageCount ?? raw.pages ?? undefined;
+  const characterCount = raw.characterCount ?? raw.charCount ?? undefined;
+  const warnings = Array.isArray(raw.warnings)
+    ? raw.warnings
+    : raw.warning
+      ? [raw.warning]
+      : [];
+  return {
+    ...raw,
+    outputKind,
+    outputSize: size,
+    ...(pageCount != null ? { pageCount } : {}),
+    ...(characterCount != null ? { characterCount, charCount: characterCount } : {}),
+    ...(raw.ocrStatus == null && typeof raw.usedOcr === 'boolean'
+      ? { ocrStatus: raw.usedOcr ? 'applied' : 'not-used' }
+      : {}),
+    warnings,
+    cacheHit: Boolean(raw.cacheHit),
+  };
 }
 
 async function completeJobSuccess(
@@ -745,8 +1092,25 @@ async function completeJobSuccess(
   options: Record<string, unknown>,
   cacheKey: string | null,
 ): Promise<void> {
-  const { size } = validateJobOutput(result, finalPath);
-  const resultMeta = sanitizeResultMeta(result.meta);
+  let size: number;
+  let parsedPageCount: number | null;
+  try {
+    ({ size } = validateJobOutput(result, finalPath));
+    parsedPageCount = await validateJobOutputDeep(result, finalPath);
+  } catch (error) {
+    if (
+      error &&
+      typeof error === 'object' &&
+      (error as { code?: string }).code === 'OUTPUT_VALIDATION_FAILED'
+    ) {
+      throw error;
+    }
+    throw pdfError(
+      'OUTPUT_VALIDATION_FAILED',
+      error instanceof Error ? error.message : 'Output validation failed',
+    );
+  }
+  const resultMeta = sanitizeResultMeta(normalizeCompletedMeta(result, size, parsedPageCount));
 
   const doneAt = new Date().toISOString();
   const completed = getDb()
@@ -808,6 +1172,7 @@ async function completeJobSuccess(
     status: 'completed',
     detail: result.outputName,
   });
+  clearJobPassword(id);
   emitJob(getJob(id)!);
 }
 
@@ -932,7 +1297,9 @@ function prepareWorkerPayload(job: JobRow): {
     path: string;
     name: string;
   }>;
-  if (!Array.isArray(inputs) || inputs.length > 20) throw badRequest('Invalid job input list');
+  if (!Array.isArray(inputs) || inputs.length > PDF_MAX_INPUT_FILES) {
+    throw badRequest('Invalid job input list');
+  }
   const options = safeParse(job.options) as Record<string, unknown>;
   const checksums = loadInputChecksumsFast(inputs);
   const cacheKey = checksums ? buildJobCacheKey(job.type, checksums, options) : null;
@@ -971,9 +1338,12 @@ function prepareWorkerPayload(job: JobRow): {
     detectByPath[input.path] = detected;
     detectByPath[path.resolve(input.path)] = detected;
   });
+  // Re-inject vaulted password for this job only (never from DB)
+  const vaultPassword = jobPasswordVault.get(job.id);
   const optionsWithDetect = {
     ...options,
     ...(Object.keys(detectByPath).length > 0 ? { _detectByPath: detectByPath } : {}),
+    ...(vaultPassword ? { password: vaultPassword } : {}),
   };
   const category = JOB_CATEGORIES.includes(job.job_category as JobCategory)
     ? (job.job_category as JobCategory)
@@ -1512,6 +1882,9 @@ function finish(
       fields.lease ?? null,
       fields.lease ?? null,
     );
+  if (fields.status === 'failed' || fields.status === 'cancelled' || fields.status === 'completed') {
+    clearJobPassword(id);
+  }
   const j = getJob(id);
   if (j) emitJob(j, 'updated');
 }
@@ -1607,7 +1980,12 @@ export function sanitizeResultMeta(
     if (typeof value === 'object') {
       return Object.fromEntries(
         Object.entries(value as Record<string, unknown>)
-          .filter(([key]) => !/path|command|args|executable|environment/i.test(key))
+          .filter(
+            ([key]) =>
+              !/path|command|args|executable|environment|password|userPassword|ownerPassword|pdfPassword/i.test(
+                key,
+              ),
+          )
           .slice(0, 100)
           .map(([key, item]) => [key, sanitize(item, depth + 1)])
           .filter(([, item]) => item !== undefined),

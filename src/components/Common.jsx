@@ -72,14 +72,24 @@ export function SelectField({ label, value, children, onChange, name }) {
   );
 }
 
-export function TextField({ label, placeholder, defaultValue = '', value, onChange, name }) {
+export function TextField({
+  label,
+  placeholder,
+  defaultValue = '',
+  value,
+  onChange,
+  name,
+  type = 'text',
+  autoComplete,
+}) {
   return (
     <label className="field-group">
       <span>{label}</span>
       <input
-        type="text"
+        type={type}
         name={name}
         placeholder={placeholder}
+        autoComplete={autoComplete}
         {...(onChange ? { value: value ?? '', onChange } : { defaultValue })}
       />
     </label>

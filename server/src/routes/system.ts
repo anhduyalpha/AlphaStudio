@@ -3,6 +3,7 @@ import { config } from '../config.js';
 import { detectCapabilities } from '../capabilities.js';
 import { getWorkerDiagnostics, getWorkerPoolStats } from '../workers/jobs.js';
 import { capabilitySnapshot, publicCapabilitySnapshot } from '../convert/engines/index.js';
+import { PDF_OPERATION_DESCRIPTORS } from '../pdf/operation-contract.js';
 
 export async function systemRoutes(app: FastifyInstance): Promise<void> {
   app.get('/api/health', async () => {
@@ -26,8 +27,10 @@ export async function systemRoutes(app: FastifyInstance): Promise<void> {
     node: process.version,
   }));
 
-  app.get('/api/capabilities', async () => {
-    const caps = detectCapabilities();
+  app.get('/api/capabilities', async (req) => {
+    const query = req.query as { refresh?: string };
+    const refresh = query.refresh === '1' || query.refresh === 'true';
+    const caps = detectCapabilities(refresh);
     return {
       version: config.version,
       detectedAt: caps.detectedAt,
@@ -42,7 +45,10 @@ export async function systemRoutes(app: FastifyInstance): Promise<void> {
         ]),
       ),
       tools: caps.tools,
-      converter: publicCapabilitySnapshot(capabilitySnapshot()),
+      pdf: {
+        operations: PDF_OPERATION_DESCRIPTORS,
+      },
+      converter: publicCapabilitySnapshot(capabilitySnapshot(refresh)),
       limits: {
         maxUploadBytes: config.maxUploadBytes,
         maxOutputBytes: config.maxOutputBytes,

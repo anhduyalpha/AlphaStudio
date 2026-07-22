@@ -14,6 +14,12 @@ import { pdfError, sanitizeUserError, validatePdfInput } from './pdfInspect.js';
 import { assertValidOutput } from './quality.js';
 import { randomServerName } from '../lib/paths.js';
 
+export type RasterEngine = 'pdftoppm' | 'mutool' | 'ghostscript';
+
+export function rasterPrefixForEngine(base: string, engine: RasterEngine): string {
+  return `${base}-${engine}-`;
+}
+
 export type RasterizeOptions = {
   inputPath: string;
   outputDir: string;
@@ -28,7 +34,7 @@ export type RasterizeOptions = {
 
 export type RasterizeResult = {
   pages: { path: string; name: string }[];
-  engine: 'pdftoppm' | 'mutool' | 'ghostscript';
+  engine: RasterEngine;
   pageCount: number;
   /** Single file if 1 page; otherwise zip path filled by caller */
   primaryPath?: string;
@@ -37,15 +43,23 @@ export type RasterizeResult = {
 
 /**
  * Rasterize PDF pages to PNG/JPEG files in outputDir.
- * Throws OCR_UNAVAILABLE-style message when no rasterizer is installed.
+ * Returns pages + the engine that produced them.
  */
 export async function rasterizePdfPages(
   opts: RasterizeOptions,
 ): Promise<{ path: string; name: string }[]> {
+  const result = await rasterizePdfPagesWithEngine(opts);
+  return result.pages;
+}
+
+/** Like rasterizePdfPages but includes the actual engine name. */
+export async function rasterizePdfPagesWithEngine(
+  opts: RasterizeOptions,
+): Promise<{ pages: { path: string; name: string }[]; engine: RasterEngine }> {
   if (!hasPdfRasterizer()) {
     throw pdfError(
-      'UNSUPPORTED_CONVERSION',
-      'Unsupported conversion: PDF rasterizer not found (install pdftoppm, mutool, or Ghostscript)',
+      'RASTERIZER_UNAVAILABLE',
+      'PDF rasterizer not found (install pdftoppm, mutool, or Ghostscript)',
       503,
     );
   }
@@ -64,9 +78,15 @@ export async function rasterizePdfPages(
   const pdftoppm = resolveOptionalBinary('pdftoppm');
   if (pdftoppm.available && pdftoppm.path) {
     try {
-      return await runPdftoppm(pdftoppm.path, opts, format, dpi, prefix);
+      const pages = await runPdftoppm(
+        pdftoppm.path,
+        opts,
+        format,
+        dpi,
+        rasterPrefixForEngine(prefix, 'pdftoppm'),
+      );
+      return { pages, engine: 'pdftoppm' };
     } catch (e) {
-      // try next engine
       if (opts.isCancelled?.()) throw e;
     }
   }
@@ -74,7 +94,14 @@ export async function rasterizePdfPages(
   const mutool = resolveOptionalBinary('mutool');
   if (mutool.available && mutool.path) {
     try {
-      return await runMutool(mutool.path, opts, format, dpi, prefix);
+      const pages = await runMutool(
+        mutool.path,
+        opts,
+        format,
+        dpi,
+        rasterPrefixForEngine(prefix, 'mutool'),
+      );
+      return { pages, engine: 'mutool' };
     } catch (e) {
       if (opts.isCancelled?.()) throw e;
     }
@@ -83,22 +110,53 @@ export async function rasterizePdfPages(
   const gs = resolveOptionalBinary('ghostscript');
   if (gs.available && gs.path) {
     try {
-      return await runGhostscript(gs.path, opts, format, dpi, prefix);
+      const pages = await runGhostscript(
+        gs.path,
+        opts,
+        format,
+        dpi,
+        rasterPrefixForEngine(prefix, 'ghostscript'),
+      );
+      return { pages, engine: 'ghostscript' };
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Ghostscript failed';
       throw pdfError(
-        'UNSUPPORTED_CONVERSION',
-        `Unsupported conversion: PDF render failed (${sanitizeUserError(msg)})`,
+        'RASTERIZER_UNAVAILABLE',
+        `PDF render failed (${sanitizeUserError(msg)})`,
         503,
       );
     }
   }
 
   throw pdfError(
-    'UNSUPPORTED_CONVERSION',
-    'Unsupported conversion: no working PDF rasterizer',
+    'RASTERIZER_UNAVAILABLE',
+    'No working PDF rasterizer',
     503,
   );
+}
+
+/**
+ * Select rasterized pages by zero-based PDF page indices.
+ * `rasterPages[i]` is assumed to correspond to PDF page index `i` when raster
+ * started at page 1 (default). Order of `pageIndices` is preserved.
+ * Exported for unit tests.
+ */
+export function filterRasterPagesByIndices<T>(
+  rasterPages: T[],
+  pageIndices: number[] | undefined,
+): T[] {
+  if (!pageIndices || !pageIndices.length) return rasterPages;
+  const out: T[] = [];
+  for (const idx of pageIndices) {
+    if (!Number.isInteger(idx) || idx < 0 || idx >= rasterPages.length) {
+      throw pdfError(
+        'PAGE_OUT_OF_RANGE',
+        `Page ${idx + 1} is out of range for rasterized output (${rasterPages.length} page(s) rendered)`,
+      );
+    }
+    out.push(rasterPages[idx]!);
+  }
+  return out;
 }
 
 /**
@@ -113,21 +171,40 @@ export async function convertPdfToImages(opts: {
   onProgress?: (pct: number, message: string) => void;
   originalBaseName?: string;
   workDir?: string;
+  maxPages?: number;
+  dpi?: number;
+  /**
+   * Zero-based page indices to keep (user selection). Raster may produce a
+   * contiguous prefix/range; this filters to the exact selected pages in order.
+   */
+  pageIndices?: number[];
 }): Promise<{ outputPath: string; outputName: string; outputMime: string; meta?: Record<string, unknown> }> {
   const format = opts.format === 'jpg' ? 'jpeg' : opts.format;
   const work = opts.workDir || path.join(opts.outputDir, `raster-${randomBytes(4).toString('hex')}`);
   fs.mkdirSync(work, { recursive: true });
 
+  // When selecting non-prefix pages, render through the last selected page then filter.
+  let maxPages = opts.maxPages;
+  if (opts.pageIndices?.length) {
+    const last = Math.max(...opts.pageIndices) + 1;
+    maxPages = maxPages != null ? Math.max(maxPages, last) : last;
+  }
+
   let pages: { path: string; name: string }[] = [];
+  let engine: RasterEngine = 'pdftoppm';
   try {
-    pages = await rasterizePdfPages({
+    const raster = await rasterizePdfPagesWithEngine({
       inputPath: opts.inputPath,
       outputDir: work,
       format,
       jobId: opts.jobId,
       isCancelled: opts.isCancelled,
       onProgress: opts.onProgress,
+      maxPages,
+      dpi: opts.dpi,
     });
+    pages = filterRasterPagesByIndices(raster.pages, opts.pageIndices);
+    engine = raster.engine;
   } catch (e) {
     try {
       fs.rmSync(work, { recursive: true, force: true });
@@ -151,12 +228,16 @@ export async function convertPdfToImages(opts: {
     path.basename(opts.inputPath, path.extname(opts.inputPath));
   const ext = format === 'jpeg' ? '.jpg' : '.png';
   const mime = format === 'jpeg' ? 'image/jpeg' : 'image/png';
+  const selectedLabels =
+    opts.pageIndices?.length
+      ? opts.pageIndices.map((i) => i + 1)
+      : pages.map((_, i) => i + 1);
 
   // Single page → single image in outputDir
   if (pages.length === 1) {
     const finalName = randomServerName(ext);
     const finalPath = path.join(opts.outputDir, finalName);
-    fs.copyFileSync(pages[0].path, finalPath);
+    fs.copyFileSync(pages[0]!.path, finalPath);
     assertValidOutput(finalPath, { label: 'PDF page image', expectedExt: ext });
     try {
       fs.rmSync(work, { recursive: true, force: true });
@@ -164,15 +245,16 @@ export async function convertPdfToImages(opts: {
       /* ignore */
     }
     opts.onProgress?.(100, 'completed');
+    const pageNo = selectedLabels[0] ?? 1;
     return {
       outputPath: finalPath,
-      outputName: `${base}${ext}`,
+      outputName: `${base}-page-${pageNo}${ext}`,
       outputMime: mime,
-      meta: { pages: 1, engine: 'rasterizer' },
+      meta: { pages: 1, engine, selectedPages: selectedLabels },
     };
   }
 
-  // Multi-page → zip
+  // Multi-page → zip (safe entry names — no path traversal)
   const { default: archiver } = await import('archiver');
   const zipName = randomServerName('.zip');
   const zipPath = path.join(opts.outputDir, zipName);
@@ -183,10 +265,10 @@ export async function convertPdfToImages(opts: {
     archive.on('error', reject);
   });
   archive.pipe(output);
-  let i = 0;
-  for (const page of pages) {
-    i += 1;
-    archive.file(page.path, { name: `${base}-page-${i}${ext}` });
+  const safeBase = base.replace(/[/\\]/g, '_');
+  for (let i = 0; i < pages.length; i++) {
+    const pageNo = selectedLabels[i] ?? i + 1;
+    archive.file(pages[i]!.path, { name: `${safeBase}-page-${pageNo}${ext}` });
   }
   await archive.finalize();
   await done;
@@ -199,9 +281,9 @@ export async function convertPdfToImages(opts: {
   opts.onProgress?.(100, 'completed');
   return {
     outputPath: zipPath,
-    outputName: `${base}-pages.zip`,
+    outputName: `${safeBase}-pages.zip`,
     outputMime: 'application/zip',
-    meta: { pages: pages.length, engine: 'rasterizer' },
+    meta: { pages: pages.length, engine, selectedPages: selectedLabels },
   };
 }
 

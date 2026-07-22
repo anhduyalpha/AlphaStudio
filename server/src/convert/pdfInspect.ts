@@ -43,14 +43,25 @@ export type PdfInspectResult = {
 
 export type PdfErrorCode =
   | 'PASSWORD_REQUIRED'
+  | 'INVALID_PASSWORD'
   | 'CORRUPTED_PDF'
   | 'EMPTY_PDF'
   | 'NO_EXTRACTABLE_TEXT'
   | 'OCR_UNAVAILABLE'
+  | 'RASTERIZER_UNAVAILABLE'
+  | 'REPAIR_UNAVAILABLE'
+  | 'COMPRESSION_UNAVAILABLE'
   | 'UNSUPPORTED_CONVERSION'
   | 'OUTPUT_VALIDATION_FAILED'
   | 'MIME_MISMATCH'
-  | 'INVALID_PDF';
+  | 'INVALID_PDF'
+  | 'PAGE_RANGE_INVALID'
+  | 'PAGE_OUT_OF_RANGE'
+  | 'PDF_TOO_LARGE'
+  | 'PDF_PAGE_LIMIT_EXCEEDED'
+  | 'CANCELLED'
+  | 'TIMEOUT'
+  | 'DECRYPT_UNAVAILABLE';
 
 export function pdfError(
   code: PdfErrorCode,
@@ -63,8 +74,17 @@ export function pdfError(
     name: string;
     details?: unknown;
   };
-  err.statusCode = statusCode;
-  err.code = code === 'UNSUPPORTED_CONVERSION' ? 'BAD_REQUEST' : code;
+  const availability = new Set([
+    'OCR_UNAVAILABLE',
+    'RASTERIZER_UNAVAILABLE',
+    'REPAIR_UNAVAILABLE',
+    'COMPRESSION_UNAVAILABLE',
+    'DECRYPT_UNAVAILABLE',
+    'UNSUPPORTED_CONVERSION',
+  ]);
+  err.statusCode = availability.has(code) ? (statusCode === 400 ? 503 : statusCode) : statusCode;
+  // Keep stable pdf codes; map legacy UNSUPPORTED_CONVERSION for older clients when needed
+  err.code = code;
   err.name = 'AppError';
   err.details = { pdfCode: code };
   return err;

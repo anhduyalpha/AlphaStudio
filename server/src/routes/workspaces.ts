@@ -7,6 +7,7 @@ import { config } from '../config.js';
 import { corsAllowOriginHeader } from '../lib/cors-origin.js';
 import { badRequest, notFound, payloadTooLarge } from '../lib/errors.js';
 import { randomServerName, sanitizeFilename } from '../lib/paths.js';
+import { contentDispositionAttachment } from '../pdf/output-names.js';
 import {
   nextEventVersion,
   onWorkspaceEvent,
@@ -278,10 +279,7 @@ export async function fileDownloadRoutes(app: FastifyInstance): Promise<void> {
     if (!row || row.status === 'deleted') throw notFound('File not found');
     if (!fs.existsSync(row.path)) throw notFound('File missing on disk');
     reply.header('Content-Type', row.mime || 'application/octet-stream');
-    reply.header(
-      'Content-Disposition',
-      `attachment; filename="${(row.original_name || 'file').replace(/"/g, '')}"`,
-    );
+    reply.header('Content-Disposition', contentDispositionAttachment(row.original_name || 'file'));
     return reply.send(fs.createReadStream(row.path));
   });
 
@@ -301,10 +299,7 @@ export async function fileDownloadRoutes(app: FastifyInstance): Promise<void> {
     if (!row) throw notFound('Output not found');
     if (!fs.existsSync(row.path)) throw notFound('Output missing on disk');
     reply.header('Content-Type', row.mime || 'application/octet-stream');
-    reply.header(
-      'Content-Disposition',
-      `attachment; filename="${(row.name || 'download').replace(/"/g, '')}"`,
-    );
+    reply.header('Content-Disposition', contentDispositionAttachment(row.name || 'download'));
     return reply.send(fs.createReadStream(row.path));
   });
 }
