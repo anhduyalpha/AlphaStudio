@@ -37,12 +37,27 @@ describe('job resume-after-reload (shipped source)', () => {
     assert.match(runner, /getJob/);
     assert.match(runner, /waitForJob/);
     assert.match(runner, /expectedJobType/);
+    assert.match(runner, /listJobs/);
+    assert.match(runner, /restoreRecentCompleted/);
+  });
+
+  it('aborts uploads, guards duplicate actions, and sends one client request id', () => {
+    const client = fs.readFileSync(path.join(root, 'src/api/client.js'), 'utf8');
+    assert.match(client, /signal\?\.addEventListener\(['"]abort['"]/);
+    assert.match(client, /xhr\.abort\(\)/);
+    assert.match(runner, /runPromiseRef/);
+    assert.match(runner, /createClientRequestId/);
+    assert.match(runner, /clientRequestId:\s*actionRequestId/);
+    assert.match(runner, /signal:\s*ac\.signal/);
+    assert.match(runner, /fileIndex\s*\*\s*100/);
+    assert.match(runner, /Math\.max\(previous/);
   });
 
   it('PdfView opts in to autoResume with PDF storage key and expectedJobType pdf', () => {
     assert.match(pdfView, /autoResume:\s*true/);
     assert.match(pdfView, /alphastudio\.pdf\.activeJobId/);
     assert.match(pdfView, /expectedJobType:\s*['"]pdf['"]/);
+    assert.match(pdfView, /restoreRecentCompleted:\s*true/);
   });
 
   it('other views call useJobRunner(notify) without autoResume opt-in', () => {

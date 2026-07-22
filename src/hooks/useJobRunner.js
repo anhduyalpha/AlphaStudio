@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, isUnavailable } from '../api/client';
+import { api, createClientRequestId, isUnavailable } from '../api/client';
 
 /** PDF workspace storage key — only PdfView should pass this with autoResume:true */
 export const PDF_ACTIVE_JOB_KEY = 'alphastudio.pdf.activeJobId';
@@ -14,7 +14,12 @@ export const PDF_ACTIVE_JOB_KEY = 'alphastudio.pdf.activeJobId';
  */
 export default function useJobRunner(
   notify,
-  { storageKey = null, autoResume = false, expectedJobType = null } = {},
+  {
+    storageKey = null,
+    autoResume = false,
+    expectedJobType = null,
+    restoreRecentCompleted = false,
+  } = {},
 ) {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -22,6 +27,11 @@ export default function useJobRunner(
   const [job, setJob] = useState(null);
   const abortRef = useRef(null);
   const resumedRef = useRef(false);
+  const runPromiseRef = useRef(null);
+
+  useEffect(() => () => {
+    abortRef.current?.abort();
+  }, []);
 
   const persistJobId = useCallback(
     (id) => {
@@ -121,10 +131,26 @@ export default function useJobRunner(
     } catch {
       return;
     }
-    if (!id) return;
     let cancelled = false;
     (async () => {
       try {
+        if (!id) {
+          if (!restoreRecentCompleted) return;
+          const recent = await api.listJobs(50);
+          if (cancelled) return;
+          const completed = recent?.jobs?.find(
+            (candidate) =>
+              candidate.status === 'completed' &&
+              (!expectedJobType || candidate.type === expectedJobType) &&
+              candidate.downloadUrl,
+          );
+          if (completed) {
+            setJob(completed);
+            setProgress(100);
+            setStatus(completed.message || completed.status);
+          }
+          return;
+        }
         const existing = await api.getJob(id);
         if (cancelled) return;
         // Do not steal another tool's job (e.g. ImageView must never resume a PDF job)
@@ -159,8 +185,16 @@ export default function useJobRunner(
     })();
     return () => {
       cancelled = true;
+      abortRef.current?.abort();
     };
-  }, [autoResume, storageKey, expectedJobType, attachToJob, persistJobId]);
+  }, [
+    autoResume,
+    storageKey,
+    expectedJobType,
+    restoreRecentCompleted,
+    attachToJob,
+    persistJobId,
+  ]);
 
   const cancel = useCallback(async () => {
     if (abortRef.current) abortRef.current.abort();
@@ -175,7 +209,17 @@ export default function useJobRunner(
   }, [job, notify]);
 
   const run = useCallback(
-    async (type, { files = [], uploadIds = [], options = {}, workspaceId, autoDownload = false } = {}) => {
+    (type, {
+      files = [],
+      uploadIds = [],
+      options = {},
+      workspaceId,
+      autoDownload = false,
+      clientRequestId,
+    } = {}) => {
+      if (runPromiseRef.current) return runPromiseRef.current;
+      const actionRequestId = clientRequestId || createClientRequestId();
+      const task = (async () => {
       setBusy(true);
       setProgress(0);
       setStatus('Starting…');
@@ -185,25 +229,34 @@ export default function useJobRunner(
       try {
         let finalUploadIds = [...uploadIds];
         if (!finalUploadIds.length && files.length) {
-          for (const file of files) {
+          for (let fileIndex = 0; fileIndex < files.length; fileIndex += 1) {
+            const file = files[fileIndex];
             if (ac.signal.aborted) throw Object.assign(new Error('Cancelled'), { code: 'ABORTED' });
             const up = await api.upload(file, {
               onProgress: (m) => {
                 const pct = typeof m === 'number' ? m : m?.percent ?? 0;
-                setProgress(Math.round(pct * 0.3));
-                setStatus(`Uploading… ${pct}%`);
+                const aggregate = ((fileIndex * 100) + pct) / files.length;
+                setProgress((previous) => Math.max(previous, Math.round(aggregate * 0.3)));
+                setStatus(`Uploading… ${Math.round(aggregate)}%`);
               },
               workspaceId,
+              signal: ac.signal,
             });
+            if (ac.signal.aborted) throw Object.assign(new Error('Cancelled'), { code: 'ABORTED' });
             finalUploadIds.push(up.id);
           }
         }
-        const created = await api.createJob({
-          type,
-          uploadIds: finalUploadIds,
-          options,
-          workspaceId,
-        });
+        if (ac.signal.aborted) throw Object.assign(new Error('Cancelled'), { code: 'ABORTED' });
+        const created = await api.createJob(
+          {
+            type,
+            uploadIds: finalUploadIds,
+            options,
+            workspaceId,
+            clientRequestId: actionRequestId,
+          },
+          { signal: ac.signal },
+        );
         setJob(created);
         persistJobId(created.id);
         setProgress(30);
@@ -254,6 +307,12 @@ export default function useJobRunner(
         setBusy(false);
         abortRef.current = null;
       }
+      })();
+      runPromiseRef.current = task;
+      void task.finally(() => {
+        if (runPromiseRef.current === task) runPromiseRef.current = null;
+      }).catch(() => {});
+      return task;
     },
     [notify, persistJobId],
   );
