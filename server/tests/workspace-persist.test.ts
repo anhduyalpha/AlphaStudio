@@ -145,8 +145,11 @@ describe('upload persist + hydrate', () => {
     }
 
     // download still works
+    getDb().prepare(`UPDATE files SET original_name = ? WHERE id = ?`).run('Tài liệu.png', data.id);
     const dl = await fetch(`${base}/api/files/${data.id}/download`);
     assert.equal(dl.status, 200);
+    assert.match(String(dl.headers.get('content-disposition')), /filename\*=UTF-8''/);
+    assert.match(String(dl.headers.get('content-disposition')), /T%C3%A0i%20li%E1%BB%87u\.png/);
     const body = Buffer.from(await dl.arrayBuffer());
     assert.ok(body.length > 20);
   });
@@ -334,6 +337,8 @@ describe('job recovery policy', () => {
     assert.ok(fs.existsSync(outRow.path), 'nested job output must survive TEMP_TTL cleanup');
     assert.ok(fs.existsSync(jobOutDir), 'job output dir must not be recursive-rm\'d');
 
+    getDb().prepare(`UPDATE outputs SET name = ? WHERE id = ?`).run('Kết quả.pdf', outRow.id);
+
     const hyd = await (await fetch(`${base}/api/workspaces/${ws.id}`)).json();
     const out = hyd.outputs?.find((o: { id: string }) => o.id === outRow.id);
     assert.ok(out, 'hydrate still lists output');
@@ -341,6 +346,8 @@ describe('job recovery policy', () => {
 
     const dl = await fetch(`${base}${out.downloadUrl}`);
     assert.equal(dl.status, 200, 'download via secure output id must work after cleanup');
+    assert.match(String(dl.headers.get('content-disposition')), /filename\*=UTF-8''/);
+    assert.match(String(dl.headers.get('content-disposition')), /K%E1%BA%BFt%20qu%E1%BA%A3\.pdf/);
     const body = Buffer.from(await dl.arrayBuffer());
     assert.ok(body.length > 0);
 

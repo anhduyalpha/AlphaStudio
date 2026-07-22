@@ -164,6 +164,24 @@ export function detectCapabilities(force = false) {
       path: optional.tesseract.path || undefined,
       version: optional.tesseract.version,
     } as BinaryStatus,
+    pdftoppm: {
+      name: 'pdftoppm',
+      available: optional.pdftoppm.available,
+      path: optional.pdftoppm.path || undefined,
+      version: optional.pdftoppm.version,
+    } as BinaryStatus,
+    ghostscript: {
+      name: 'ghostscript',
+      available: optional.ghostscript.available,
+      path: optional.ghostscript.path || undefined,
+      version: optional.ghostscript.version,
+    } as BinaryStatus,
+    qpdf: {
+      name: 'qpdf',
+      available: optional.qpdf.available,
+      path: optional.qpdf.path || undefined,
+      version: optional.qpdf.version,
+    } as BinaryStatus,
     pdfRasterizer: {
       name: 'pdf-rasterizer',
       available: hasPdfRasterizer(),
@@ -215,17 +233,12 @@ export function detectCapabilities(force = false) {
     {
       id: 'pdf.compress.advanced',
       label: 'PDF advanced compression',
-      available: optional.ghostscript.available || optional.qpdf.available,
-      reason:
-        optional.ghostscript.available || optional.qpdf.available
-          ? undefined
-          : 'Requires Ghostscript (preferred) or qpdf for advanced compression',
-      requires: ['ghostscript', 'qpdf'],
-      engine: optional.ghostscript.available
-        ? 'ghostscript'
-        : optional.qpdf.available
-          ? 'qpdf'
-          : undefined,
+      available: optional.ghostscript.available,
+      reason: optional.ghostscript.available
+        ? undefined
+        : 'Advanced image compression requires Ghostscript; structural qpdf rewriting is not a substitute',
+      requires: ['ghostscript'],
+      engine: optional.ghostscript.available ? 'ghostscript' : undefined,
     },
     {
       id: 'pdf.to-images',
@@ -297,12 +310,8 @@ export function detectCapabilities(force = false) {
     {
       id: 'pdf.decrypt',
       label: 'PDF decrypt',
-      available: optional.qpdf.available,
-      reason: optional.qpdf.available
-        ? undefined
-        : 'Password decryption requires qpdf; pdf-lib cannot fully decrypt PDFs',
-      requires: ['qpdf'],
-      engine: optional.qpdf.available ? 'qpdf' : undefined,
+      available: false,
+      reason: 'PDF decryption is not implemented in this release',
     },
     { id: 'pdf.from-images', label: 'Images to PDF', available: true, requires: ['pdf-lib', 'sharp'], engine: 'pdf-lib+sharp' },
     {

@@ -2,10 +2,12 @@
  * Thin PDF processor entry: validate inputs, normalize options, dispatch operation.
  * Operation implementations live under server/src/pdf/operations/* (lazy-loaded).
  */
+import fs from 'node:fs';
 import path from 'node:path';
 import { badRequest } from '../lib/errors.js';
 import { sanitizeUserError, validatePdfInput } from '../convert/pdfInspect.js';
 import { getPdfOperation } from '../pdf/index.js';
+import { PDF_OPERATION_DESCRIPTORS } from '../pdf/operation-contract.js';
 import { normalizePdfOptions } from '../pdf/operation-options.js';
 import { ProgressTracker } from '../pdf/progress.js';
 import { throwIfCancelled, pdfError } from '../pdf/errors.js';
@@ -16,6 +18,17 @@ export { parsePages, parsePageSelection } from '../pdf/page-selection.js';
 
 export async function processPdf(ctx: ProcessContext): Promise<ProcessResult> {
   const rawOp = String(ctx.options.operation || 'merge').toLowerCase().trim();
+  const descriptor = PDF_OPERATION_DESCRIPTORS.find((candidate) => candidate.id === rawOp);
+  if (!descriptor) throw badRequest(`Unknown PDF operation: ${rawOp}`);
+  if (ctx.inputPaths.length < descriptor.cardinality.minFiles) {
+    throw badRequest(`${rawOp} requires at least ${descriptor.cardinality.minFiles} file(s)`);
+  }
+  if (
+    descriptor.cardinality.maxFiles != null &&
+    ctx.inputPaths.length > descriptor.cardinality.maxFiles
+  ) {
+    throw badRequest(`${rawOp} accepts at most ${descriptor.cardinality.maxFiles} file(s)`);
+  }
   const progress = new ProgressTracker({
     onProgress: ctx.onProgress,
     stages: stagesFor(rawOp),
@@ -41,11 +54,15 @@ export async function processPdf(ctx: ProcessContext): Promise<ProcessResult> {
       const name = ctx.inputNames[i] || path.basename(p);
       const declaredMime = opts.mime || opts.contentType;
       try {
-        await validatePdfInput(p, {
-          originalName: name,
-          declaredMime,
-          allowEncrypted: op === 'inspect' || op === 'repair',
-        });
+        if (op === 'repair') {
+          validateRepairCandidate(p, name, declaredMime);
+        } else {
+          await validatePdfInput(p, {
+            originalName: name,
+            declaredMime,
+            allowEncrypted: op === 'inspect',
+          });
+        }
       } catch (e) {
         if (e && typeof e === 'object' && (e as { name?: string }).name === 'AppError') throw e;
         throw badRequest(sanitizeUserError(e instanceof Error ? e.message : 'Invalid PDF'));
@@ -70,6 +87,26 @@ export async function processPdf(ctx: ProcessContext): Promise<ProcessResult> {
   });
 }
 
+/** Repair tools must receive damaged PDFs that pdf-lib cannot parse. */
+function validateRepairCandidate(filePath: string, originalName: string, declaredMime?: string): void {
+  const ext = path.extname(originalName).toLowerCase();
+  if (ext && ext !== '.pdf') throw badRequest('PDF repair input must use a .pdf extension');
+  const mime = String(declaredMime || '').toLowerCase().split(';')[0]!.trim();
+  if (mime && !['application/pdf', 'application/x-pdf', 'application/octet-stream'].includes(mime)) {
+    throw badRequest('PDF repair input MIME type must be application/pdf');
+  }
+  const stat = fs.statSync(filePath);
+  if (!stat.isFile() || stat.size < 5) throw badRequest('PDF repair input is empty');
+  const fd = fs.openSync(filePath, 'r');
+  const head = Buffer.alloc(5);
+  try {
+    fs.readSync(fd, head, 0, head.length, 0);
+  } finally {
+    fs.closeSync(fd);
+  }
+  if (head.toString('ascii') !== '%PDF-') throw badRequest('PDF repair input is missing the PDF signature');
+}
+
 function stagesFor(op: string): import('../pdf/progress.js').PdfStage[] {
   switch (op) {
     case 'to-images':
@@ -77,9 +114,7 @@ function stagesFor(op: string): import('../pdf/progress.js').PdfStage[] {
     case 'ocr':
       return ['validating', 'inspecting', 'rendering', 'ocr', 'packaging', 'validating-output', 'completed'];
     case 'to-text':
-    case 'extract-text':
       return ['validating', 'inspecting', 'processing', 'ocr', 'packaging', 'validating-output', 'completed'];
-    case 'compress':
     case 'compress-structural':
     case 'compress-advanced':
       return ['validating', 'optimizing', 'packaging', 'validating-output', 'completed'];

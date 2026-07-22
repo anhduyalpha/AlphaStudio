@@ -86,8 +86,6 @@ export function normalizePdfOptions(raw: Record<string, unknown>): NormalizedPdf
     String(raw.compressMode || raw.mode || '').toLowerCase() === 'structural'
   ) {
     compressMode = 'structural';
-  } else if (operation === 'compress' && asBool(raw.advanced)) {
-    compressMode = 'advanced';
   }
 
   const splitModeRaw = String(raw.splitMode || raw.mode || 'every-page').toLowerCase();

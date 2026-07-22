@@ -27,7 +27,7 @@ describe('output naming', () => {
     assert.equal(OutputNames.inspect('doc.pdf'), 'doc-inspection.json');
     assert.equal(OutputNames.pageImage('scan.pdf', 2, '.png'), 'scan-page-2.png');
     assert.equal(OutputNames.pageImagesZip('scan.pdf'), 'scan-pages.zip');
-    assert.equal(OutputNames.text('report.pdf'), 'report.txt');
+    assert.equal(OutputNames.text('report.pdf'), 'report-text.txt');
   });
 
   it('preserves multi-dot base names (only final extension stripped)', () => {
@@ -84,5 +84,12 @@ describe('output naming', () => {
     assert.match(cd, /filename=/);
     assert.match(cd, /filename\*=UTF-8''/);
     assert.ok(cd.includes(encodeURIComponent('Tài liệu-merged.pdf').slice(0, 10)) || cd.includes('%'));
+  });
+
+  it('never splits a Unicode surrogate pair at the length boundary', () => {
+    const name = OutputNames.merged(`${'a'.repeat(119)}😀.pdf`);
+    assert.ok(name.includes('😀'));
+    assert.doesNotThrow(() => contentDispositionAttachment(name));
+    assert.doesNotThrow(() => contentDispositionAttachment(`broken-\ud83d.pdf`));
   });
 });

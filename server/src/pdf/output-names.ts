@@ -12,6 +12,18 @@ const UNSAFE_CHARS = /[<>:"/\\|?*\u0000-\u001f]/g;
 const MAX_BASE = 120;
 const MAX_TOTAL = 180;
 
+function truncateCodePoints(value: string, maxLen: number): string {
+  return Array.from(value).slice(0, Math.max(0, maxLen)).join('');
+}
+
+function replaceUnpairedSurrogates(value: string): string {
+  return Array.from(value, (character) => {
+    if (character.length !== 1) return character;
+    const unit = character.charCodeAt(0);
+    return unit >= 0xd800 && unit <= 0xdfff ? '_' : character;
+  }).join('');
+}
+
 /** Known action suffixes — stripped from base to avoid double-suffix on re-process */
 const KNOWN_ACTION_SUFFIXES = [
   'merged',
@@ -25,6 +37,7 @@ const KNOWN_ACTION_SUFFIXES = [
   'repaired',
   'decrypted',
   'ocr',
+  'text',
   'inspection',
   'to-pdf',
   'deleted-pages', // legacy
@@ -59,7 +72,7 @@ export function sanitizeFilenameSegment(raw: string, maxLen = MAX_BASE): string 
   // Strip trailing dots/spaces (Windows)
   s = s.replace(/[. ]+$/g, '');
   if (!s || WINDOWS_RESERVED.test(s)) s = 'document';
-  if (s.length > maxLen) s = s.slice(0, maxLen).replace(/[. ]+$/g, '');
+  if (Array.from(s).length > maxLen) s = truncateCodePoints(s, maxLen).replace(/[. ]+$/g, '');
   return s || 'document';
 }
 
@@ -109,10 +122,11 @@ export function buildOutputName(opts: OutputNameOptions): string {
   // normalize jpeg
   if (ext === '.jpeg') ext = '.jpg';
   let name = suffix ? `${base}-${suffix}${ext}` : `${base}${ext}`;
-  if (name.length > MAX_TOTAL) {
-    const keep = MAX_TOTAL - ext.length - 1 - Math.min(suffix.length, 40);
-    const shortBase = base.slice(0, Math.max(8, keep));
-    name = suffix ? `${shortBase}-${suffix.slice(0, 40)}${ext}` : `${shortBase}${ext}`;
+  if (Array.from(name).length > MAX_TOTAL) {
+    const suffixLength = Math.min(Array.from(suffix).length, 40);
+    const keep = MAX_TOTAL - Array.from(ext).length - 1 - suffixLength;
+    const shortBase = truncateCodePoints(base, Math.max(8, keep));
+    name = suffix ? `${shortBase}-${truncateCodePoints(suffix, 40)}${ext}` : `${shortBase}${ext}`;
   }
   // Final path-traversal / absolute path rejection
   if (name.includes('..') || name.includes('/') || name.includes('\\')) {
@@ -125,7 +139,7 @@ export function buildOutputName(opts: OutputNameOptions): string {
  * RFC 5987 Content-Disposition value: ASCII fallback + UTF-8 filename*.
  */
 export function contentDispositionAttachment(outputName: string): string {
-  const raw = String(outputName || 'download').replace(/[\r\n"]/g, '');
+  const raw = replaceUnpairedSurrogates(String(outputName || 'download').replace(/[\r\n"]/g, ''));
   const ascii = raw.replace(/[^\x20-\x7E]/g, '_').replace(/["\\]/g, '_') || 'download';
   const encoded = encodeURIComponent(raw)
     .replace(/['()]/g, escape)
@@ -170,9 +184,7 @@ export const OutputNames = {
       fallbackBase: 'images',
     }),
   text: (original?: string) => {
-    const base = baseFromOriginal(original, 'document');
-    const name = `${base}.txt`;
-    return name.length > MAX_TOTAL ? name.slice(0, MAX_TOTAL - 4) + '.txt' : name;
+    return buildOutputName({ originalName: original, suffix: 'text', ext: '.txt' });
   },
   ocrText: (original?: string) =>
     buildOutputName({ originalName: original, suffix: 'ocr', ext: '.txt' }),

@@ -14,9 +14,7 @@ export type PdfOpId =
   | 'from-images'
   | 'to-images'
   | 'to-text'
-  | 'extract-text'
   | 'ocr'
-  | 'compress'
   | 'compress-structural'
   | 'compress-advanced'
   | 'inspect'
@@ -33,9 +31,7 @@ const loaders: Record<string, () => Promise<PdfOperationHandler>> = {
   'from-images': async () => (await import('./operations/images-to-pdf.js')).imagesToPdf,
   'to-images': async () => (await import('./operations/pdf-to-images.js')).pdfToImages,
   'to-text': async () => (await import('./operations/pdf-to-text.js')).pdfToText,
-  'extract-text': async () => (await import('./operations/pdf-to-text.js')).pdfToText,
   ocr: async () => (await import('./operations/ocr.js')).ocrPdf,
-  compress: async () => (await import('./operations/compress.js')).compressPdf,
   'compress-structural': async () => {
     const { compressPdf } = await import('./operations/compress.js');
     return async (ctx) =>
@@ -67,3 +63,10 @@ export { buildOutputName, OutputNames } from './output-names.js';
 export { normalizePdfOptions, redactSensitiveOptions } from './operation-options.js';
 export { ProgressTracker } from './progress.js';
 export { pdfError } from './errors.js';
+export { PDF_OPERATION_DESCRIPTORS } from './operation-contract.js';
+export type {
+  PdfEnginePolicy,
+  PdfInputCardinality,
+  PdfOperationDescriptor,
+  PdfOutputKind,
+} from './operation-contract.js';

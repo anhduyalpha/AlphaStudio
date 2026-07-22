@@ -61,9 +61,11 @@ export async function savePdfDocument(opts: {
     outputName: opts.outputName,
     outputMime: 'application/pdf',
     meta: {
+      ...(opts.meta || {}),
+      outputKind: 'pdf',
+      pageCount: opts.doc.getPageCount(),
       pages: opts.doc.getPageCount(),
       size: bytes.length,
-      ...(opts.meta || {}),
     },
   };
 }
@@ -93,6 +95,21 @@ export async function writeBinaryOutput(opts: {
     outputPath,
     outputName: opts.outputName,
     outputMime: opts.outputMime,
-    meta: opts.meta,
+    meta: {
+      ...(opts.meta || {}),
+      outputKind: inferOutputKind(opts.outputMime, opts.ext),
+    },
   };
+}
+
+function inferOutputKind(outputMime: string, ext: string): string {
+  const mime = outputMime.toLowerCase();
+  const normalizedExt = (ext.startsWith('.') ? ext : `.${ext}`).toLowerCase();
+  if (mime.includes('pdf') || normalizedExt === '.pdf') return 'pdf';
+  if (mime.includes('zip') || normalizedExt === '.zip') return 'zip';
+  if (mime === 'image/png' || normalizedExt === '.png') return 'png';
+  if (mime === 'image/jpeg' || normalizedExt === '.jpg' || normalizedExt === '.jpeg') return 'jpeg';
+  if (mime.includes('json') || normalizedExt === '.json') return 'json';
+  if (mime.startsWith('text/') || normalizedExt === '.txt') return 'text';
+  return 'binary';
 }
