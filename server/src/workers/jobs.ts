@@ -23,6 +23,7 @@ import {
 } from '../db/index.js';
 import { logger } from '../lib/logger.js';
 import { badRequest, notFound } from '../lib/errors.js';
+import { deleteTerminalJob, type JobDeletionResult } from '../services/job-deletion.js';
 import { assertJobCapable } from '../processors/index.js';
 import type { ProcessResult } from '../processors/types.js';
 import { killJobChildren, killProcessTreeByPid } from '../lib/child-registry.js';
@@ -382,75 +383,20 @@ export function listJobs(limit = 50): JobRow[] {
  * - Removes related activity rows and best-effort result cache by output path.
  * Does NOT delete source uploads shared with other jobs.
  */
-export function deleteJob(id: string): { ok: true; id: string; deletedOutput: boolean } {
+export function deleteJob(id: string): JobDeletionResult {
   const job = getJob(id);
   if (!job) throw notFound('Job not found');
-  if (job.status === 'queued' || job.status === 'running') {
-    throw badRequest(
-      'Cannot delete an active job. Cancel it first, then delete from history.',
-    );
-  }
-  if (!['completed', 'failed', 'cancelled'].includes(job.status)) {
-    throw badRequest(`Job status "${job.status}" cannot be deleted`);
-  }
-
-  let deletedOutput = false;
-  const outputPath = job.output_path;
-  if (outputPath && typeof outputPath === 'string') {
-    const resolved = path.resolve(outputPath);
-    // Only delete under outputsDir (or nested job folder) — never uploads or arbitrary paths
-    if (isPathInside(config.outputsDir, resolved)) {
-      try {
-        if (fs.existsSync(resolved)) {
-          fs.rmSync(resolved, { force: true });
-          deletedOutput = true;
-        }
-        // If output lives in outputs/<jobId>/file, try removing empty job dir
-        const jobOutDir = path.join(config.outputsDir, id);
-        if (isPathInside(config.outputsDir, jobOutDir) && fs.existsSync(jobOutDir)) {
-          try {
-            const left = fs.readdirSync(jobOutDir);
-            if (left.length === 0) fs.rmdirSync(jobOutDir);
-          } catch {
-            /* ignore non-empty / race */
-          }
-        }
-      } catch (err) {
-        logger.warn({ err, jobId: id, outputPath: resolved }, 'Failed to remove job output file');
-      }
-    } else {
-      logger.warn({ jobId: id, outputPath: resolved }, 'Refusing to delete output outside outputsDir');
-    }
-  }
-
-  // Invalidate result-cache rows pointing at this output path
-  try {
-    if (outputPath) {
-      getDb()
-        .prepare('DELETE FROM job_result_cache WHERE output_path = ?')
-        .run(outputPath);
-    }
-  } catch {
-    /* table may lack rows; best-effort */
-  }
-
-  // Remove activity timeline entries for this job
-  getDb().prepare('DELETE FROM activity WHERE job_id = ?').run(id);
-
-  // Remove job row
-  getDb().prepare('DELETE FROM jobs WHERE id = ?').run(id);
-
-  // Clear ephemeral cancel/password state
+  const result = deleteTerminalJob(job);
   cancelFlags.delete(id);
+  clearJobPassword(id);
 
   // Do NOT write a new activity timeline row here — that would re-surface the
   // deleted job's filename in history. Server log is enough for audit.
   logger.info(
-    { jobId: id, type: job.type, outputName: job.output_name, deletedOutput },
+    { jobId: id, type: job.type, outputName: job.output_name, deletedOutput: result.deletedOutput, cleanup: result.cleanup },
     'Job history entry deleted',
   );
-
-  return { ok: true, id, deletedOutput };
+  return result;
 }
 
 export function cancelJob(id: string): JobRow {

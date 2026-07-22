@@ -25,6 +25,10 @@ export function badRequest(message: string, details?: unknown): AppError {
   return new AppError(400, 'BAD_REQUEST', message, details);
 }
 
+export function conflict(code: string, message: string, details?: unknown): AppError {
+  return new AppError(409, code, message, details);
+}
+
 export function notFound(message = 'Not found'): AppError {
   return new AppError(404, 'NOT_FOUND', message);
 }
