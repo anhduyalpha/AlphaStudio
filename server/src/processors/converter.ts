@@ -649,6 +649,9 @@ function mimeFromName(name: string): string {
     '.md': 'text/markdown',
     '.html': 'text/html',
     '.csv': 'text/csv',
+    '.tsv': 'text/tab-separated-values',
+    '.json': 'application/json',
+    '.parquet': 'application/vnd.apache.parquet',
   };
   return map[ext] || 'application/octet-stream';
 }

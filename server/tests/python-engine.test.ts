@@ -24,6 +24,18 @@ const missingRunner: ProbeRunner = () => ({
   timedOut: false,
   error: 'spawn python ENOENT',
 });
+// Reports a valid interpreter for --version and a JSON module map for --selfcheck.
+const selfcheckRunner =
+  (modules: Record<string, boolean>): ProbeRunner =>
+  (_exe, args) =>
+    args.includes('--selfcheck')
+      ? {
+          ok: true,
+          stdout: JSON.stringify({ protocol: 1, python: '3.12.4', modules, operations: [] }),
+          stderr: '',
+          timedOut: false,
+        }
+      : { ok: true, stdout: 'Python 3.12.4\n', stderr: '', timedOut: false };
 
 describe('python runtime resolution', () => {
   it('accepts Python >= 3.10 and reports the interpreter path', () => {
@@ -55,17 +67,25 @@ describe('python engine adapter', () => {
     assert.ok(down.reason);
   });
 
-  it('advertises json -> csv/tsv routes tagged with the operation id', () => {
+  it('advertises core stdlib data routes and tags each with its operation', () => {
     const engine = createPythonEngine(okRunner('Python 3.12.4'));
+    // No executablePath on the probe => selfcheck is skipped; only core routes supported.
     const discovery = engine.discoverCapabilities({ available: true });
-    assert.deepEqual(discovery.readableFormats, ['json']);
-    assert.deepEqual([...discovery.writableFormats].sort(), ['csv', 'tsv']);
-    for (const route of discovery.routes) {
-      assert.equal(route.input, 'json');
-      assert.equal(route.supported, true);
-      assert.equal(route.workerCategory, 'general');
-      assert.equal(route.metadata?.operation, 'data.json-transform');
+    const find = (i: string, o: string) =>
+      discovery.routes.find((route) => route.input === i && route.output === o);
+    assert.equal(find('json', 'csv')?.metadata?.operation, 'data.json-transform');
+    assert.equal(find('json', 'tsv')?.metadata?.operation, 'data.json-transform');
+    assert.equal(find('csv', 'json')?.metadata?.operation, 'data.table-transform');
+    assert.equal(find('tsv', 'json')?.metadata?.operation, 'data.table-transform');
+    for (const [input, output] of [['json', 'csv'], ['json', 'tsv'], ['csv', 'json'], ['tsv', 'json']] as const) {
+      assert.equal(find(input, output)?.supported, true, `${input}->${output}`);
     }
+    // Heavy routes are advertised but gated off without their profile.
+    assert.equal(find('xlsx', 'json')?.supported, false);
+    assert.match(String(find('xlsx', 'json')?.reason), /data profile/);
+    assert.equal(find('md', 'pdf')?.supported, false);
+    assert.ok(discovery.readableFormats.includes('csv'));
+    assert.ok(discovery.writableFormats.includes('json'));
   });
 
   it('marks routes unsupported (with reason) when Python is absent', () => {
@@ -199,5 +219,79 @@ describe('convertWithPython', () => {
     assert.ok(py, 'python route should be present');
     assert.equal(py?.available, true);
     assert.equal(py?.metadata?.operation, 'data.json-transform');
+  });
+
+  maybe('routes a CSV upload through processConverter to JSON (full pipeline)', async () => {
+    const { processConverter } = await import('../src/processors/converter.js');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'python-csvjson-'));
+    try {
+      const workDir = path.join(dir, 'work');
+      const outputDir = path.join(dir, 'out');
+      fs.mkdirSync(workDir, { recursive: true });
+      fs.mkdirSync(outputDir, { recursive: true });
+      const input = path.join(dir, 'data.csv');
+      fs.writeFileSync(input, 'a,b\n1,x\n2,y\n');
+      const result = await processConverter({
+        jobId: 'python-csvjson',
+        inputPaths: [input],
+        inputNames: ['data.csv'],
+        options: { format: 'json' },
+        workDir,
+        outputDir,
+        onProgress: () => {},
+        isCancelled: () => false,
+      });
+      assert.equal(result.outputMime, 'application/json');
+      assert.match(result.outputName, /\.json$/);
+      assert.deepEqual(JSON.parse(fs.readFileSync(result.outputPath, 'utf8')), [
+        { a: '1', b: 'x' },
+        { a: '2', b: 'y' },
+      ]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('python phase 2 capability gating', () => {
+  const allModules = { pandas: true, openpyxl: true, pyarrow: true, weasyprint: true, markdown: true };
+  const findRoute = (
+    routes: ReturnType<ReturnType<typeof createPythonEngine>['discoverCapabilities']>['routes'],
+    i: string,
+    o: string,
+  ) => routes.find((route) => route.input === i && route.output === o);
+
+  it('advertises data + document routes when the profile modules are present', () => {
+    const engine = createPythonEngine(selfcheckRunner(allModules));
+    const discovery = engine.discoverCapabilities(engine.probe());
+    assert.equal(findRoute(discovery.routes, 'xlsx', 'json')?.supported, true);
+    assert.equal(findRoute(discovery.routes, 'json', 'xlsx')?.supported, true);
+    assert.equal(findRoute(discovery.routes, 'parquet', 'json')?.supported, true);
+    assert.equal(findRoute(discovery.routes, 'csv', 'parquet')?.supported, true);
+    assert.equal(findRoute(discovery.routes, 'md', 'pdf')?.supported, true);
+    assert.equal(findRoute(discovery.routes, 'html', 'pdf')?.supported, true);
+    // md/html -> pdf must outrank the built-in pdf-lib route (priority 10).
+    assert.ok((findRoute(discovery.routes, 'md', 'pdf')?.priority ?? 99) < 10);
+    assert.equal(findRoute(discovery.routes, 'xlsx', 'json')?.metadata?.operation, 'data.table-transform');
+    assert.equal(findRoute(discovery.routes, 'md', 'pdf')?.metadata?.operation, 'document.to-pdf');
+  });
+
+  it('gates heavy routes off when modules are missing but keeps core routes', () => {
+    const engine = createPythonEngine(selfcheckRunner({}));
+    const discovery = engine.discoverCapabilities(engine.probe());
+    assert.equal(findRoute(discovery.routes, 'csv', 'json')?.supported, true);
+    assert.equal(findRoute(discovery.routes, 'parquet', 'json')?.supported, false);
+    assert.match(String(findRoute(discovery.routes, 'parquet', 'json')?.reason), /data profile/);
+    assert.match(String(findRoute(discovery.routes, 'md', 'pdf')?.reason), /documents profile/);
+  });
+
+  it('exposes csv -> json (core) and a gated xlsx -> json through a registry', () => {
+    const registry = new ConversionEngineRegistry([createPythonEngine(selfcheckRunner({}))]);
+    const csvJson = registry.routesFor('csv', 'json');
+    assert.equal(csvJson.length, 1);
+    assert.equal(csvJson[0].available, true);
+    const xlsxJson = registry.routesFor('xlsx', 'json', true);
+    assert.equal(xlsxJson.length, 1);
+    assert.equal(xlsxJson[0].available, false);
   });
 });

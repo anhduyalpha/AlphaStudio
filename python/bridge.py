@@ -32,6 +32,7 @@ from operations import (  # noqa: E402  (path setup must precede import)
     OperationArtifact,
     OperationContext,
     OperationResult,
+    capability_report,
     get_operation,
     list_operations,
 )
@@ -101,6 +102,13 @@ def _parse_args(argv: list) -> argparse.Namespace:
 
 def main(argv: list) -> int:
     _install_signal_handlers()
+
+    if "--selfcheck" in argv:
+        report = {"protocol": PROTOCOL_VERSION, **capability_report()}
+        sys.stdout.write(json.dumps(report, ensure_ascii=False))
+        sys.stdout.flush()
+        return 0
+
     args = _parse_args(argv)
 
     try:

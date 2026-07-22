@@ -7,6 +7,7 @@ Run with the interpreter under test:
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import subprocess
@@ -116,6 +117,96 @@ class BridgeJsonTransformTest(unittest.TestCase):
             )
             self.assertEqual(proc.returncode, 1)
             self.assertIn("Unknown operation", proc.stderr)
+
+
+class BridgeTableTransformTest(unittest.TestCase):
+    def test_csv_to_json(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            src = os.path.join(tmp, "data.csv")
+            out_dir = os.path.join(tmp, "out")
+            os.makedirs(out_dir, exist_ok=True)
+            with open(src, "w", encoding="utf-8", newline="") as handle:
+                handle.write("a,b\n1,x\n2,y\n")
+
+            proc = _run(
+                [
+                    "--operation", "data.table-transform",
+                    "--input", src,
+                    "--output-dir", out_dir,
+                    "--options", json.dumps({"format": "json"}),
+                ],
+                cwd=tmp,
+            )
+            self.assertEqual(proc.returncode, 0, msg=proc.stderr)
+            payload = json.loads(proc.stdout)
+            out_path = os.path.join(out_dir, payload["outputs"][0]["name"])
+            with open(out_path, "r", encoding="utf-8") as handle:
+                self.assertEqual(json.load(handle), [{"a": "1", "b": "x"}, {"a": "2", "b": "y"}])
+            self.assertEqual(payload["meta"]["rows"], 2)
+
+    def test_tsv_to_json(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            src = os.path.join(tmp, "data.tsv")
+            out_dir = os.path.join(tmp, "out")
+            os.makedirs(out_dir, exist_ok=True)
+            with open(src, "w", encoding="utf-8", newline="") as handle:
+                handle.write("a\tb\n1\t2\n")
+
+            proc = _run(
+                [
+                    "--operation", "data.table-transform",
+                    "--input", src,
+                    "--output-dir", out_dir,
+                    "--options", json.dumps({"format": "json"}),
+                ],
+                cwd=tmp,
+            )
+            self.assertEqual(proc.returncode, 0, msg=proc.stderr)
+            payload = json.loads(proc.stdout)
+            out_path = os.path.join(out_dir, payload["outputs"][0]["name"])
+            with open(out_path, "r", encoding="utf-8") as handle:
+                self.assertEqual(json.load(handle), [{"a": "1", "b": "2"}])
+
+    def test_parquet_target_gated_on_data_profile(self) -> None:
+        """json -> parquet needs pandas+pyarrow; assert success or a clean error."""
+        with tempfile.TemporaryDirectory() as tmp:
+            src = os.path.join(tmp, "data.json")
+            out_dir = os.path.join(tmp, "out")
+            os.makedirs(out_dir, exist_ok=True)
+            with open(src, "w", encoding="utf-8") as handle:
+                json.dump([{"a": 1, "b": 2}], handle)
+
+            proc = _run(
+                [
+                    "--operation", "data.table-transform",
+                    "--input", src,
+                    "--output-dir", out_dir,
+                    "--options", json.dumps({"format": "parquet"}),
+                ],
+                cwd=tmp,
+            )
+            have_stack = (
+                importlib.util.find_spec("pandas") is not None
+                and importlib.util.find_spec("pyarrow") is not None
+            )
+            if have_stack:
+                self.assertEqual(proc.returncode, 0, msg=proc.stderr)
+            else:
+                self.assertEqual(proc.returncode, 1)
+                self.assertIn("data profile", proc.stderr)
+
+
+class BridgeSelfcheckTest(unittest.TestCase):
+    def test_selfcheck_reports_modules_and_operations(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            proc = _run(["--selfcheck"], cwd=tmp)
+            self.assertEqual(proc.returncode, 0, msg=proc.stderr)
+            payload = json.loads(proc.stdout)
+            self.assertEqual(payload["protocol"], 1)
+            self.assertIn("modules", payload)
+            self.assertIn("pandas", payload["modules"])
+            self.assertIn("data.table-transform", payload["operations"])
+            self.assertIn("document.to-pdf", payload["operations"])
 
 
 if __name__ == "__main__":

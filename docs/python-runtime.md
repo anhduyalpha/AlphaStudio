@@ -1,4 +1,4 @@
-# Python runtime integration (Phase 1)
+# Python runtime integration (Phases 1-2)
 
 AlphaStudio can invoke an optional Python runtime for specialized processing
 without changing the Node/Fastify architecture. Python is **not** a server and
@@ -7,9 +7,27 @@ existing worker, using the same `execFileTracked` path as FFmpeg, LibreOffice,
 Pandoc, and Calibre. Node keeps ownership of scheduling, leases, heartbeat,
 cancellation, output validation, and recovery.
 
-Phase 1 ships one deterministic, dependency-free operation: `data.json-transform`
-(JSON to CSV/TSV). Later phases add heavier profiles (data, documents, vision,
-ocr, ai); none are installed by default.
+Phase 1 shipped the foundation and one deterministic, dependency-free operation:
+`data.json-transform` (JSON to CSV/TSV). Phase 2 adds tabular and document
+operations. Heavier profiles (data, documents, vision, ocr, ai) are never
+installed by default.
+
+## Operations and profiles
+
+| Operation | Routes | Profile | Modules |
+| --- | --- | --- | --- |
+| `data.json-transform` | json -> csv, json -> tsv | core | (stdlib) |
+| `data.table-transform` | csv/tsv -> json | core | (stdlib) |
+| `data.table-transform` | xlsx <-> json | data | pandas, openpyxl |
+| `data.table-transform` | parquet <-> csv/json | data | pandas, pyarrow |
+| `document.to-pdf` | md -> pdf, html -> pdf | documents | weasyprint (+ markdown) |
+
+Routes another engine already owns are intentionally not advertised by Python:
+`csv<->tsv` (built-in), `csv<->xlsx/ods` (LibreOffice). The `document.to-pdf`
+routes use priority 8 so WeasyPrint is preferred over the built-in pdf-lib text
+route (priority 10) only when the documents profile is installed; otherwise the
+built-in route still handles md/html -> pdf. The Node engine gates every
+profile route on `bridge.py --selfcheck`, which reports importable modules.
 
 ## Design
 
@@ -117,15 +135,18 @@ Phase 1 reuses the existing safety envelope and adds Python-specific limits:
 
 ## Tests
 
-* `python -m unittest python/tests/test_bridge.py` — bridge protocol + operation.
+* `npm run test:python` — bridge protocol + operations (json/table transforms,
+  selfcheck, profile gating) via the venv or system interpreter.
 * `npm test` — includes
   [server/tests/python-engine.test.ts](../server/tests/python-engine.test.ts):
-  runtime resolution, adapter probe/discovery, registry route, `.json`
-  detection, cancellation, and a full `processConverter` JSON-to-CSV pipeline.
-  Integration cases skip automatically when no Python 3.10+ is present.
+  runtime resolution, adapter probe/discovery, capability gating, registry
+  routes, `.json` detection, cancellation, and full `processConverter`
+  JSON->CSV and CSV->JSON pipelines. Integration cases skip automatically when
+  no Python 3.10+ is present; profile routes skip when their modules are absent.
 
 ## Roadmap
 
-Phase 1 (this document) is the foundation. Phases 2-5 add data/document/vision/
-OCR/AI operations behind their own opt-in profiles and are delivered as separate
+Phases 1-2 (this document) ship the foundation plus data and document
+operations. Phases 3-5 add OCR/vision, transcription, and optional local-LLM
+operations behind their own opt-in profiles and are delivered as separate
 pull requests.

@@ -10,14 +10,51 @@ import { firstProbeLine, runProbeCommand, type ProbeRunner } from './probe.js';
 import { engineFailure } from './errors.js';
 import type {
   ConversionEngineAdapter,
+  ConversionCost,
   EngineProbeResult,
   EngineRouteCandidate,
 } from './types.js';
 import { validateRegisteredOutput } from './validation.js';
 
-/** Phase 1 deterministic, stdlib-only operations advertised by the Python engine. */
-const JSON_OUTPUTS = ['csv', 'tsv'] as const;
-const JSON_TRANSFORM_OPERATION = 'data.json-transform';
+/** Optional-profile name surfaced in "install this profile" reasons. */
+type PythonProfile = 'core' | 'data' | 'documents';
+
+type PythonRouteSpec = {
+  input: string;
+  output: string;
+  operation: string;
+  priority: number;
+  cost: ConversionCost;
+  /** Python modules that must be importable (empty = works on the core profile). */
+  requires: string[];
+  profile: PythonProfile;
+};
+
+/**
+ * Declarative route table. Only pairs that no other engine owns are advertised
+ * here (anything <-> JSON, Parquet, and md/html -> pdf via WeasyPrint). csv<->tsv
+ * (built-in) and csv<->xlsx/ods (LibreOffice) are deliberately excluded.
+ */
+const PYTHON_ROUTES: PythonRouteSpec[] = [
+  // Phase 1 — core (stdlib)
+  { input: 'json', output: 'csv', operation: 'data.json-transform', priority: 20, cost: 'low', requires: [], profile: 'core' },
+  { input: 'json', output: 'tsv', operation: 'data.json-transform', priority: 20, cost: 'low', requires: [], profile: 'core' },
+  // Phase 2 — data, core (stdlib)
+  { input: 'csv', output: 'json', operation: 'data.table-transform', priority: 20, cost: 'low', requires: [], profile: 'core' },
+  { input: 'tsv', output: 'json', operation: 'data.table-transform', priority: 20, cost: 'low', requires: [], profile: 'core' },
+  // Phase 2 — data, Excel (pandas + openpyxl)
+  { input: 'xlsx', output: 'json', operation: 'data.table-transform', priority: 22, cost: 'medium', requires: ['pandas', 'openpyxl'], profile: 'data' },
+  { input: 'json', output: 'xlsx', operation: 'data.table-transform', priority: 22, cost: 'medium', requires: ['pandas', 'openpyxl'], profile: 'data' },
+  // Phase 2 — data, Parquet (pandas + pyarrow)
+  { input: 'parquet', output: 'json', operation: 'data.table-transform', priority: 22, cost: 'medium', requires: ['pandas', 'pyarrow'], profile: 'data' },
+  { input: 'parquet', output: 'csv', operation: 'data.table-transform', priority: 22, cost: 'medium', requires: ['pandas', 'pyarrow'], profile: 'data' },
+  { input: 'json', output: 'parquet', operation: 'data.table-transform', priority: 22, cost: 'medium', requires: ['pandas', 'pyarrow'], profile: 'data' },
+  { input: 'csv', output: 'parquet', operation: 'data.table-transform', priority: 22, cost: 'medium', requires: ['pandas', 'pyarrow'], profile: 'data' },
+  // Phase 2 — documents (WeasyPrint). Priority 8 => preferred over the built-in
+  // pdf-lib route (priority 10) only when the profile is installed.
+  { input: 'html', output: 'pdf', operation: 'document.to-pdf', priority: 8, cost: 'medium', requires: ['weasyprint'], profile: 'documents' },
+  { input: 'md', output: 'pdf', operation: 'document.to-pdf', priority: 8, cost: 'medium', requires: ['weasyprint', 'markdown'], profile: 'documents' },
+];
 
 /** Absolute path to the one-shot CLI bridge invoked for every Python job. */
 export function bridgeScriptPath(): string {
@@ -74,6 +111,30 @@ export function resolvePythonPath(runner: ProbeRunner = runProbeCommand): {
   };
 }
 
+export type PythonSelfCheck = { modules: Record<string, boolean>; operations: string[] };
+
+/**
+ * Ask the bridge which optional modules are importable, so heavier routes are
+ * only advertised as available when their profile is genuinely installed.
+ * Returns empty capabilities on any failure (routes degrade to unavailable).
+ */
+export function pythonSelfCheck(executablePath: string, runner: ProbeRunner = runProbeCommand): PythonSelfCheck {
+  const result = runner(executablePath, [bridgeScriptPath(), '--selfcheck'], 30_000);
+  if (!result.ok) return { modules: {}, operations: [] };
+  try {
+    const parsed = JSON.parse(String(result.stdout || '').trim()) as {
+      modules?: Record<string, boolean>;
+      operations?: unknown;
+    };
+    return {
+      modules: parsed.modules && typeof parsed.modules === 'object' ? parsed.modules : {},
+      operations: Array.isArray(parsed.operations) ? parsed.operations.map(String) : [],
+    };
+  } catch {
+    return { modules: {}, operations: [] };
+  }
+}
+
 export function createPythonEngine(runner: ProbeRunner = runProbeCommand): ConversionEngineAdapter {
   return {
     id: 'python',
@@ -93,25 +154,42 @@ export function createPythonEngine(runner: ProbeRunner = runProbeCommand): Conve
         : { available: false, reason: resolved.reason };
     },
     discoverCapabilities: (probe) => {
-      const routes: EngineRouteCandidate[] = JSON_OUTPUTS.map((output) => ({
-        input: 'json',
-        output,
-        inputFamily: formatFamily('json'),
-        outputFamily: formatFamily(output),
-        priority: 20,
-        cost: 'low',
-        workerCategory: 'general',
-        requiredCompanions: ['python'],
-        supported: probe.available,
-        reason: probe.available ? undefined : probe.reason || 'Python runtime is not installed',
-        metadata: { operation: JSON_TRANSFORM_OPERATION },
-      }));
+      const modules =
+        probe.available && probe.executablePath
+          ? pythonSelfCheck(probe.executablePath, runner).modules
+          : {};
+
+      const routes: EngineRouteCandidate[] = PYTHON_ROUTES.map((spec) => {
+        const missing = spec.requires.filter((mod) => !modules[mod]);
+        const supported = probe.available && missing.length === 0;
+        const reason = supported
+          ? undefined
+          : !probe.available
+            ? probe.reason || 'Python runtime is not installed'
+            : `Install the ${spec.profile} profile: npm run python:install -- --profile ${spec.profile}`;
+        return {
+          input: spec.input,
+          output: spec.output,
+          inputFamily: formatFamily(spec.input),
+          outputFamily: formatFamily(spec.output),
+          priority: spec.priority,
+          cost: spec.cost,
+          workerCategory: 'general',
+          requiredCompanions: ['python', ...spec.requires],
+          supported,
+          reason,
+          metadata: { operation: spec.operation },
+        };
+      });
+
+      const supportedRoutes = routes.filter((route) => route.supported);
       return {
-        readableFormats: ['json'],
-        writableFormats: [...JSON_OUTPUTS],
+        readableFormats: [...new Set(supportedRoutes.map((route) => route.input))],
+        writableFormats: [...new Set(supportedRoutes.map((route) => route.output))],
         routes,
         notes: [
-          'Deterministic stdlib JSON to CSV/TSV. No third-party Python packages required.',
+          'Deterministic stdlib data conversions (JSON/CSV/TSV) require no third-party packages.',
+          'Excel/Parquet need the data profile; Markdown/HTML -> PDF needs the documents profile.',
           'Network access is disabled for the bridge process.',
         ],
       };

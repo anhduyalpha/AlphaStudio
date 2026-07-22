@@ -65,6 +65,7 @@ const DEFINITIONS: FormatDefinition[] = [
   { format: 'ods', family: 'spreadsheet', mime: 'application/vnd.oasis.opendocument.spreadsheet' },
   { format: 'csv', family: 'spreadsheet', mime: 'text/csv' },
   { format: 'tsv', family: 'spreadsheet', mime: 'text/tab-separated-values' },
+  { format: 'parquet', family: 'spreadsheet', mime: 'application/vnd.apache.parquet' },
   { format: 'ppt', family: 'presentation', mime: 'application/vnd.ms-powerpoint' },
   {
     format: 'pptx',

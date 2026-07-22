@@ -75,6 +75,42 @@ def list_operations() -> List[str]:
     return sorted(_REGISTRY.keys())
 
 
+# Optional third-party modules that heavier profiles provide. Probed with
+# importlib.util.find_spec (no import side effects) for capability reporting.
+OPTIONAL_MODULES = [
+    "pandas",
+    "openpyxl",
+    "pyarrow",
+    "weasyprint",
+    "markdown",
+    "ocrmypdf",
+    "cv2",
+    "rembg",
+    "faster_whisper",
+    "llama_cpp",
+]
+
+
+def capability_report() -> Dict[str, object]:
+    """Report interpreter version, optional-module availability, and operations.
+
+    Consumed by the Node engine via `bridge.py --selfcheck` to gate routes that
+    require a heavier profile without importing (and paying the cost of) those
+    modules here.
+    """
+    import importlib.util
+    import sys
+
+    modules = {
+        name: importlib.util.find_spec(name) is not None for name in OPTIONAL_MODULES
+    }
+    return {
+        "python": sys.version.split()[0],
+        "modules": modules,
+        "operations": list_operations(),
+    }
+
+
 def _load_builtin_operations() -> None:
     """Import modules that self-register operations.
 
@@ -82,6 +118,8 @@ def _load_builtin_operations() -> None:
     stay predictable.
     """
     from . import json_transform  # noqa: F401  (import side effect: registration)
+    from . import table_transform  # noqa: F401  (import side effect: registration)
+    from . import document_pdf  # noqa: F401  (import side effect: registration)
 
 
 _load_builtin_operations()
