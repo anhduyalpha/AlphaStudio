@@ -5,7 +5,9 @@
 From repo root:
 
 ```bash
-npm run test -w alphastudio-server -- --test-name-pattern="pdf|PDF|page-selection|output naming|password|PdfView"
+npm run fixtures:pdf:verify
+npm run test:pdf
+npm run test:e2e
 ```
 
 Or targeted files:
@@ -32,7 +34,10 @@ node --import tsx --test --test-concurrency=1 \
 - Delete pages, duplicate pages, inspect JSON
 - Structural compress metadata
 - Images→PDF, PDF→text, scanned without OCR
-- Password redaction (options, result meta)
+- Exact operation contracts, cardinality, names, Unicode download headers, and metadata
+- Output signature, archive structure, MIME/extension, reparse, and cache validation
+- Upload abort, idempotency, SSE fallback, reload reconnection, and completed-result restoration
+- PDF.js worker loading, bounded thumbnails, replacement cleanup, large-preview limits, and responsive layouts
 - Repair available / unavailable
 - Routing never uses LibreOffice for PDF input
 - UI structure (groups, capability gates, engine label)
@@ -58,7 +63,7 @@ curl -s http://127.0.0.1:8787/api/capabilities | jq '.tools[] | select(.id|start
 | to-images PNG | engine `pdftoppm` or `mutool` or `ghostscript` in meta |
 | to-text on text PDF | `.txt` with page markers |
 | ocr on scanned PDF | text when tesseract+rasterizer present |
-| compress-advanced | engine ghostscript or qpdf; size fields in meta |
+| compress-advanced | engine Ghostscript only; size fields in meta |
 | repair | repaired PDF when qpdf/gs present |
 | inspect | JSON card with pageCount, checksum |
 
@@ -69,17 +74,15 @@ curl -s http://127.0.0.1:8787/api/capabilities | jq '.tools[] | select(.id|start
 ```bash
 npm run build:server
 npm run build:client
+npm run typecheck
 ```
 
 ## Regression
 
-Run non-PDF suites as needed:
+Run the complete server regression suite:
 
 ```bash
-cd server
-node --import tsx --test --test-concurrency=1 \
-  tests/workers.test.ts \
-  tests/resumable-upload.test.ts \
-  tests/api.test.ts \
-  tests/converter.test.ts
+npm test
 ```
+
+Playwright uses isolated temporary `DATA_DIR` and `DB_PATH` values and a production Vite build. The committed fixture generator verifies deterministic hashes, including a real password-protected PDF (`alphastudio`). Linux setup is documented and code-reviewed; do not report Linux execution unless a Linux runner was actually used.

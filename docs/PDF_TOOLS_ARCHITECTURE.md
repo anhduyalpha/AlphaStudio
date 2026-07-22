@@ -4,7 +4,7 @@
 
 ```
 PdfView → upload → POST /api/jobs { type: 'pdf' }
-  → createJob (capability gate, password redaction, SQLite)
+  → createJob (operation contract, capability gate, idempotency, SQLite)
   → worker pool (category: pdf)
   → worker-process (path validation)
   → processors/index → processPdf (thin)
@@ -17,6 +17,7 @@ PdfView → upload → POST /api/jobs { type: 'pdf' }
 ```
 server/src/processors/pdf.ts     # validate + normalize + dispatch
 server/src/pdf/
+  operation-contract.ts           # authoritative ids/cardinality/options/outputs/engines
   page-selection.ts              # one-based → zero-based parser
   output-names.ts                # user-facing download names
   operation-options.ts           # typed options + password redaction
@@ -45,14 +46,14 @@ server/src/convert/
 | duplicate-pages | `pdf.duplicate-pages` | pdf-lib |
 | from-images | `pdf.from-images` | sharp + pdf-lib |
 | to-images | `pdf.to-images` | pdftoppm → mutool → ghostscript |
-| to-text | `pdf.to-text` | pdftotext → mutool → native (+ optional OCR) |
+| to-text | `pdf.to-text` | pdftotext → mutool → native |
 | ocr | `pdf.ocr` | tesseract + rasterizer |
 | ocr searchable | `pdf.ocr.searchable` | **unavailable** (not faked) |
 | compress structural | `pdf.compress.structural` | pdf-lib object streams |
-| compress advanced | `pdf.compress.advanced` | ghostscript → qpdf → structural fallback |
+| compress advanced | `pdf.compress.advanced` | Ghostscript only; fails closed |
 | inspect | `pdf.inspect` | pdf-lib |
 | repair | `pdf.repair` | qpdf → ghostscript |
-| decrypt | `pdf.decrypt` | qpdf only (capability-gated) |
+| decrypt | `pdf.decrypt` | **unavailable** (no handler; not advertised as an operation) |
 
 ## Page selection
 
@@ -64,15 +65,15 @@ Shared parser (`parsePageSelection`) supports: `1`, `1,3,5`, `1-3`, `1-`, `-5`, 
 
 Progress is monotonic (0–99 until validation succeeds, then 100).
 
-## Password handling
+## Operation contract
 
-Passwords are stripped from SQLite `jobs.options` and re-injected only via an in-memory vault into the worker IPC payload for the job duration. Never logged, never in result JSON, never in SSE progress payloads.
+`/api/capabilities` publishes the safe descriptors from `operation-contract.ts`. The UI supplies labels and grouping only; accepted IDs, capability IDs, cardinality, options, output kinds, and engine policy come from the backend. Undocumented aliases are rejected. Password controls are not shown because no current operation consumes a password.
 
 ## Adding a new operation
 
 1. Implement `server/src/pdf/operations/<name>.ts` exporting an async handler `(ctx: PdfOpContext) => ProcessResult`.
 2. Register lazy loader in `server/src/pdf/index.ts`.
-3. Map capability in `processors/index.ts` and `capabilities.ts`.
+3. Add its descriptor and map its capability in `processors/index.ts` and `capabilities.ts`.
 4. Add UI entry in `PdfView.jsx` under the correct group.
 5. Add unit/integration tests.
 6. Document engine and capability here.
@@ -87,4 +88,6 @@ See `server/src/pdf/errors.ts`: `PASSWORD_REQUIRED`, `INVALID_PASSWORD`, `CORRUP
 - External tools via argument arrays only (`execFileTracked`).
 - ZIP entry names sanitized (no path traversal).
 - OCR page limit configurable (default 50).
-- Preview UI caps at 40 page thumbnails.
+- Preview byte/page limits are configurable with `VITE_PDF_PREVIEW_MAX_BYTES` and `VITE_PDF_PREVIEW_MAX_PAGES`.
+- The organizer renders a 12-page window with bounded concurrency and cancels PDF.js loading/render tasks on replacement or unmount.
+- Completion validates size, signature, MIME/extension agreement, structure/reparsing, and persisted metadata before progress reaches 100%.

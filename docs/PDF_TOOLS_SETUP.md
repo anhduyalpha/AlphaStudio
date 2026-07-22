@@ -12,7 +12,7 @@ Optional tools unlock advanced features.
 | MuPDF (`mutool`) | PDF→images, text fallback |
 | Ghostscript (`gs` / `gswin64c`) | PDF→images, advanced compress, repair |
 | Tesseract | OCR (requires a rasterizer) |
-| qpdf | Repair (preferred), object optimization, decrypt capability |
+| qpdf | Repair (preferred) |
 
 ## Windows
 
@@ -71,12 +71,13 @@ Look for:
 - `pdf.ocr.available`
 - `pdf.compress.advanced.available`
 - `pdf.repair.available`
-- `pdf.decrypt.available`
+- `pdf.decrypt.available` (expected `false` until a tested handler exists)
 
 ## Fallback engine selection
 
 - **Rasterize:** pdftoppm → mutool → ghostscript
-- **Text:** pdftotext → mutool → native content-stream scan → optional OCR
-- **Advanced compress:** ghostscript → qpdf → structural pdf-lib
+- **Text:** pdftotext → mutool → native content-stream scan
+- **OCR:** dedicated `pdf.ocr` operation using Tesseract plus a rasterizer
+- **Advanced compress:** Ghostscript only; explicit requests fail when it is unavailable or fails
 - **Repair:** qpdf → ghostscript
 - **Never** use LibreOffice for PDF input rasterization or PDF edit ops
