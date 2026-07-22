@@ -20,14 +20,22 @@ export async function repairPdf(ctx: PdfOpContext) {
   throwIfCancelled(ctx.isCancelled);
 
   const qpdf = resolveOptionalBinary('qpdf');
+  let qpdfFailure: unknown = null;
   if (qpdf.available && qpdf.path) {
-    return repairWithQpdf(ctx, inputPath, qpdf.path);
+    try {
+      return await repairWithQpdf(ctx, inputPath, qpdf.path);
+    } catch (error) {
+      if (ctx.isCancelled()) throw error;
+      qpdfFailure = error;
+    }
   }
 
   const gs = resolveOptionalBinary('ghostscript');
   if (gs.available && gs.path) {
     return repairWithGhostscript(ctx, inputPath, gs.path);
   }
+
+  if (qpdfFailure) throw qpdfFailure;
 
   throw pdfError(
     'REPAIR_UNAVAILABLE',
@@ -50,14 +58,18 @@ async function repairWithQpdf(ctx: PdfOpContext, inputPath: string, bin: string)
       windowsHide: true,
     });
   } catch (e) {
-    // Try with --decrypt-not-needed style recover
+    try {
+      fs.rmSync(outputPath, { force: true });
+    } catch {
+      /* best-effort partial cleanup before Ghostscript fallback */
+    }
     const msg = e instanceof Error ? e.message : 'qpdf failed';
     throw pdfError(
       'CORRUPTED_PDF',
       `Repair failed: ${msg.slice(0, 200)}`,
     );
   }
-  await validateRepaired(outputPath);
+  const pageCount = await validateRepaired(outputPath);
   ctx.progress.complete('completed');
   return {
     outputPath,
@@ -65,8 +77,10 @@ async function repairWithQpdf(ctx: PdfOpContext, inputPath: string, bin: string)
     outputMime: 'application/pdf',
     meta: {
       engine: 'qpdf',
+      outputKind: 'pdf',
       size: fs.statSync(outputPath).size,
-      pages: (await PDFDocument.load(fs.readFileSync(outputPath))).getPageCount(),
+      pages: pageCount,
+      pageCount,
     },
   };
 }
@@ -94,7 +108,7 @@ async function repairWithGhostscript(ctx: PdfOpContext, inputPath: string, bin: 
     const msg = e instanceof Error ? e.message : 'Ghostscript failed';
     throw pdfError('CORRUPTED_PDF', `Repair failed: ${msg.slice(0, 200)}`);
   }
-  await validateRepaired(outputPath);
+  const pageCount = await validateRepaired(outputPath);
   ctx.progress.complete('completed');
   return {
     outputPath,
@@ -102,13 +116,15 @@ async function repairWithGhostscript(ctx: PdfOpContext, inputPath: string, bin: 
     outputMime: 'application/pdf',
     meta: {
       engine: 'ghostscript',
+      outputKind: 'pdf',
       size: fs.statSync(outputPath).size,
-      pages: (await PDFDocument.load(fs.readFileSync(outputPath))).getPageCount(),
+      pages: pageCount,
+      pageCount,
     },
   };
 }
 
-async function validateRepaired(outputPath: string): Promise<void> {
+async function validateRepaired(outputPath: string): Promise<number> {
   if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size <= 0) {
     try {
       fs.unlinkSync(outputPath);
@@ -132,9 +148,11 @@ async function validateRepaired(outputPath: string): Promise<void> {
   }
   try {
     const doc = await PDFDocument.load(fs.readFileSync(outputPath));
-    if (doc.getPageCount() < 1) {
+    const pageCount = doc.getPageCount();
+    if (pageCount < 1) {
       throw pdfError('OUTPUT_VALIDATION_FAILED', 'Output validation failed: repaired PDF has no pages');
     }
+    return pageCount;
   } catch (e) {
     if (e && typeof e === 'object' && (e as { code?: string }).code === 'OUTPUT_VALIDATION_FAILED') throw e;
     try {

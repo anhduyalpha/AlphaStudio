@@ -8,7 +8,7 @@ import { savePdfDocument } from '../save.js';
 import type { PdfOpContext } from '../types.js';
 
 export async function mergePdfs(ctx: PdfOpContext) {
-  if (ctx.inputPaths.length < 1) throw badRequest('At least one PDF required');
+  if (ctx.inputPaths.length < 2) throw badRequest('Merge requires at least two PDF files');
   ctx.progress.stage('preparing', 0, 'Preparing merge');
   const out = await PDFDocument.create();
   let totalPages = 0;

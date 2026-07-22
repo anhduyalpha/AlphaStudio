@@ -1,30 +1,55 @@
+import fs from 'node:fs';
 import path from 'node:path';
+import { randomBytes } from 'node:crypto';
+import { PDFDocument } from 'pdf-lib';
 import { badRequest } from '../../lib/errors.js';
-import { pdfError } from '../errors.js';
+import { execFileTracked } from '../../lib/child-registry.js';
+import { randomServerName } from '../../lib/paths.js';
+import {
+  assertMeaningfulTextOutput,
+  validatePdfInput,
+} from '../../convert/pdfInspect.js';
+import { rasterizePdfPagesWithEngine } from '../../convert/pdfRender.js';
+import { hasOcrStack, resolveOptionalBinary } from '../../tools/optional-binaries.js';
+import { pdfError, throwIfCancelled } from '../errors.js';
 import { normalizePdfOptions } from '../operation-options.js';
 import { OutputNames } from '../output-names.js';
-import { hasOcrStack } from '../../tools/optional-binaries.js';
+import { parsePageSelection } from '../page-selection.js';
 import type { PdfOpContext } from '../types.js';
 
+/** Resolve the exact ordered OCR page set and enforce the configured limit. */
+export function resolveOcrPageSelection(
+  pages: string | undefined,
+  pageCount: number,
+  pageLimit: number,
+): number[] {
+  const selected = parsePageSelection(pages, pageCount, {
+    emptyMeansAll: true,
+    dedupe: true,
+  });
+  if (selected.length > pageLimit) {
+    throw pdfError(
+      'PDF_PAGE_LIMIT_EXCEEDED',
+      `OCR selection contains ${selected.length} pages; the limit is ${pageLimit}`,
+      400,
+      { selectedPages: selected.length, pageLimit },
+    );
+  }
+  return selected;
+}
+
 /**
- * Dedicated OCR operation.
- * Searchable PDF is capability-gated: only when a reliable toolchain exists.
- * Current stack produces text OCR via rasterize + tesseract.
- * Searchable PDF is NOT faked — rejected when requested without support.
+ * Dedicated text OCR operation.
+ *
+ * The submitted page set is copied to a temporary PDF in the requested order,
+ * so rasterization never scans unselected pages. There is no native-text probe
+ * or second OCR fallback: every selected page is rasterized and OCRed once.
  */
 export async function ocrPdf(ctx: PdfOpContext) {
   if (!ctx.inputPaths[0]) throw badRequest('PDF required');
-  if (!hasOcrStack()) {
-    throw pdfError(
-      'OCR_UNAVAILABLE',
-      'OCR requires Tesseract and a PDF rasterizer (pdftoppm, mutool, or Ghostscript)',
-      503,
-    );
-  }
   const opts = normalizePdfOptions(ctx.options);
 
   if (opts.searchablePdf) {
-    // Honest gate: no reliable searchable-PDF toolchain in this stack
     throw pdfError(
       'OCR_UNAVAILABLE',
       'Searchable PDF OCR is not available with the current toolchain. Use text OCR output instead.',
@@ -32,147 +57,150 @@ export async function ocrPdf(ctx: PdfOpContext) {
       { searchablePdf: false },
     );
   }
-
-  ctx.progress.stage('ocr', 0.05, 'Starting OCR');
-  const { extractPdfText } = await import('../../convert/pdfText.js');
-  const result = await extractPdfText({
-    inputPath: ctx.inputPaths[0],
-    outputDir: ctx.outputDir,
-    ocr: true,
-    ocrLang: opts.ocrLang,
-    originalBaseName: path.basename(ctx.primaryName || 'document', path.extname(ctx.primaryName || '')),
-    jobId: ctx.jobId,
-    isCancelled: ctx.isCancelled,
-    // Force OCR path even if some text exists — user asked for OCR
-    minMeaningfulChars: 1_000_000, // force "scanned" path when ocr:true... 
-    // Wait: extractPdfText only OCRs when scanned. Override by always requesting ocr
-    // and treating short text as scanned. Better: call with ocr:true and low native yield.
-    onProgress: (p, msg) => {
-      ctx.progress.stage('ocr', Math.min(0.95, p / 100), msg || 'OCR');
-    },
-  });
-
-  // If native text was used (document had text), still OK — re-run forced OCR via option
-  // When extractPdfText finds text it skips OCR. For dedicated ocr op we need force.
-  // If usedOcr is false, re-extract forcing by using a wrapper.
-  if (!result.usedOcr) {
-    // Force OCR regardless of native text: call internal force path
-    const forced = await forceOcr(ctx, opts.ocrLang, opts.ocrPageLimit);
-    ctx.progress.complete('completed');
-    return forced;
+  if (!hasOcrStack()) {
+    throw pdfError(
+      'OCR_UNAVAILABLE',
+      'OCR requires Tesseract and a PDF rasterizer (pdftoppm, mutool, or Ghostscript)',
+      503,
+    );
   }
 
-  ctx.progress.complete('completed');
-  return {
-    outputPath: result.outputPath,
-    outputName: OutputNames.ocrText(ctx.primaryName),
-    outputMime: 'text/plain',
-    meta: {
-      engine: 'tesseract',
-      pageCount: result.pageCount,
-      charCount: result.charCount,
-      usedOcr: true,
-      ocrLang: opts.ocrLang,
-      searchablePdf: false,
-    },
-  };
-}
+  ctx.progress.stage('rendering', 0, 'Preparing selected pages for OCR');
+  throwIfCancelled(ctx.isCancelled);
+  const inspect = await validatePdfInput(ctx.inputPaths[0], {
+    originalName: ctx.primaryName,
+  });
+  const selectedIndices = resolveOcrPageSelection(
+    opts.pages,
+    inspect.pageCount,
+    opts.ocrPageLimit,
+  );
+  const selectedPages = selectedIndices.map((index) => index + 1);
 
-async function forceOcr(
-  ctx: PdfOpContext,
-  ocrLang: string,
-  pageLimit: number,
-) {
-  const { validatePdfInput } = await import('../../convert/pdfInspect.js');
-  const { rasterizePdfPages } = await import('../../convert/pdfRender.js');
-  const { resolveOptionalBinary } = await import('../../tools/optional-binaries.js');
-  const { execFileTracked } = await import('../../lib/child-registry.js');
-  const { assertMeaningfulTextOutput } = await import('../../convert/pdfInspect.js');
-  const { randomServerName } = await import('../../lib/paths.js');
-  const fs = await import('node:fs');
-  const { randomBytes } = await import('node:crypto');
-  const { throwIfCancelled } = await import('../errors.js');
-
-  const inspect = await validatePdfInput(ctx.inputPaths[0]!);
   const tesseract = resolveOptionalBinary('tesseract');
   if (!tesseract.available || !tesseract.path) {
     throw pdfError('OCR_UNAVAILABLE', 'OCR unavailable: Tesseract is not installed', 503);
   }
 
-  const work = path.join(ctx.workDir, `ocr-force-${randomBytes(4).toString('hex')}`);
+  const work = path.join(ctx.workDir, `ocr-${randomBytes(6).toString('hex')}`);
   fs.mkdirSync(work, { recursive: true });
   try {
-    ctx.progress.stage('rendering', 0.1, 'Rasterizing for OCR');
-    const pages = await rasterizePdfPages({
-      inputPath: ctx.inputPaths[0]!,
-      outputDir: work,
+    const source = await PDFDocument.load(await fs.promises.readFile(ctx.inputPaths[0]));
+    const subset = await PDFDocument.create();
+    const copied = await subset.copyPages(source, selectedIndices);
+    copied.forEach((page) => subset.addPage(page));
+    const subsetPath = path.join(work, 'selected-pages.pdf');
+    await fs.promises.writeFile(subsetPath, await subset.save());
+
+    ctx.progress.stage('rendering', 0, `Rasterizing ${selectedIndices.length} selected page(s)`);
+    const raster = await rasterizePdfPagesWithEngine({
+      inputPath: subsetPath,
+      outputDir: path.join(work, 'raster'),
       format: 'png',
       dpi: 200,
-      maxPages: Math.min(inspect.pageCount, pageLimit),
+      maxPages: selectedIndices.length,
       jobId: ctx.jobId,
       isCancelled: ctx.isCancelled,
-      onProgress: (p, msg) => ctx.progress.stage('rendering', p / 100, msg),
+      onProgress: (percent, message) => {
+        ctx.progress.stage('rendering', Math.min(1, percent / 100), message);
+      },
     });
+    if (raster.pages.length !== selectedIndices.length) {
+      throw pdfError(
+        'OUTPUT_VALIDATION_FAILED',
+        `OCR rasterization produced ${raster.pages.length} of ${selectedIndices.length} selected pages`,
+      );
+    }
 
-    const parts: string[] = [];
-    let i = 0;
-    for (const page of pages) {
+    const sections: string[] = [];
+    let characterCount = 0;
+    for (let i = 0; i < raster.pages.length; i += 1) {
       throwIfCancelled(ctx.isCancelled);
-      i += 1;
-      ctx.progress.batch('ocr', i, pages.length, `OCR page ${i}/${pages.length}`);
-      const outBase = path.join(work, `ocr-page-${i}`);
+      const page = raster.pages[i]!;
+      const originalPage = selectedPages[i]!;
+      ctx.progress.batch(
+        'ocr',
+        i,
+        raster.pages.length,
+        `OCR page ${originalPage} (${i + 1}/${raster.pages.length})`,
+      );
+      const outBase = path.join(work, `ocr-page-${String(i + 1).padStart(4, '0')}`);
       try {
         await execFileTracked(
           tesseract.path,
-          [page.path, outBase, '-l', ocrLang, '--psm', '3'],
+          [page.path, outBase, '-l', opts.ocrLang, '--psm', '3'],
           {
             jobId: ctx.jobId,
             timeout: 180_000,
             windowsHide: true,
           },
         );
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : 'tesseract failed';
-        if (/failed loading language|Error opening data file|tessdata/i.test(msg)) {
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Tesseract failed';
+        if (/failed loading language|Error opening data file|tessdata/i.test(message)) {
           throw pdfError(
             'OCR_UNAVAILABLE',
-            `OCR language pack unavailable for "${ocrLang}". Install the Tesseract language data.`,
+            `OCR language pack unavailable for "${opts.ocrLang}". Install the Tesseract language data.`,
             503,
-            { ocrLang },
+            { ocrLang: opts.ocrLang },
           );
         }
-        throw pdfError('OCR_UNAVAILABLE', `OCR failed: ${msg.slice(0, 200)}`, 503);
+        throw pdfError('OCR_UNAVAILABLE', 'OCR failed while processing a selected page', 503, {
+          engine: 'tesseract',
+          page: originalPage,
+        });
       }
-      const txtPath = `${outBase}.txt`;
-      if (fs.existsSync(txtPath)) {
-        parts.push(`--- Page ${i} ---\n${fs.readFileSync(txtPath, 'utf8').trim()}`);
-      }
+
+      const textPath = `${outBase}.txt`;
+      const pageText = fs.existsSync(textPath)
+        ? await fs.promises.readFile(textPath, 'utf8')
+        : '';
+      const trimmed = pageText.trim();
+      characterCount += trimmed.replace(/\s+/g, '').length;
+      sections.push(`--- Page ${originalPage} ---\n${trimmed}`);
+      ctx.progress.batch(
+        'ocr',
+        i + 1,
+        raster.pages.length,
+        `OCR page ${originalPage} complete`,
+      );
     }
 
-    const text = parts.join('\n\n') + '\n';
-    const outName = randomServerName('.txt');
-    const outputPath = path.join(ctx.outputDir, outName);
-    fs.writeFileSync(outputPath, text, 'utf8');
-    assertMeaningfulTextOutput(outputPath, { minChars: 1, label: 'OCR text' });
+    if (characterCount < 1) {
+      throw pdfError(
+        'NO_EXTRACTABLE_TEXT',
+        'OCR completed but found no meaningful text on the selected pages',
+      );
+    }
 
+    ctx.progress.stage('packaging', 0.5, 'Writing OCR text');
+    const outputPath = path.join(ctx.outputDir, randomServerName('.txt'));
+    await fs.promises.writeFile(outputPath, `${sections.join('\n\n')}\n`, 'utf8');
+    assertMeaningfulTextOutput(outputPath, { minChars: 1, label: 'OCR text' });
+    ctx.progress.complete('completed');
     return {
       outputPath,
       outputName: OutputNames.ocrText(ctx.primaryName),
       outputMime: 'text/plain',
       meta: {
         engine: 'tesseract',
-        pageCount: pages.length,
-        charCount: text.replace(/\s+/g, '').length,
+        rasterEngine: raster.engine,
+        outputKind: 'text',
+        pageCount: selectedIndices.length,
+        selectedPages,
+        charCount: characterCount,
+        characterCount,
         usedOcr: true,
-        ocrLang,
+        ocrStatus: 'applied',
+        ocrLang: opts.ocrLang,
         searchablePdf: false,
       },
     };
   } finally {
     try {
-      fs.rmSync(work, { recursive: true, force: true });
+      await fs.promises.rm(work, { recursive: true, force: true });
     } catch {
-      /* ignore */
+      /* best-effort temporary cleanup */
     }
   }
 }

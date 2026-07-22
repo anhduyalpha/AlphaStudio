@@ -87,7 +87,10 @@ export async function splitPdf(ctx: PdfOpContext) {
     outputName: OutputNames.splitZip(ctx.primaryName),
     outputMime: 'application/zip',
     meta: {
-      pages: pageCount,
+      outputKind: 'zip',
+      pageCount: groups.reduce((total, group) => total + group.length, 0),
+      pages: groups.reduce((total, group) => total + group.length, 0),
+      sourcePageCount: pageCount,
       parts: groups.length,
       engine: 'pdf-lib',
       splitMode: opts.splitMode,

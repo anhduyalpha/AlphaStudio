@@ -68,6 +68,13 @@ export async function pdfToImages(ctx: PdfOpContext) {
     outputMime: result.outputMime,
     meta: {
       ...result.meta,
+      outputKind:
+        result.outputMime === 'application/zip'
+          ? 'zip'
+          : opts.format === 'jpeg'
+            ? 'jpeg'
+            : 'png',
+      pageCount: selectedPages?.length ?? Number(result.meta?.pages || 0),
       selectedPages: selectedPages || result.meta?.selectedPages,
     },
   };

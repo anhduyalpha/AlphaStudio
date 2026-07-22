@@ -47,7 +47,7 @@ async function compressStructural(
   const name = randomServerName('.pdf');
   const outputPath = path.join(ctx.outputDir, name);
   await fs.promises.writeFile(outputPath, bytes);
-  await validateCompressedOutput(outputPath, originalSize);
+  const pageCount = await validateCompressedOutput(outputPath, originalSize);
 
   const compressedSize = fs.statSync(outputPath).size;
   const reductionBytes = originalSize - compressedSize;
@@ -56,6 +56,8 @@ async function compressStructural(
 
   const meta: Record<string, unknown> = {
     engine: 'pdf-lib',
+    outputKind: 'pdf',
+    pageCount,
     originalSize,
     compressedSize,
     reductionBytes,
@@ -68,6 +70,7 @@ async function compressStructural(
   };
   if (compressedSize > originalSize * 1.05) {
     meta.warning = 'Compressed file is larger than the original (structural rewrite overhead)';
+    meta.warnings = [meta.warning];
   }
 
   ctx.progress.complete('completed');
@@ -90,39 +93,16 @@ async function compressAdvanced(
   throwIfCancelled(ctx.isCancelled);
 
   const gs = resolveOptionalBinary('ghostscript');
-  if (gs.available && gs.path) {
-    try {
-      const result = await compressWithGhostscript(ctx, inputPath, originalSize, settings, gs.path);
-      return result;
-    } catch (e) {
-      if (ctx.isCancelled()) throw e;
-      // fall through to qpdf
-    }
+  if (!gs.available || !gs.path) {
+    throw pdfError(
+      'COMPRESSION_UNAVAILABLE',
+      'Advanced PDF compression requires Ghostscript; structural optimization was not applied',
+      503,
+      { engine: 'ghostscript', requires: ['ghostscript'] },
+    );
   }
 
-  const qpdf = resolveOptionalBinary('qpdf');
-  if (qpdf.available && qpdf.path) {
-    try {
-      const result = await compressWithQpdf(ctx, inputPath, originalSize, settings, qpdf.path);
-      return result;
-    } catch (e) {
-      if (ctx.isCancelled()) throw e;
-    }
-  }
-
-  // Fallback: structural only, mark clearly
-  ctx.progress.stage('optimizing', 0.4, 'Falling back to structural optimization');
-  const structural = await compressStructural(ctx, inputPath, originalSize, preset);
-  return {
-    ...structural,
-    outputName: OutputNames.compressed(ctx.primaryName),
-    meta: {
-      ...structural.meta,
-      structuralOnly: true,
-      advancedRequested: true,
-      note: 'Advanced engines unavailable; applied structural pdf-lib optimization only',
-    },
-  };
+  return compressWithGhostscript(ctx, inputPath, originalSize, settings, gs.path);
 }
 
 async function compressWithGhostscript(
@@ -151,12 +131,27 @@ async function compressWithGhostscript(
     inputPath,
   ];
   ctx.progress.stage('optimizing', 0.5, 'Compressing with Ghostscript');
-  await execFileTracked(bin, args, {
-    jobId: ctx.jobId,
-    timeout: 300_000,
-    windowsHide: true,
-  });
-  await validateCompressedOutput(outputPath, originalSize);
+  try {
+    await execFileTracked(bin, args, {
+      jobId: ctx.jobId,
+      timeout: 300_000,
+      windowsHide: true,
+    });
+  } catch (error) {
+    try {
+      fs.rmSync(outputPath, { force: true });
+    } catch {
+      /* best-effort cleanup */
+    }
+    if (ctx.isCancelled()) throw error;
+    throw pdfError(
+      'COMPRESSION_UNAVAILABLE',
+      'Advanced PDF compression failed using Ghostscript',
+      503,
+      { engine: 'ghostscript' },
+    );
+  }
+  const pageCount = await validateCompressedOutput(outputPath, originalSize);
 
   const compressedSize = fs.statSync(outputPath).size;
   const reductionBytes = originalSize - compressedSize;
@@ -164,6 +159,8 @@ async function compressWithGhostscript(
     originalSize > 0 ? Math.round((reductionBytes / originalSize) * 10000) / 100 : 0;
   const meta: Record<string, unknown> = {
     engine: 'ghostscript',
+    outputKind: 'pdf',
+    pageCount,
     originalSize,
     compressedSize,
     reductionBytes,
@@ -179,6 +176,7 @@ async function compressWithGhostscript(
   };
   if (compressedSize > originalSize * 1.05) {
     meta.warning = 'Compressed file is larger than the original';
+    meta.warnings = [meta.warning];
   }
   ctx.progress.complete('completed');
   return {
@@ -189,57 +187,8 @@ async function compressWithGhostscript(
   };
 }
 
-async function compressWithQpdf(
-  ctx: PdfOpContext,
-  inputPath: string,
-  originalSize: number,
-  settings: ReturnType<typeof advancedCompressSettings>,
-  bin: string,
-) {
-  const name = randomServerName('.pdf');
-  const outputPath = path.join(ctx.outputDir, name);
-  const args = [
-    '--object-streams=generate',
-    '--compression-level=9',
-    '--recompress-flate',
-    inputPath,
-    outputPath,
-  ];
-  ctx.progress.stage('optimizing', 0.5, 'Optimizing with qpdf');
-  await execFileTracked(bin, args, {
-    jobId: ctx.jobId,
-    timeout: 180_000,
-    windowsHide: true,
-  });
-  await validateCompressedOutput(outputPath, originalSize);
-
-  const compressedSize = fs.statSync(outputPath).size;
-  const reductionBytes = originalSize - compressedSize;
-  const reductionPercent =
-    originalSize > 0 ? Math.round((reductionBytes / originalSize) * 10000) / 100 : 0;
-  const meta: Record<string, unknown> = {
-    engine: 'qpdf',
-    originalSize,
-    compressedSize,
-    reductionBytes,
-    reductionPercent,
-    preset: settings.preset,
-    structuralOnly: false,
-    note: 'qpdf object-stream optimization (images not re-encoded)',
-  };
-  if (compressedSize > originalSize * 1.05) {
-    meta.warning = 'Compressed file is larger than the original';
-  }
-  ctx.progress.complete('completed');
-  return {
-    outputPath,
-    outputName: OutputNames.compressed(ctx.primaryName),
-    outputMime: 'application/pdf',
-    meta,
-  };
-}
-
-async function validateCompressedOutput(outputPath: string, originalSize: number): Promise<void> {
+async function validateCompressedOutput(outputPath: string, originalSize: number): Promise<number> {
+  void originalSize;
   if (!fs.existsSync(outputPath)) {
     throw pdfError('OUTPUT_VALIDATION_FAILED', 'Output validation failed: compressed file missing');
   }
@@ -273,7 +222,8 @@ async function validateCompressedOutput(outputPath: string, originalSize: number
 
   try {
     const doc = await PDFDocument.load(fs.readFileSync(outputPath));
-    if (doc.getPageCount() < 1) {
+    const pageCount = doc.getPageCount();
+    if (pageCount < 1) {
       try {
         fs.unlinkSync(outputPath);
       } catch {
@@ -281,6 +231,7 @@ async function validateCompressedOutput(outputPath: string, originalSize: number
       }
       throw pdfError('OUTPUT_VALIDATION_FAILED', 'Output validation failed: no pages after compression');
     }
+    return pageCount;
   } catch (e) {
     if (e && typeof e === 'object' && (e as { code?: string }).code === 'OUTPUT_VALIDATION_FAILED') throw e;
     try {
@@ -290,6 +241,4 @@ async function validateCompressedOutput(outputPath: string, originalSize: number
     }
     throw pdfError('OUTPUT_VALIDATION_FAILED', 'Output validation failed: compressed PDF could not be parsed');
   }
-
-  void originalSize;
 }

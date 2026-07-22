@@ -117,6 +117,8 @@ describe('processPdf to-images page selection', () => {
     const selected = result.meta?.selectedPages as number[] | undefined;
     assert.deepEqual(selected, [2, 4]);
     assert.equal(result.meta?.pages, 2);
+    assert.equal(result.meta?.pageCount, 2);
+    assert.equal(result.meta?.outputKind, 'zip');
     // Two pages → zip
     assert.equal(result.outputMime, 'application/zip');
   });

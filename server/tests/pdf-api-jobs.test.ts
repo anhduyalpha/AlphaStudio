@@ -112,6 +112,26 @@ async function waitJob(id: string, timeoutMs = 45_000) {
 }
 
 describe('PDF API jobs', () => {
+  it('rejects a one-file merge before persisting a job', async () => {
+    const up = await uploadPdf(await makePdf('One'), 'one.pdf');
+    const beforeCount = (getDb().prepare('SELECT COUNT(*) AS count FROM jobs').get() as { count: number }).count;
+    const response = await fetch(`${base}/api/jobs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'pdf',
+        uploadIds: [up.id],
+        options: { operation: 'merge' },
+      }),
+    });
+    assert.equal(response.status, 400);
+    const body = await response.json();
+    assert.equal(body.error?.code, 'BAD_REQUEST');
+    assert.match(String(body.error?.message), /at least 2 file/i);
+    const afterCount = (getDb().prepare('SELECT COUNT(*) AS count FROM jobs').get() as { count: number }).count;
+    assert.equal(afterCount, beforeCount);
+  });
+
   it('POST /api/jobs type=pdf merge + poll + download', async () => {
     const a = await uploadPdf(await makePdf('A'), 'alpha.pdf');
     const b = await uploadPdf(await makePdf('B'), 'beta.pdf');
@@ -245,7 +265,7 @@ describe('PDF API jobs', () => {
   });
 
   it('capabilities expose full pdf.* set with available/reason/requires', async () => {
-    const res = await fetch(`${base}/api/capabilities`);
+    const res = await fetch(`${base}/api/capabilities?refresh=1`);
     assert.equal(res.status, 200);
     const data = await res.json();
     const tools = data.tools || data.capabilities?.tools || [];
@@ -260,6 +280,15 @@ describe('PDF API jobs', () => {
         assert.ok(tool.reason, `${id} needs reason when unavailable`);
       }
     }
+    assert.ok(Array.isArray(data.pdf?.operations));
+    const merge = data.pdf.operations.find((operation: { id: string }) => operation.id === 'merge');
+    assert.equal(merge.capability, 'pdf.merge');
+    assert.deepEqual(merge.cardinality, { minFiles: 2, maxFiles: 20 });
+    assert.ok(Array.isArray(merge.options));
+    assert.deepEqual(merge.outputKinds, ['pdf']);
+    assert.equal(typeof merge.enginePolicy?.strategy, 'string');
+    assert.equal(typeof data.binaries?.ghostscript?.available, 'boolean');
+    assert.equal(typeof data.binaries?.qpdf?.available, 'boolean');
   });
 
   it('password never stored in job options DB row', async () => {

@@ -6,6 +6,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -30,6 +31,7 @@ const {
   buildJobCacheKey,
   normalizeOptionsForCache,
   validateJobOutput,
+  validateJobOutputDeep,
   claimNextQueuedJob,
   getWorkerPoolStats,
   pumpQueue,
@@ -219,6 +221,150 @@ describe('validateJobOutput', () => {
         ),
       /missing/i,
     );
+  });
+
+  it('rejects malformed JPEG, JSON, ZIP, and MIME/extension mismatches', () => {
+    const shortPng = path.join(testData, 'short.png');
+    fs.writeFileSync(shortPng, Buffer.from([0x89]));
+    assert.throws(
+      () => validateJobOutput(
+        { outputPath: shortPng, outputName: 'short.png', outputMime: 'image/png' },
+        shortPng,
+      ),
+      /PNG/i,
+    );
+
+    const malformedJpeg = path.join(testData, 'bad.jpg');
+    fs.writeFileSync(malformedJpeg, Buffer.from([0xff, 0xd8, 0xff, 0x00]));
+    assert.throws(
+      () => validateJobOutput(
+        { outputPath: malformedJpeg, outputName: 'bad.jpg', outputMime: 'image/jpeg' },
+        malformedJpeg,
+      ),
+      /truncated JPEG/i,
+    );
+
+    const malformedJson = path.join(testData, 'bad.json');
+    fs.writeFileSync(malformedJson, '{not-json', 'utf8');
+    assert.throws(
+      () => validateJobOutput(
+        { outputPath: malformedJson, outputName: 'bad.json', outputMime: 'application/json' },
+        malformedJson,
+      ),
+      /invalid JSON/i,
+    );
+
+    const malformedZip = path.join(testData, 'bad.zip');
+    fs.writeFileSync(malformedZip, Buffer.from('PK-not-a-directory'));
+    assert.throws(
+      () => validateJobOutput(
+        { outputPath: malformedZip, outputName: 'bad.zip', outputMime: 'application/zip' },
+        malformedZip,
+      ),
+      /ZIP/i,
+    );
+
+    const forgedZip = path.join(testData, 'forged-directory-only.zip');
+    const forged = Buffer.alloc(68);
+    forged.writeUInt32LE(0x02014b50, 0);
+    forged.writeUInt16LE(1, 46 + 8);
+    forged.writeUInt16LE(1, 46 + 10);
+    forged.writeUInt32LE(46, 46 + 12);
+    forged.writeUInt32LE(0, 46 + 16);
+    forged.writeUInt32LE(0x06054b50, 46);
+    fs.writeFileSync(forgedZip, forged);
+    assert.throws(
+      () => validateJobOutput(
+        { outputPath: forgedZip, outputName: 'forged.zip', outputMime: 'application/zip' },
+        forgedZip,
+      ),
+      /ZIP/i,
+    );
+
+    const mismatched = path.join(testData, 'mismatch.png');
+    fs.writeFileSync(
+      mismatched,
+      Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+        'base64',
+      ),
+    );
+    assert.throws(
+      () => validateJobOutput(
+        { outputPath: mismatched, outputName: 'mismatch.png', outputMime: 'image/jpeg' },
+        mismatched,
+      ),
+      /JPEG|does not match/i,
+    );
+
+    const noExtension = path.join(testData, 'image.bin');
+    fs.copyFileSync(mismatched, noExtension);
+    assert.throws(
+      () => validateJobOutput(
+        { outputPath: noExtension, outputName: 'image', outputMime: 'image/png' },
+        noExtension,
+      ),
+      /requires \.png/i,
+    );
+
+    assert.throws(
+      () => validateJobOutput(
+        { outputPath: mismatched, outputName: 'mismatch.png', outputMime: 'application/octet-stream' },
+        mismatched,
+      ),
+      /matching supported MIME/i,
+    );
+  });
+
+  it('fully decodes images before accepting completion', async () => {
+    const valid = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      'base64',
+    );
+    const corrupt = Buffer.from(valid);
+    const idat = corrupt.indexOf(Buffer.from('IDAT'));
+    assert.ok(idat > 0);
+    corrupt[idat + 6] ^= 0xff;
+    const corruptPath = path.join(testData, 'corrupt-middle.png');
+    fs.writeFileSync(corruptPath, corrupt);
+
+    validateJobOutput(
+      { outputPath: corruptPath, outputName: 'corrupt-middle.png', outputMime: 'image/png' },
+      corruptPath,
+    );
+    await assert.rejects(
+      () => validateJobOutputDeep(
+        { outputPath: corruptPath, outputName: 'corrupt-middle.png', outputMime: 'image/png' },
+        corruptPath,
+      ),
+      /image could not be reparsed/i,
+    );
+  });
+
+  it('does not misclassify other image and compressed archive formats', async () => {
+    const { default: sharp } = await import('sharp');
+    const webpPath = path.join(testData, 'valid.webp');
+    await sharp({
+      create: { width: 2, height: 2, channels: 3, background: { r: 10, g: 20, b: 30 } },
+    }).webp().toFile(webpPath);
+    validateJobOutput(
+      { outputPath: webpPath, outputName: 'valid.webp', outputMime: 'image/webp' },
+      webpPath,
+    );
+    assert.equal(
+      await validateJobOutputDeep(
+        { outputPath: webpPath, outputName: 'valid.webp', outputMime: 'image/webp' },
+        webpPath,
+      ),
+      null,
+    );
+
+    const gzipPath = path.join(testData, 'valid.gz');
+    fs.writeFileSync(gzipPath, zlib.gzipSync(Buffer.from('valid gzip payload')));
+    assert.doesNotThrow(() => validateJobOutput(
+      { outputPath: gzipPath, outputName: 'valid.gz', outputMime: 'application/gzip' },
+      gzipPath,
+    ));
   });
 });
 

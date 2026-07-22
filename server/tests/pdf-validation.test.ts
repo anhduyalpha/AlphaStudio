@@ -180,7 +180,7 @@ describe('PDF magic and validation', () => {
           jobId: 'mm',
           inputPaths: [p],
           inputNames: ['report.docx'],
-          options: { operation: 'merge' },
+          options: { operation: 'rotate', angle: 90 },
           workDir,
           outputDir,
           onProgress: () => {},

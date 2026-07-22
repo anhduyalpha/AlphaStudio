@@ -10,8 +10,22 @@ import { PDFDocument, StandardFonts } from 'pdf-lib';
 import { processPdf } from '../src/processors/pdf.js';
 import type { ProcessContext } from '../src/processors/types.js';
 import { resolveOptionalBinary } from '../src/tools/optional-binaries.js';
+import { resolveOcrPageSelection } from '../src/pdf/operations/ocr.js';
+import { rasterPrefixForEngine } from '../src/convert/pdfRender.js';
 
 const root = path.join(os.tmpdir(), `pdf-ops-ext-${process.pid}`);
+
+describe('PDF raster fallback isolation', () => {
+  it('uses a distinct file prefix for every engine attempt', () => {
+    const prefixes = [
+      rasterPrefixForEngine('page-fixed', 'pdftoppm'),
+      rasterPrefixForEngine('page-fixed', 'mutool'),
+      rasterPrefixForEngine('page-fixed', 'ghostscript'),
+    ];
+    assert.equal(new Set(prefixes).size, 3);
+    assert.ok(prefixes.every((prefix) => prefix.startsWith('page-fixed-')));
+  });
+});
 
 function ctx(
   partial: Partial<ProcessContext> & {
@@ -222,6 +236,49 @@ describe('structural compress meta', () => {
     assert.ok(typeof result.meta?.compressedSize === 'number');
     assert.ok(typeof result.meta?.reductionPercent === 'number');
     assert.match(result.outputName, /optimized|compressed/i);
+  });
+});
+
+describe('advanced compression policy', () => {
+  it('uses Ghostscript only and fails closed when it is unavailable', async () => {
+    const p = await multiPagePdf(1, 'Advanced');
+    const gs = resolveOptionalBinary('ghostscript');
+    if (!gs.available) {
+      await assert.rejects(
+        () =>
+          processPdf(
+            ctx({
+              inputPaths: [p],
+              inputNames: ['advanced.pdf'],
+              options: { operation: 'compress-advanced', quality: 'balanced' },
+            }),
+          ),
+        (error: { code?: string }) => error.code === 'COMPRESSION_UNAVAILABLE',
+      );
+      return;
+    }
+
+    const result = await processPdf(
+      ctx({
+        inputPaths: [p],
+        inputNames: ['advanced.pdf'],
+        options: { operation: 'compress-advanced', quality: 'balanced' },
+      }),
+    );
+    assert.equal(result.meta?.engine, 'ghostscript');
+    assert.equal(result.meta?.structuralOnly, false);
+    assert.equal(result.meta?.outputKind, 'pdf');
+    assert.match(result.outputName, /-compressed\.pdf$/);
+  });
+});
+
+describe('OCR page selection contract', () => {
+  it('preserves submitted order and enforces the limit on the selected set', () => {
+    assert.deepEqual(resolveOcrPageSelection('4,2,3', 5, 3), [3, 1, 2]);
+    assert.throws(
+      () => resolveOcrPageSelection('1-4', 5, 3),
+      (error: { code?: string }) => error.code === 'PDF_PAGE_LIMIT_EXCEEDED',
+    );
   });
 });
 

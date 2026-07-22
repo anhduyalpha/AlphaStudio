@@ -101,6 +101,14 @@ describe('PDF processor operations', () => {
     assert.equal(doc.getPageCount(), 2);
   });
 
+  it('rejects merge with fewer than two PDFs', async () => {
+    const only = await textPdf('OnlyOne');
+    await assert.rejects(
+      () => processPdf(ctx({ inputPaths: [only], options: { operation: 'merge' } })),
+      /at least 2 file/i,
+    );
+  });
+
   it('rotate PDF', async () => {
     const a = await textPdf('RotateMe');
     const c = ctx({
@@ -110,6 +118,23 @@ describe('PDF processor operations', () => {
     const result = await processPdf(c);
     assert.ok(fs.existsSync(result.outputPath));
     assert.match(result.outputName, /rotated/i);
+  });
+
+  it('enforces one-file cardinality and rejects undocumented aliases', async () => {
+    const a = await textPdf('CardinalityA');
+    const b = await textPdf('CardinalityB');
+    await assert.rejects(
+      () => processPdf(ctx({ inputPaths: [a, b], options: { operation: 'rotate' } })),
+      /at most 1 file/i,
+    );
+    await assert.rejects(
+      () => processPdf(ctx({ inputPaths: [a], options: { operation: 'compress' } })),
+      /Unknown PDF operation: compress/i,
+    );
+    await assert.rejects(
+      () => processPdf(ctx({ inputPaths: [a], options: { operation: 'extract-text' } })),
+      /Unknown PDF operation: extract-text/i,
+    );
   });
 
   it('split PDF produces zip', async () => {
@@ -163,11 +188,26 @@ describe('PDF processor operations', () => {
     const a = await textPdf('CompressMe');
     const c = ctx({
       inputPaths: [a],
-      options: { operation: 'compress', quality: 'balanced' },
+      options: { operation: 'compress-structural', quality: 'balanced' },
     });
     const result = await processPdf(c);
     assert.ok(result.meta?.structuralOnly);
     assert.ok(fs.statSync(result.outputPath).size > 0);
+  });
+
+  it('PDF text extraction uses the authoritative text name and metadata', async () => {
+    const source = await textPdf('Named PDF text extraction');
+    const result = await processPdf(
+      ctx({
+        inputPaths: [source],
+        inputNames: ['report.final.pdf'],
+        options: { operation: 'to-text' },
+      }),
+    );
+    assert.equal(result.outputName, 'report.final-text.txt');
+    assert.equal(result.meta?.outputKind, 'text');
+    assert.equal(typeof result.meta?.pageCount, 'number');
+    assert.equal(typeof result.meta?.characterCount, 'number');
   });
 
   it('images → PDF', async () => {
@@ -196,9 +236,21 @@ describe('PDF processor operations', () => {
     fs.writeFileSync(bad, '%%%NOTPDF%%%');
     const c = ctx({
       inputPaths: [bad],
-      options: { operation: 'merge' },
+      options: { operation: 'rotate', angle: 90 },
     });
     await assert.rejects(() => processPdf(c), /Corrupted PDF|magic|Invalid/i);
+  });
+
+  it('passes a damaged PDF-signature file through to the repair engine', async () => {
+    const damaged = path.join(root, 'damaged-repair.pdf');
+    fs.writeFileSync(damaged, '%PDF-1.7\nthis is intentionally not parseable');
+    await assert.rejects(
+      () => processPdf(ctx({ inputPaths: [damaged], options: { operation: 'repair' } })),
+      (error: unknown) => {
+        const code = error && typeof error === 'object' ? (error as { code?: string }).code : '';
+        return code === 'REPAIR_UNAVAILABLE' || code === 'CORRUPTED_PDF';
+      },
+    );
   });
 });
 

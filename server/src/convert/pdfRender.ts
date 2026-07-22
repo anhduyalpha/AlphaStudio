@@ -16,6 +16,10 @@ import { randomServerName } from '../lib/paths.js';
 
 export type RasterEngine = 'pdftoppm' | 'mutool' | 'ghostscript';
 
+export function rasterPrefixForEngine(base: string, engine: RasterEngine): string {
+  return `${base}-${engine}-`;
+}
+
 export type RasterizeOptions = {
   inputPath: string;
   outputDir: string;
@@ -74,7 +78,13 @@ export async function rasterizePdfPagesWithEngine(
   const pdftoppm = resolveOptionalBinary('pdftoppm');
   if (pdftoppm.available && pdftoppm.path) {
     try {
-      const pages = await runPdftoppm(pdftoppm.path, opts, format, dpi, prefix);
+      const pages = await runPdftoppm(
+        pdftoppm.path,
+        opts,
+        format,
+        dpi,
+        rasterPrefixForEngine(prefix, 'pdftoppm'),
+      );
       return { pages, engine: 'pdftoppm' };
     } catch (e) {
       if (opts.isCancelled?.()) throw e;
@@ -84,7 +94,13 @@ export async function rasterizePdfPagesWithEngine(
   const mutool = resolveOptionalBinary('mutool');
   if (mutool.available && mutool.path) {
     try {
-      const pages = await runMutool(mutool.path, opts, format, dpi, prefix);
+      const pages = await runMutool(
+        mutool.path,
+        opts,
+        format,
+        dpi,
+        rasterPrefixForEngine(prefix, 'mutool'),
+      );
       return { pages, engine: 'mutool' };
     } catch (e) {
       if (opts.isCancelled?.()) throw e;
@@ -94,7 +110,13 @@ export async function rasterizePdfPagesWithEngine(
   const gs = resolveOptionalBinary('ghostscript');
   if (gs.available && gs.path) {
     try {
-      const pages = await runGhostscript(gs.path, opts, format, dpi, prefix);
+      const pages = await runGhostscript(
+        gs.path,
+        opts,
+        format,
+        dpi,
+        rasterPrefixForEngine(prefix, 'ghostscript'),
+      );
       return { pages, engine: 'ghostscript' };
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Ghostscript failed';
