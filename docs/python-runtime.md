@@ -1,4 +1,4 @@
-# Python runtime integration (Phases 1-4)
+# Python runtime integration (Phases 1-5)
 
 AlphaStudio can invoke an optional Python runtime for specialized processing
 without changing the Node/Fastify architecture. Python is **not** a server and
@@ -42,6 +42,7 @@ through a dedicated `pyop` job type instead of the converter route table:
 | `pdf.extract-tables` | pdf -> csv (zipped if many) | documents | camelot-py |
 | `media.transcribe` | audio/video -> txt/srt/vtt | ai | faster-whisper (+ model) |
 | `image.background-removal` | image -> transparent png | vision | rembg (+ u2net model) |
+| `doc.summarize` | text -> summary / answer txt | ai | llama-cpp-python (+ GGUF model) |
 
 `POST /api/jobs { type: "pyop", uploadIds, options: { operation, ... } }`.
 Availability is gated in `assertJobCapable` via `pythonOperationStatus` (same
@@ -65,6 +66,10 @@ without a configured `sha256` unless `--allow-unverified` is passed; Whisper
 weights are fetched and integrity-checked by faster-whisper/Hugging Face into the
 models dir. `media.transcribe` and `image.background-removal` fail with an
 actionable hint when the model is missing (never auto-downloading).
+
+The optional summarizer (`doc.summarize`) is not auto-downloaded either: place a
+`.gguf` model in `.runtime/python/models/llm/` (large, license-varied weights).
+With a custom `options.prompt` it also answers questions about the document.
 
 ## Design
 
@@ -183,7 +188,8 @@ Phase 1 reuses the existing safety envelope and adds Python-specific limits:
 
 ## Roadmap
 
-Phases 1-4 (this document) ship the foundation plus data, document, OCR, vision,
-transcription and background-removal operations, with on-demand model
-management. Phase 5 adds the optional local-LLM summarizer behind the ai
-profile and is delivered as a separate pull request.
+All five phases are implemented: foundation + data, document, OCR, vision,
+transcription/subtitles, background removal, and the optional local-LLM
+summarizer, each behind its opt-in profile with on-demand model management.
+Every heavy profile and model stays opt-in; the core profile is stdlib-only and
+absence of Python leaves all existing conversions unchanged.

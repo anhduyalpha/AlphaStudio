@@ -237,6 +237,7 @@ export const PYTHON_OPERATIONS: PythonOperationSpec[] = [
   { operation: 'pdf.extract-tables', label: 'PDF table extraction', profile: 'documents', requires: ['camelot'], suffix: 'tables' },
   { operation: 'media.transcribe', label: 'Audio transcription / subtitles', profile: 'ai', requires: ['faster_whisper'], suffix: 'transcript' },
   { operation: 'image.background-removal', label: 'Background removal', profile: 'vision', requires: ['rembg'], suffix: 'nobg' },
+  { operation: 'doc.summarize', label: 'Document summarize / Q&A', profile: 'ai', requires: ['llama_cpp'], suffix: 'summary' },
 ];
 
 export function findPythonOperation(operation: string): PythonOperationSpec | undefined {

@@ -84,4 +84,10 @@ describe('python specialized operations (pyop)', () => {
     assert.equal(pythonOperationStatus('image.background-removal', selfcheckRunner({ rembg: true })).available, true);
     assert.match(String(pythonOperationStatus('image.background-removal', noModules).reason), /vision profile/);
   });
+
+  it('registers the Phase 5 summarizer and gates it by ai profile', () => {
+    assert.ok(PYTHON_OPERATIONS.map((spec) => spec.operation).includes('doc.summarize'));
+    assert.equal(pythonOperationStatus('doc.summarize', selfcheckRunner({ llama_cpp: true })).available, true);
+    assert.match(String(pythonOperationStatus('doc.summarize', noModules).reason), /ai profile/);
+  });
 });

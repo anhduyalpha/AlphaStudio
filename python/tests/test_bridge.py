@@ -255,6 +255,9 @@ class BridgeSpecializedOpsTest(unittest.TestCase):
     def test_background_removal_gated_on_vision_profile(self) -> None:
         self._assert_gated("image.background-removal", "photo.png", "rembg", "vision")
 
+    def test_summarize_gated_on_ai_profile(self) -> None:
+        self._assert_gated("doc.summarize", "note.txt", "llama_cpp", "ai")
+
 
 if __name__ == "__main__":
     unittest.main()
