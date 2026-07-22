@@ -7,3 +7,5 @@
 #   npm run python:install -- --profile documents
 weasyprint>=61
 markdown>=3.5
+# Table extraction (pdf.extract-tables). Uses OpenCV + Ghostscript natively.
+camelot-py[base]>=0.11

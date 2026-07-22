@@ -17,7 +17,7 @@ import type {
 import { validateRegisteredOutput } from './validation.js';
 
 /** Optional-profile name surfaced in "install this profile" reasons. */
-type PythonProfile = 'core' | 'data' | 'documents';
+type PythonProfile = 'core' | 'data' | 'documents' | 'vision' | 'ocr' | 'ai';
 
 type PythonRouteSpec = {
   input: string;
@@ -113,26 +113,44 @@ export function resolvePythonPath(runner: ProbeRunner = runProbeCommand): {
 
 export type PythonSelfCheck = { modules: Record<string, boolean>; operations: string[] };
 
+let selfCheckCache: { path: string; at: number; value: PythonSelfCheck } | null = null;
+const SELFCHECK_TTL_MS = 60_000;
+
 /**
  * Ask the bridge which optional modules are importable, so heavier routes are
  * only advertised as available when their profile is genuinely installed.
  * Returns empty capabilities on any failure (routes degrade to unavailable).
+ * Results from the real probe runner are cached briefly to avoid repeat spawns.
  */
 export function pythonSelfCheck(executablePath: string, runner: ProbeRunner = runProbeCommand): PythonSelfCheck {
-  const result = runner(executablePath, [bridgeScriptPath(), '--selfcheck'], 30_000);
-  if (!result.ok) return { modules: {}, operations: [] };
-  try {
-    const parsed = JSON.parse(String(result.stdout || '').trim()) as {
-      modules?: Record<string, boolean>;
-      operations?: unknown;
-    };
-    return {
-      modules: parsed.modules && typeof parsed.modules === 'object' ? parsed.modules : {},
-      operations: Array.isArray(parsed.operations) ? parsed.operations.map(String) : [],
-    };
-  } catch {
-    return { modules: {}, operations: [] };
+  const useCache = runner === runProbeCommand;
+  const now = Date.now();
+  if (useCache && selfCheckCache && selfCheckCache.path === executablePath && now - selfCheckCache.at < SELFCHECK_TTL_MS) {
+    return selfCheckCache.value;
   }
+  const result = runner(executablePath, [bridgeScriptPath(), '--selfcheck'], 30_000);
+  let value: PythonSelfCheck = { modules: {}, operations: [] };
+  if (result.ok) {
+    try {
+      const parsed = JSON.parse(String(result.stdout || '').trim()) as {
+        modules?: Record<string, boolean>;
+        operations?: unknown;
+      };
+      value = {
+        modules: parsed.modules && typeof parsed.modules === 'object' ? parsed.modules : {},
+        operations: Array.isArray(parsed.operations) ? parsed.operations.map(String) : [],
+      };
+    } catch {
+      value = { modules: {}, operations: [] };
+    }
+  }
+  if (useCache) selfCheckCache = { path: executablePath, at: now, value };
+  return value;
+}
+
+/** Test/maintenance hook to drop the cached self-check result. */
+export function invalidatePythonSelfCheck(): void {
+  selfCheckCache = null;
 }
 
 export function createPythonEngine(runner: ProbeRunner = runProbeCommand): ConversionEngineAdapter {
@@ -198,6 +216,146 @@ export function createPythonEngine(runner: ProbeRunner = runProbeCommand): Conve
 }
 
 export const pythonEngine = createPythonEngine();
+
+// ── Specialized (non-conversion) Python operations, run via the `pyop` job type ──
+
+export type PythonOperationSpec = {
+  operation: string;
+  label: string;
+  profile: PythonProfile;
+  /** Modules that must be importable (from --selfcheck) for this op to run. */
+  requires: string[];
+  /** Suffix appended to the output base name. */
+  suffix: string;
+};
+
+/** Single source of truth for specialized ops (Phases 3-5). */
+export const PYTHON_OPERATIONS: PythonOperationSpec[] = [
+  { operation: 'pdf.ocr-searchable', label: 'Searchable OCR PDF', profile: 'ocr', requires: ['ocrmypdf'], suffix: 'ocr' },
+  { operation: 'image.deskew', label: 'Image deskew', profile: 'vision', requires: ['cv2'], suffix: 'deskew' },
+  { operation: 'image.autocrop', label: 'Image auto-crop', profile: 'vision', requires: ['cv2'], suffix: 'autocrop' },
+  { operation: 'pdf.extract-tables', label: 'PDF table extraction', profile: 'documents', requires: ['camelot'], suffix: 'tables' },
+];
+
+export function findPythonOperation(operation: string): PythonOperationSpec | undefined {
+  return PYTHON_OPERATIONS.find((spec) => spec.operation === operation);
+}
+
+/** Availability of one specialized operation (interpreter + required modules). */
+export function pythonOperationStatus(
+  operation: string,
+  runner: ProbeRunner = runProbeCommand,
+): { available: boolean; reason?: string } {
+  const spec = findPythonOperation(operation);
+  if (!spec) return { available: false, reason: `Unknown Python operation: ${operation}` };
+  const python = resolvePythonPath(runner);
+  if (!python.available || !python.path) {
+    return { available: false, reason: python.reason || 'Python runtime is not installed' };
+  }
+  const modules = pythonSelfCheck(python.path, runner).modules;
+  const missing = spec.requires.filter((mod) => !modules[mod]);
+  if (missing.length) {
+    return {
+      available: false,
+      reason: `Install the ${spec.profile} profile: npm run python:install -- --profile ${spec.profile}`,
+    };
+  }
+  return { available: true };
+}
+
+/** Capability rows for /api/capabilities discovery of specialized Python ops. */
+export function listPythonSpecializedCapabilities(
+  runner: ProbeRunner = runProbeCommand,
+): Array<{ operation: string; label: string; available: boolean; reason?: string; requires: string[] }> {
+  const python = resolvePythonPath(runner);
+  const modules = python.available && python.path ? pythonSelfCheck(python.path, runner).modules : {};
+  return PYTHON_OPERATIONS.map((spec) => {
+    const missing = spec.requires.filter((mod) => !modules[mod]);
+    const available = python.available && missing.length === 0;
+    return {
+      operation: spec.operation,
+      label: spec.label,
+      available,
+      requires: ['python', ...spec.requires],
+      reason: available
+        ? undefined
+        : !python.available
+          ? python.reason
+          : `Install the ${spec.profile} profile: npm run python:install -- --profile ${spec.profile}`,
+    };
+  });
+}
+
+/**
+ * Run a specialized (non-conversion) operation via the bridge and return every
+ * confined output artifact copied into `outputDir`. The caller maps a single
+ * artifact to a ProcessResult or zips multiple.
+ */
+export async function runPythonOperation(options: {
+  operation: string;
+  inputPaths: string[];
+  outputDir: string;
+  options?: Record<string, unknown>;
+  jobId?: string;
+  isCancelled?: () => boolean;
+  timeoutMs?: number;
+  executor?: typeof execFileTracked;
+}): Promise<{ outputs: Array<{ path: string; name: string; mime: string }>; meta?: Record<string, unknown> }> {
+  if (options.isCancelled?.()) throw Object.assign(new Error('Cancelled'), { code: 'CANCELLED' });
+  const python = resolvePythonPath();
+  if (!python.available || !python.path) {
+    throw engineFailure('python', python.reason || 'Python runtime became unavailable');
+  }
+  const runId = `${String(options.jobId || 'pyop').replace(/[^\w.-]/g, '_')}-${randomBytes(4).toString('hex')}`;
+  const isolatedDir = path.join(options.outputDir, `pyop-${runId}`);
+  fs.mkdirSync(isolatedDir, { recursive: true });
+
+  try {
+    const args = [
+      bridgeScriptPath(),
+      '--operation', options.operation,
+      ...options.inputPaths.flatMap((input) => ['--input', input, '--input-name', path.basename(input)]),
+      '--output-dir', isolatedDir,
+      '--options', JSON.stringify(options.options || {}),
+      '--limits', JSON.stringify({
+        maxOutputBytes: config.maxOutputBytes,
+        maxMemoryMb: config.pythonMaxMemoryMb,
+      }),
+    ];
+    const { stdout } = await (options.executor || execFileTracked)(python.path, args, {
+      jobId: options.jobId,
+      timeout: options.timeoutMs ?? config.pythonTimeoutMs,
+      maxBuffer: 20 * 1024 * 1024,
+      windowsHide: true,
+      cwd: isolatedDir,
+      env: restrictedNetworkEnvironment(),
+    });
+    if (options.isCancelled?.()) throw Object.assign(new Error('Cancelled'), { code: 'CANCELLED' });
+
+    const parsed = parseBridgeResult(stdout);
+    const outputs = parsed.outputs.map((artifact) => {
+      const producedPath = path.join(isolatedDir, artifact.name);
+      const ext = path.extname(artifact.name) || '.bin';
+      assertValidOutput(producedPath, { label: 'Python operation output', expectedExt: ext });
+      const finalPath = path.join(options.outputDir, `pyop-${randomBytes(8).toString('hex')}${ext}`);
+      fs.copyFileSync(producedPath, finalPath);
+      assertValidOutput(finalPath, { label: 'Python operation output', expectedExt: ext });
+      return { path: finalPath, name: artifact.name, mime: artifact.mime };
+    });
+    return { outputs, meta: parsed.meta };
+  } catch (error) {
+    const code = (error as { code?: string })?.code;
+    if (code === 'CANCELLED') throw error;
+    const message = error instanceof Error ? error.message : 'Python operation failed';
+    throw engineFailure('python', `Python operation failed: ${message.slice(0, 500)}`);
+  } finally {
+    try {
+      fs.rmSync(isolatedDir, { recursive: true, force: true });
+    } catch {
+      /* best effort */
+    }
+  }
+}
 
 type BridgeArtifact = { name: string; mime: string; path: string };
 type BridgeResult = { outputs: BridgeArtifact[]; meta?: Record<string, unknown> };

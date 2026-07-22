@@ -120,6 +120,9 @@ def _load_builtin_operations() -> None:
     from . import json_transform  # noqa: F401  (import side effect: registration)
     from . import table_transform  # noqa: F401  (import side effect: registration)
     from . import document_pdf  # noqa: F401  (import side effect: registration)
+    from . import ocr_pdf  # noqa: F401  (import side effect: registration)
+    from . import image_ops  # noqa: F401  (import side effect: registration)
+    from . import pdf_tables  # noqa: F401  (import side effect: registration)
 
 
 _load_builtin_operations()

@@ -6,6 +6,7 @@ import {
   hasPdfRasterizer,
   resolveAllOptionalBinaries,
 } from './tools/optional-binaries.js';
+import { listPythonSpecializedCapabilities } from './convert/engines/python.js';
 
 export type BinaryStatus = {
   name: string;
@@ -396,6 +397,18 @@ export function detectCapabilities(force = false) {
     },
     { id: 'audio.extract-vocals', label: 'Vocal separation', available: false, reason: 'ML vocal separation not supported' },
   ];
+
+  // Specialized Python operations (searchable OCR, vision, tables, ...) run via
+  // the `pyop` job type and are gated on their optional profile being installed.
+  for (const cap of listPythonSpecializedCapabilities()) {
+    tools.push({
+      id: cap.operation,
+      label: cap.label,
+      available: cap.available,
+      reason: cap.reason,
+      requires: cap.requires,
+    });
+  }
 
   cached = {
     binaries,

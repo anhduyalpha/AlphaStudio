@@ -1,0 +1,8 @@
+# python-ocr profile — Phase 3.
+#
+# Searchable-PDF OCR (pdf.ocr-searchable) via OCRmyPDF, which orchestrates the
+# native Tesseract and Ghostscript binaries (install those separately / via the
+# tools profile). Never installed automatically; opt in with:
+#   npm run python:install -- --profile ocr
+ocrmypdf>=16
+pytesseract>=0.3.10

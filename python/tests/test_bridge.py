@@ -209,5 +209,46 @@ class BridgeSelfcheckTest(unittest.TestCase):
             self.assertIn("document.to-pdf", payload["operations"])
 
 
+class BridgeSpecializedOpsTest(unittest.TestCase):
+    """Phase 3 ops must fail with an actionable message when their profile is absent."""
+
+    def _write(self, tmp: str, name: str) -> str:
+        path = os.path.join(tmp, name)
+        with open(path, "wb") as handle:
+            handle.write(b"%PDF-1.4\n" if name.endswith(".pdf") else b"\x89PNG\r\n")
+        return path
+
+    def _assert_gated(self, operation: str, filename: str, module: str, profile: str) -> None:
+        if importlib.util.find_spec(module) is not None:
+            self.skipTest(f"{module} is installed; skipping absent-profile assertion")
+        with tempfile.TemporaryDirectory() as tmp:
+            src = self._write(tmp, filename)
+            out_dir = os.path.join(tmp, "out")
+            os.makedirs(out_dir, exist_ok=True)
+            proc = _run(
+                [
+                    "--operation", operation,
+                    "--input", src,
+                    "--output-dir", out_dir,
+                    "--options", json.dumps({}),
+                ],
+                cwd=tmp,
+            )
+            self.assertEqual(proc.returncode, 1)
+            self.assertIn(f"{profile} profile", proc.stderr)
+
+    def test_ocr_searchable_gated_on_ocr_profile(self) -> None:
+        self._assert_gated("pdf.ocr-searchable", "scan.pdf", "ocrmypdf", "ocr")
+
+    def test_deskew_gated_on_vision_profile(self) -> None:
+        self._assert_gated("image.deskew", "scan.png", "cv2", "vision")
+
+    def test_autocrop_gated_on_vision_profile(self) -> None:
+        self._assert_gated("image.autocrop", "scan.png", "cv2", "vision")
+
+    def test_extract_tables_gated_on_documents_profile(self) -> None:
+        self._assert_gated("pdf.extract-tables", "report.pdf", "camelot", "documents")
+
+
 if __name__ == "__main__":
     unittest.main()

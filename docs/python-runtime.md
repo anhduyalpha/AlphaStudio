@@ -1,4 +1,4 @@
-# Python runtime integration (Phases 1-2)
+# Python runtime integration (Phases 1-3)
 
 AlphaStudio can invoke an optional Python runtime for specialized processing
 without changing the Node/Fastify architecture. Python is **not** a server and
@@ -28,6 +28,24 @@ routes use priority 8 so WeasyPrint is preferred over the built-in pdf-lib text
 route (priority 10) only when the documents profile is installed; otherwise the
 built-in route still handles md/html -> pdf. The Node engine gates every
 profile route on `bridge.py --selfcheck`, which reports importable modules.
+
+### Specialized operations (`pyop` job type)
+
+Operations that are not format conversions (same-format or multi-artifact) run
+through a dedicated `pyop` job type instead of the converter route table:
+
+| Operation | Input -> Output | Profile | Modules |
+| --- | --- | --- | --- |
+| `pdf.ocr-searchable` | pdf -> searchable pdf | ocr | ocrmypdf (+ Tesseract/Ghostscript) |
+| `image.deskew` | image -> same format | vision | opencv, numpy |
+| `image.autocrop` | image -> same format | vision | opencv, numpy |
+| `pdf.extract-tables` | pdf -> csv (zipped if many) | documents | camelot-py |
+
+`POST /api/jobs { type: "pyop", uploadIds, options: { operation, ... } }`.
+Availability is gated in `assertJobCapable` via `pythonOperationStatus` (same
+selfcheck), and each op is listed in `/api/capabilities` with an install hint
+when its profile is absent. A single artifact is returned directly; multiple
+artifacts are zipped (same pattern as the batch converter).
 
 ## Design
 
@@ -146,7 +164,7 @@ Phase 1 reuses the existing safety envelope and adds Python-specific limits:
 
 ## Roadmap
 
-Phases 1-2 (this document) ship the foundation plus data and document
-operations. Phases 3-5 add OCR/vision, transcription, and optional local-LLM
-operations behind their own opt-in profiles and are delivered as separate
-pull requests.
+Phases 1-3 (this document) ship the foundation plus data, document, OCR and
+vision operations. Phases 4-5 add transcription/subtitles and optional
+local-LLM operations behind their own opt-in profiles and are delivered as
+separate pull requests.

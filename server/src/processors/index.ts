@@ -1,6 +1,7 @@
 import { badRequest } from '../lib/errors.js';
 import { isToolAvailable } from '../capabilities.js';
 import { unavailable } from '../lib/errors.js';
+import { pythonOperationStatus } from '../convert/engines/python.js';
 import type { Processor } from './types.js';
 
 /**
@@ -20,6 +21,7 @@ const processorLoaders: Record<string, () => Promise<Processor>> = {
     return async (ctx) => processMedia({ ...ctx, options: { ...ctx.options, family: 'audio' } });
   },
   converter: async () => (await import('./converter.js')).processConverter,
+  pyop: async () => (await import('./pyop.js')).processPyop,
 };
 
 const loaded: Partial<Record<string, Processor>> = {};
@@ -99,6 +101,12 @@ export async function getProcessor(type: string): Promise<Processor> {
 }
 
 export function assertJobCapable(type: string, options: Record<string, unknown>): void {
+  if (type === 'pyop') {
+    const operation = String(options.operation || '');
+    const { available, reason } = pythonOperationStatus(operation);
+    if (!available) throw unavailable(operation || 'python-operation', reason);
+    return;
+  }
   const capId = capabilityIdFor(type, options);
   if (!capId) return;
   const { available, reason } = isToolAvailable(capId);
