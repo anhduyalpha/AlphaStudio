@@ -15,7 +15,6 @@ import useCapabilities from '../hooks/useCapabilities';
 import PdfPageOrganizer from '../components/pdf/PdfPageOrganizer';
 import {
   GATED_OP_IDS,
-  PASSWORD_CAPABLE_OPS,
   buildPdfJobOptions,
   defaultFormStateForOperation,
   validatePdfClient,
@@ -43,7 +42,7 @@ const GROUPS = [
     ops: [
       { id: 'from-images', label: 'Images → PDF', capability: 'pdf.from-images', engine: 'pdf-lib+sharp', images: true, needsPageMode: true },
       { id: 'to-images', label: 'PDF → Images', capability: 'pdf.to-images', engine: 'pdftoppm|mutool|ghostscript', needsPages: true, needsFormat: true, needsQuality: true, needsDpi: true },
-      { id: 'to-text', label: 'PDF → Text', capability: 'pdf.to-text', engine: 'pdftotext|mutool|native', needsOcrToggle: true },
+      { id: 'to-text', label: 'PDF → Text', capability: 'pdf.to-text', engine: 'pdftotext|mutool|native' },
     ],
   },
   {
@@ -58,7 +57,7 @@ const GROUPS = [
         needsQuality: true,
         structuralNote: true,
       },
-      { id: 'compress-advanced', label: 'Advanced compression', capability: 'pdf.compress.advanced', engine: 'ghostscript|qpdf', needsQuality: true },
+      { id: 'compress-advanced', label: 'Advanced compression', capability: 'pdf.compress.advanced', engine: 'ghostscript', needsQuality: true },
       { id: 'repair', label: 'Repair', capability: 'pdf.repair', engine: 'qpdf|ghostscript' },
     ],
   },
@@ -78,7 +77,7 @@ function expectedEngine(op, caps) {
   if (!op) return '—';
   const tool = caps?.tools?.find((t) => t.id === op.capability);
   if (tool?.engine) return tool.engine;
-  return op.engine || '—';
+  return op.contract?.enginePolicy?.engines?.join(' → ') || op.engine || '—';
 }
 
 export default function PdfView({ notify }) {
@@ -101,7 +100,6 @@ export default function PdfView({ notify }) {
   const [margin, setMargin] = useState('0');
   const [allowDuplicates, setAllowDuplicates] = useState(false);
   const [insertAt, setInsertAt] = useState('');
-  const [password, setPassword] = useState('');
   const [editPlan, setEditPlan] = useState(null);
   const [lastOutput, setLastOutput] = useState(null);
   const [inspectData, setInspectData] = useState(null);
@@ -109,12 +107,13 @@ export default function PdfView({ notify }) {
   const handledCompleteIdRef = useRef(null);
 
   // Opt-in resume only for PDF jobs (other views use useJobRunner defaults: no auto-resume)
-  const { busy, progress, status, job, run, cancel } = useJobRunner(notify, {
+  const { busy, progress, status, job, run, cancel, setJob: setRunnerJob } = useJobRunner(notify, {
     storageKey: 'alphastudio.pdf.activeJobId',
     autoResume: true,
     expectedJobType: 'pdf',
+    restoreRecentCompleted: true,
   });
-  const { isAvailable, reason, loading: capsLoading, caps } = useCapabilities();
+  const { isAvailable, reason, loading: capsLoading, caps, refresh: refreshCapabilities } = useCapabilities();
 
   // Run completion side-effects once per completed job id — never re-fire when
   // the user changes Operation/Category after a finished job (that was wiping
@@ -152,12 +151,40 @@ export default function PdfView({ notify }) {
     setMargin(d.margin);
     setAllowDuplicates(d.allowDuplicates);
     setInsertAt(d.insertAt);
-    setPassword(d.password);
     setEditPlan(null);
   }, [operation]);
 
-  // Catalog is static; availability comes from live capability response (not a silent subset).
-  const visibleOps = useMemo(() => ALL_OPS, []);
+  // Labels/grouping remain presentation-only. Execution ids, capability ids,
+  // cardinality, supported options, output kinds, and engine policy come from the backend.
+  const visibleOps = useMemo(() => {
+    const descriptors = caps?.pdf?.operations;
+    if (!Array.isArray(descriptors) || !descriptors.length) return ALL_OPS;
+    const byId = new Map(descriptors.map((descriptor) => [descriptor.id, descriptor]));
+    return ALL_OPS
+      .filter((operationMeta) => byId.has(operationMeta.id))
+      .map((operationMeta) => {
+        const contract = byId.get(operationMeta.id);
+        const supported = new Set(contract.options || []);
+        return {
+          ...operationMeta,
+          contract,
+          capability: contract.capability,
+          cardinality: contract.cardinality,
+          outputKinds: contract.outputKinds,
+          enginePolicy: contract.enginePolicy,
+          multi: contract.cardinality?.maxFiles == null || contract.cardinality.maxFiles > 1,
+          needsPages: supported.has('pages'),
+          needsOrder: supported.has('order'),
+          needsAngle: supported.has('angle'),
+          needsFormat: supported.has('format'),
+          needsDpi: supported.has('dpi'),
+          needsQuality: supported.has('quality'),
+          needsOcrLang: supported.has('ocrLang') && operationMeta.id === 'ocr',
+          needsSplitMode: supported.has('splitMode'),
+          needsPageMode: supported.has('pageSize'),
+        };
+      });
+  }, [caps]);
 
   const opMeta = visibleOps.find((o) => o.id === operation) || visibleOps[0] || ALL_OPS[0];
   const available = isAvailable(opMeta.capability);
@@ -228,10 +255,8 @@ export default function PdfView({ notify }) {
     // Clear previous result so the UI cannot show a stale completed download as the new run
     setLastOutput(null);
     if (operation !== 'inspect') setInspectData(null);
-    // Snapshot plan + password for this submit only; clear password immediately (ephemeral)
+    // Snapshot the submitted organizer plan for this action.
     const planForJob = editPlan;
-    const passwordForJob = password;
-    setPassword('');
     try {
       await run('pdf', {
         files,
@@ -254,7 +279,6 @@ export default function PdfView({ notify }) {
           margin,
           allowDuplicates,
           insertAt,
-          password: passwordForJob,
           opMeta,
         }),
         autoDownload: false,
@@ -267,7 +291,6 @@ export default function PdfView({ notify }) {
   const showPagesField =
     (opMeta.needsPages || opMeta.needsOrder) ||
     (operation === 'split' && splitMode === 'ranges');
-  const showPasswordField = PASSWORD_CAPABLE_OPS.has(operation) && !opMeta.images;
 
   // While busy, only show in-flight job (never fall back to previous completed output)
   const displayJob = busy ? job : job || lastOutput;
@@ -472,21 +495,11 @@ export default function PdfView({ notify }) {
                   </SelectField>
                 ) : null}
 
-                {showPasswordField ? (
-                  <TextField
-                    label="PDF password (optional, not stored)"
-                    type="password"
-                    autoComplete="off"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Only if the PDF is encrypted"
-                  />
-                ) : null}
               </div>
               {operation === 'compress-structural' ? (
                 <p className="helper-note" style={{ marginTop: '0.75rem' }}>
                   Structural optimization rewrites object streams only — it is not strong image re-compression.
-                  Use Advanced compression when Ghostscript/qpdf are available.
+                  Use Advanced compression when Ghostscript is available.
                 </p>
               ) : null}
               {operation === 'repair' ? (
@@ -618,6 +631,13 @@ export default function PdfView({ notify }) {
               </div>
               {unavailable ? <p className="helper-note">{reason(opMeta.capability)}</p> : null}
               {capsLoading ? <p className="helper-note">Detecting tools…</p> : null}
+              <SecondaryButton
+                icon="refresh"
+                onClick={() => refreshCapabilities().catch((err) => notify?.(err?.message || 'Capability refresh failed'))}
+                disabled={capsLoading || busy}
+              >
+                {capsLoading ? 'Refreshing…' : 'Refresh capabilities'}
+              </SecondaryButton>
               <PrimaryButton icon="file" onClick={start} disabled={busy || unavailable || !files.length}>
                 {unavailable ? 'Unavailable' : busy ? 'Processing…' : 'Process PDF'}
               </PrimaryButton>
@@ -660,7 +680,14 @@ export default function PdfView({ notify }) {
         </section>
       ) : null}
 
-      <JobOutputCard job={displayJob} notify={notify} title="Processed PDF" />
+      <JobOutputCard
+        job={displayJob}
+        notify={notify}
+        onDeleted={(id) => {
+          if (job?.id === id) setRunnerJob(null);
+          if (lastOutput?.id === id) setLastOutput(null);
+        }}
+      />
     </div>
   );
 }

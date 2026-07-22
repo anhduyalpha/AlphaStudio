@@ -3762,6 +3762,7 @@ body {
   to { transform: translateX(315%); }
 }
 .job-output-card .converted-row { grid-template-columns: minmax(0, 1fr) auto; }
+.job-output-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem; }
 .empty-results { margin-top: 0.5rem; }
 
 .qr-paste-modal {
@@ -3837,6 +3838,9 @@ body {
 }
 @media (max-width: 720px) {
   .converted-row { grid-template-columns: auto 1fr; }
+  .job-output-card .converted-row { grid-template-columns: minmax(0, 1fr); }
+  .job-output-actions { justify-content: stretch; }
+  .job-output-actions > * { flex: 1 1 8rem; }
   .qr-paste-meta { grid-template-columns: 1fr; }
 }
 

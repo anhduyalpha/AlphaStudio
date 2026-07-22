@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
 
 let cache = null;
@@ -7,32 +7,36 @@ export default function useCapabilities() {
   const [caps, setCaps] = useState(cache);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(!cache);
+  const requestRef = useRef(0);
+
+  const load = useCallback(async ({ refresh = false } = {}) => {
+    const requestId = ++requestRef.current;
+    setLoading(true);
+    try {
+      const data = await api.capabilities({ refresh });
+      if (requestId !== requestRef.current) return null;
+      cache = data;
+      setCaps(data);
+      setError(null);
+      return data;
+    } catch (err) {
+      if (requestId === requestRef.current) setError(err);
+      throw err;
+    } finally {
+      if (requestId === requestRef.current) setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let alive = true;
     if (cache) {
       setCaps(cache);
       setLoading(false);
     }
-    api
-      .capabilities()
-      .then((data) => {
-        if (!alive) return;
-        cache = data;
-        setCaps(data);
-        setError(null);
-      })
-      .catch((err) => {
-        if (!alive) return;
-        setError(err);
-      })
-      .finally(() => {
-        if (alive) setLoading(false);
-      });
+    void load().catch(() => {});
     return () => {
-      alive = false;
+      requestRef.current += 1;
     };
-  }, []);
+  }, [load]);
 
   const isAvailable = (toolId) => {
     if (!caps?.tools) return null; // unknown until loaded
@@ -45,5 +49,10 @@ export default function useCapabilities() {
     return t?.reason || null;
   };
 
-  return { caps, loading, error, isAvailable, reason, refresh: () => { cache = null; } };
+  const refresh = useCallback(() => {
+    cache = null;
+    return load({ refresh: true });
+  }, [load]);
+
+  return { caps, loading, error, isAvailable, reason, refresh };
 }

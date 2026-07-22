@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const pdfView = fs.readFileSync(path.join(root, 'src/views/PdfView.jsx'), 'utf8');
 const organizer = fs.readFileSync(path.join(root, 'src/components/pdf/PdfPageOrganizer.jsx'), 'utf8');
+const preview = fs.readFileSync(path.join(root, 'src/lib/pdfPreview.js'), 'utf8');
 const jobCard = fs.readFileSync(path.join(root, 'src/components/JobOutputCard.jsx'), 'utf8');
 const filePicker = fs.readFileSync(path.join(root, 'src/components/FilePicker.jsx'), 'utf8');
 
@@ -72,15 +73,13 @@ describe('PdfView structure', () => {
 
   it('resets form options when operation changes (defaultFormStateForOperation)', () => {
     assert.match(pdfView, /defaultFormStateForOperation/);
-    assert.match(pdfView, /setPassword\(d\.password\)/);
     assert.match(pdfView, /setEditPlan\(null\)/);
     assert.match(pdfView, /\}, \[operation\]/);
   });
 
-  it('exposes ephemeral password field and clears it on submit', () => {
-    assert.match(pdfView, /type="password"|type=\{?['"]password['"]\}?/);
-    assert.match(pdfView, /setPassword\(''\)/);
-    assert.match(pdfView, /PASSWORD_CAPABLE_OPS/);
+  it('does not expose password controls for operations that do not consume passwords', () => {
+    assert.doesNotMatch(pdfView, /type="password"|type=\{?['"]password['"]\}?/);
+    assert.doesNotMatch(pdfView, /PASSWORD_CAPABLE_OPS/);
   });
 
   it('labels structural optimization honestly (not strong image compression)', () => {
@@ -132,6 +131,15 @@ describe('PdfView structure', () => {
       assert.match(pdfView, new RegExp(`id:\\s*'${id}'`));
     }
   });
+
+  it('consumes authoritative backend PDF operation descriptors', () => {
+    assert.match(pdfView, /caps\?\.pdf\?\.operations/);
+    assert.match(pdfView, /contract\.capability/);
+    assert.match(pdfView, /contract\.cardinality/);
+    assert.match(pdfView, /contract\.outputKinds/);
+    assert.match(pdfView, /contract\.enginePolicy/);
+    assert.match(pdfView, /new Set\(contract\.options/);
+  });
 });
 
 describe('JobOutputCard meta', () => {
@@ -150,20 +158,57 @@ describe('FilePicker reorder', () => {
 });
 
 describe('PdfPageOrganizer', () => {
-  it('avoids full-PDF base64 upload and has preview limits', () => {
-    assert.match(organizer, /PREVIEW_PAGE_LIMIT|base64/i);
+  it('avoids full-PDF base64 upload and enforces configurable byte/page limits', () => {
+    assert.match(organizer, /PDF_PREVIEW_BYTE_LIMIT/);
+    assert.match(organizer, /PDF_PREVIEW_PAGE_LIMIT/);
     assert.match(organizer, /No full-PDF base64/i);
+    assert.match(preview, /VITE_PDF_PREVIEW_MAX_BYTES/);
+    assert.match(preview, /VITE_PDF_PREVIEW_MAX_PAGES/);
+    assert.ok(
+      organizer.indexOf('file.size > PDF_PREVIEW_BYTE_LIMIT') < organizer.indexOf('file.arrayBuffer()'),
+      'byte-limit check must happen before reading the browser File',
+    );
   });
 
   it('publishes pageCount in edit plan for validation', () => {
     assert.match(organizer, /pageCount/);
   });
 
-  it('uses generation tokens and destroys PDF.js docs on cleanup', () => {
-    assert.match(organizer, /genRef|generation/i);
+  it('uses one bundled same-origin PDF.js worker initializer', () => {
+    assert.match(preview, /pdf\.worker\.min\.mjs\?url/);
+    assert.match(preview, /worker\.origin !== window\.location\.origin/);
+    assert.match(preview, /GlobalWorkerOptions\.workerSrc/);
+    assert.match(organizer, /getPdfJs/);
+  });
+
+  it('invalidates loading and render tasks on file, operation, and unmount cleanup', () => {
+    assert.match(organizer, /loadGenerationRef|generation/i);
     assert.match(organizer, /destroy/);
+    assert.match(organizer, /renderTasksRef/);
+    assert.match(organizer, /task\?\.cancel|cancelTask/);
     assert.match(organizer, /fileIdentity|lastModified/);
-    assert.match(organizer, /workerSrc|pdf\.worker/);
+    assert.match(organizer, /file, identity, onPlanChange, operation/);
+  });
+
+  it('does not trust PDF token scanning as a page-count fallback', () => {
+    assert.doesNotMatch(organizer, /\/Type\s*\\s\*\/Page|TextDecoder\(['"]latin1/);
+  });
+
+  it('bounds rendering, concurrency, and DOM with paginated page windows', () => {
+    assert.match(organizer, /PDF_PREVIEW_WINDOW_SIZE/);
+    assert.match(organizer, /PDF_PREVIEW_RENDER_CONCURRENCY/);
+    assert.match(organizer, /Previous pages/);
+    assert.match(organizer, /Next pages/);
+    assert.match(organizer, /\.slice\(windowStart, windowStart \+ PDF_PREVIEW_WINDOW_SIZE\)/);
+  });
+
+  it('keeps manual page text authoritative and exposes keyboard reorder controls', () => {
+    assert.match(organizer, /The text field is authoritative/);
+    assert.match(organizer, /String\(pages \|\| ''\)\.trim/);
+    assert.match(organizer, /aria-pressed/);
+    assert.match(organizer, /Move page .* earlier/);
+    assert.match(organizer, /Move page .* later/);
+    assert.doesNotMatch(organizer, /setRotations|rotations\[/);
   });
 });
 

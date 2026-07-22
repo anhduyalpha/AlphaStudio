@@ -8,7 +8,7 @@
 export const GATED_OP_IDS = new Set(['to-images', 'ocr', 'compress-advanced', 'repair']);
 
 /** Ops that may accept an ephemeral PDF password (never persisted by UI) */
-export const PASSWORD_CAPABLE_OPS = new Set(['inspect', 'repair', 'to-text', 'ocr', 'extract', 'rotate', 'reorder', 'split', 'delete-pages', 'duplicate-pages', 'compress-structural', 'compress-advanced', 'to-images']);
+export const PASSWORD_CAPABLE_OPS = new Set();
 
 /** Best-effort: does a page spec clearly mean every page of a known document? */
 export function isDeleteAllSpec(pagesStr, pageCount) {
@@ -65,10 +65,17 @@ export function validatePdfClient(p) {
     everyN = '2',
   } = p;
 
-  const effectivePages = String(editPlan?.pages || pages || '').trim();
-  const effectiveOrder = String(editPlan?.order || pages || '').trim();
+  const effectivePages = String(pages || editPlan?.pages || '').trim();
+  const effectiveOrder = String(pages || editPlan?.order || '').trim();
 
   if (!files.length) return 'Choose PDF or image files first';
+  const cardinality = opMeta.cardinality || opMeta.contract?.cardinality;
+  if (cardinality?.minFiles && files.length < cardinality.minFiles) {
+    return `${opMeta.label || operation} requires at least ${cardinality.minFiles} files`;
+  }
+  if (cardinality?.maxFiles != null && files.length > cardinality.maxFiles) {
+    return `${opMeta.label || operation} accepts at most ${cardinality.maxFiles} files`;
+  }
   if (opMeta.images) {
     const bad = files.find(
       (f) =>
@@ -142,8 +149,8 @@ export function buildPdfJobOptions(p) {
     opMeta = {},
   } = p;
 
-  const pageSpec = editPlan?.pages || pages || undefined;
-  const orderSpec = editPlan?.order || pages || undefined;
+  const pageSpec = pages || editPlan?.pages || undefined;
+  const orderSpec = pages || editPlan?.order || undefined;
 
   /** @type {Record<string, unknown>} */
   const options = { operation };
@@ -200,12 +207,7 @@ export function buildPdfJobOptions(p) {
     options.pageSize = pageSize;
     options.orientation = orientation;
     options.fit = fit;
-    options.margin = Number(margin) || 0;
-  }
-
-  if (operation === 'to-text') {
-    options.ocr = Boolean(ocr);
-    if (ocr) options.ocrLang = ocrLang || 'eng';
+    options.marginPt = Number(margin) || 0;
   }
 
   if (operation === 'ocr') {

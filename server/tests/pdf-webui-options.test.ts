@@ -88,7 +88,7 @@ describe('pdfJobOptions (shipped WebUI)', () => {
     assert.equal(imgs.pageSize, 'a4');
     assert.equal(imgs.orientation, 'portrait');
     assert.equal(imgs.fit, 'cover');
-    assert.equal(imgs.margin, 12);
+    assert.equal(imgs.marginPt, 12);
 
     const toImg = buildPdfJobOptions({
       operation: 'to-images',
@@ -128,17 +128,17 @@ describe('pdfJobOptions (shipped WebUI)', () => {
       ocr: true,
       ocrLang: 'eng',
     });
-    assert.equal(text.ocr, true);
-    assert.equal(text.ocrLang, 'eng');
+    assert.equal(text.ocr, undefined);
+    assert.equal(text.ocrLang, undefined);
   });
 
-  it('includes password only when non-empty and omits empty strings', () => {
-    assert.ok(PASSWORD_CAPABLE_OPS.has('inspect'));
+  it('does not expose password options until a real consuming operation exists', () => {
+    assert.equal(PASSWORD_CAPABLE_OPS.size, 0);
     const withPwd = buildPdfJobOptions({
       operation: 'inspect',
       password: 'secret',
     });
-    assert.equal(withPwd.password, 'secret');
+    assert.equal(withPwd.password, undefined);
     const noPwd = buildPdfJobOptions({ operation: 'inspect', password: '' });
     assert.equal(noPwd.password, undefined);
   });
@@ -214,14 +214,14 @@ describe('pdfJobOptions (shipped WebUI)', () => {
     );
   });
 
-  it('editPlan pages override text field for options when present', () => {
+  it('current manual pages remain authoritative over a stale edit plan', () => {
     const opts = buildPdfJobOptions({
       operation: 'extract',
       pages: '9',
       editPlan: { pages: '2,3', pageCount: 4 },
       opMeta: { needsPages: true },
     });
-    assert.equal(opts.pages, '2,3');
+    assert.equal(opts.pages, '9');
   });
 
   it('typed pages field is used when editPlan is null (after op switch)', () => {
