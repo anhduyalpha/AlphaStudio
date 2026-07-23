@@ -1,8 +1,13 @@
 # AlphaStudio UX/UI Redesign — Final Report
 
+> **SUPERSEDED for completion claims (Corrective C0).**  
+> Independent composition audit (`docs/UX_UI_REDESIGN_COMPOSITION_AUDIT.md`) shows shell/dashboard/foundations are real; Converter/PDF/modular tools are **not** purpose-built.  
+> Self-scores in §8 are **invalid** until corrective phases C2–C9 ship screenshots + JSX composition proof.  
+> Active program: corrective phases C0–C9 on branch `ux-ui-redesign`.
+
 **Branch:** `ux-ui-redesign`  
 **Base commit:** `ed460ee763663eef3f0aae9080eeb5e15c68fe1c` (`origin/main`)  
-**Head:** see latest `[ux-ui-redesign:phase-9]` commit on branch  
+**Head:** see latest `[ux-ui-redesign:phase-9]` / corrective commits  
 **Direction:** Studio Rail + Workbench (Concept B)  
 **Skills:** ux-ui-pro-max, taste (design-taste-frontend)  
 **Dials:** VARIANCE 5 · MOTION 4 · DENSITY 6  

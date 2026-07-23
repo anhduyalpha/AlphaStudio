@@ -1,259 +1,85 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
+  "program": "corrective",
   "repository": "https://github.com/anhduyalpha/AlphaStudio",
   "baseBranch": "main",
   "baseCommit": "ed460ee763663eef3f0aae9080eeb5e15c68fe1c",
   "branch": "ux-ui-redesign",
-  "currentPhase": 9,
-  "currentStep": "phase-9-complete",
+  "currentPhase": "C0",
+  "currentStep": "truth-reset-and-baseline-screenshots",
+  "priorProgramInvalidated": true,
+  "priorProgramNote": "Phases 0-9 completion flags and self-scores are untrusted. Composition audit shows shell/dashboard/foundations real; converter/pdf/modular tools incomplete.",
   "phaseStatus": {
-    "phase0": "completed",
-    "phase1": "completed",
-    "phase2": "completed",
-    "phase3": "completed",
-    "phase4": "completed",
-    "phase5": "completed",
-    "phase6": "completed",
-    "phase7": "completed",
-    "phase8": "completed",
-    "phase9": "completed"
+    "priorPhase0": "superseded",
+    "priorPhase1": "superseded",
+    "priorPhase2": "retained-foundations",
+    "priorPhase3": "retained-shell-dashboard",
+    "priorPhase4": "invalidated-incomplete",
+    "priorPhase5": "invalidated-incomplete",
+    "priorPhase6": "invalidated-incomplete",
+    "priorPhase7": "invalidated-incomplete",
+    "priorPhase8": "invalidated-incomplete",
+    "priorPhase9": "invalidated-incomplete",
+    "corrective0": "completed",
+    "corrective1": "pending",
+    "corrective2": "pending",
+    "corrective3": "pending",
+    "corrective4": "pending",
+    "corrective5": "pending",
+    "corrective6": "pending",
+    "corrective7": "pending",
+    "corrective8": "pending",
+    "corrective9": "pending"
+  },
+  "routeStatus": {
+    "dashboard": { "status": "retained", "purposeBuilt": true, "qualityScore": null },
+    "shell": { "status": "retained", "purposeBuilt": true, "qualityScore": null },
+    "converter": { "status": "partial", "purposeBuilt": false, "qualityScore": null },
+    "pdf": { "status": "partial", "purposeBuilt": false, "qualityScore": null },
+    "image": { "status": "partial", "purposeBuilt": false, "qualityScore": null },
+    "media": { "status": "partial", "purposeBuilt": false, "qualityScore": null },
+    "qr": { "status": "partial", "purposeBuilt": false, "qualityScore": null },
+    "audio": { "status": "pending", "purposeBuilt": false, "qualityScore": null, "usesModular": true },
+    "archive": { "status": "pending", "purposeBuilt": false, "qualityScore": null, "usesModular": true },
+    "text": { "status": "pending", "purposeBuilt": false, "qualityScore": null, "usesModular": true },
+    "color": { "status": "pending", "purposeBuilt": false, "qualityScore": null, "usesModular": true },
+    "security": { "status": "pending", "purposeBuilt": false, "qualityScore": null, "usesModular": true },
+    "developer": { "status": "partial", "purposeBuilt": false, "qualityScore": null },
+    "activity": { "status": "partial", "purposeBuilt": false, "qualityScore": null },
+    "profile": { "status": "partial", "purposeBuilt": false, "qualityScore": null },
+    "settings": { "status": "partial", "purposeBuilt": false, "qualityScore": null }
   },
   "skills": {
     "ux-ui-pro-max": {
       "found": true,
       "canonicalIdentifier": "ui-ux-pro-max",
-      "path": "C:\\Users\\Duy\\.codex\\skills\\ux-ui-pro-max\\SKILL.md",
-      "scriptsPath": "C:\\Users\\Duy\\.codex\\skills\\ux-ui-pro-max\\scripts\\search.py",
-      "workflowsExecuted": [
-        "design-system: local-first utility suite variance=5 motion=4 density=6",
-        "domain ux: navigation form feedback accessibility reduced motion"
-      ]
+      "path": "C:\\Users\\Duy\\.codex\\skills\\ux-ui-pro-max\\SKILL.md"
     },
     "taste": {
       "found": true,
-      "canonicalIdentifier": "design-taste-frontend / taste-skills",
-      "path": "C:\\Users\\Duy\\.codex\\skills\\taste-skills\\SKILL.md",
-      "alternatePaths": [
-        "C:\\Users\\Duy\\.claude\\skills\\design-taste-frontend\\SKILL.md"
-      ],
-      "workflowsExecuted": [
-        "brief inference / design read",
-        "redesign protocol 11 (overhaul)",
-        "dial inference for product utility suite",
-        "anti-slop constraints adapted for dense tool UI"
-      ]
+      "canonicalIdentifier": "design-taste-frontend",
+      "path": "C:\\Users\\Duy\\.codex\\skills\\taste-skills\\SKILL.md"
     }
   },
-  "designRead": "redesign-overhaul of local-first desktop utility suite; premium minimalist + restrained liquid/glass; custom CSS tokens; dials 5/4/6",
-  "selectedDirection": "Studio Rail + Workbench (Concept B)",
-  "completedSteps": [
-    "branch-created-from-origin-main",
-    "skills-discovered-and-read",
-    "phase-0-baseline",
-    "phase-1-blueprint",
-    "phase-2-foundations",
-    "phase-3-shell-dashboard",
-    "phase-4-converter-pdf",
-    "phase-5-image-media-qr",
-    "phase-6-specialized",
-    "phase-7-lifecycle-a11y",
-    "phase-8-liquid-polish",
-    "phase-9-final-report-test-report-handoff",
-    "full-validation-logged-to-scratch"
-  ],
-  "pendingSteps": [],
-  "routeAudit": {
-    "dashboard": {
-      "pattern": "command-center",
-      "status": "redesigned",
-      "qualityScore": 4.4
-    },
-    "converter": {
-      "pattern": "conversion-board",
-      "status": "redesigned",
-      "qualityScore": 4.3
-    },
-    "pdf": {
-      "pattern": "document-page-workspace",
-      "status": "redesigned",
-      "qualityScore": 4.3
-    },
-    "qr": {
-      "pattern": "inspector-form",
-      "status": "redesigned",
-      "qualityScore": 4.2
-    },
-    "image": {
-      "pattern": "image-canvas",
-      "status": "redesigned",
-      "qualityScore": 4.4
-    },
-    "media": {
-      "pattern": "media-timeline",
-      "status": "redesigned",
-      "qualityScore": 4.3
-    },
-    "archive": {
-      "pattern": "archive-tree",
-      "status": "redesigned",
-      "qualityScore": 4.1
-    },
-    "text": {
-      "pattern": "text-editor-compare",
-      "status": "redesigned",
-      "qualityScore": 4.1
-    },
-    "audio": {
-      "pattern": "audio-timeline",
-      "status": "redesigned",
-      "qualityScore": 4.1
-    },
-    "color": {
-      "pattern": "inspector",
-      "status": "redesigned",
-      "qualityScore": 4
-    },
-    "security": {
-      "pattern": "inspector",
-      "status": "redesigned",
-      "qualityScore": 4.1
-    },
-    "developer": {
-      "pattern": "inspector",
-      "status": "redesigned",
-      "qualityScore": 4.2
-    },
-    "activity": {
-      "pattern": "result-history-manager",
-      "status": "redesigned",
-      "qualityScore": 4.2
-    },
-    "profile": {
-      "pattern": "focused-settings",
-      "status": "redesigned",
-      "qualityScore": 4
-    },
-    "settings": {
-      "pattern": "focused-settings",
-      "status": "redesigned",
-      "qualityScore": 4
-    }
-  },
-  "componentAudit": {
-    "PageIntro": "replaced-by-WorkspaceHeader-adapter",
-    "PrimaryButton": "redesigned",
-    "SecondaryButton": "redesigned",
-    "StatusBadge": "redesigned",
-    "FileDropzone": "redesigned",
-    "FilePicker": "kept-logic-restyled",
-    "WorkspaceTabs": "redesigned",
-    "FeatureButton": "redesigned",
-    "FeatureRail": "added",
-    "EmptyState": "kept-with-lifecycle-types",
-    "JobOutputCard": "kept-logic",
-    "Sidebar": "redesigned",
-    "Topbar": "redesigned",
-    "CommandPalette": "redesigned",
-    "WorkbenchLayout": "added",
-    "WorkspaceHeader": "added",
-    "ModularWorkspaceView": "split-to-workbench",
-    "PdfPageOrganizer": "keep-restyle"
-  },
-  "designDecisions": [
-    "Concept B Studio Rail + Workbench",
-    "Brand multi-accent retained",
-    "Liquid progressive enhancement only",
-    "Dashboard operational command center"
-  ],
   "screenshots": {
-    "baseline": [],
-    "concepts": [],
-    "phaseCheckpoints": [],
-    "final": [
-      {
-        "id": "F-01",
-        "route": "dashboard",
-        "status": "structural-only",
-        "note": "see FINAL_REPORT screenshot index"
-      },
-      {
-        "id": "F-02",
-        "route": "converter",
-        "status": "structural-only"
-      },
-      {
-        "id": "F-03",
-        "route": "pdf",
-        "status": "structural-only"
-      },
-      {
-        "id": "F-04",
-        "route": "image",
-        "status": "structural-only"
-      },
-      {
-        "id": "F-05",
-        "route": "media",
-        "status": "structural-only"
-      },
-      {
-        "id": "F-06",
-        "route": "modular",
-        "status": "structural-only"
-      }
-    ]
+    "baselineCorrective": "docs/ux-ui-redesign/screenshots/baseline-corrective",
+    "after": [],
+    "comparisons": []
   },
-  "tests": {
-    "typecheck": "pass",
-    "uiStruct": "pass-127",
-    "testPdf": "pass-144",
-    "testMaint": "fail-1-preexisting-runtime-prepare-assert",
-    "npmTest": "fail-missing-audit-fixtures-preexisting",
-    "testE2e": "pass-4",
-    "build": "pass",
-    "gitDiffCheck": "pass"
-  },
-  "commits": [
-    "9003449 phase-0",
-    "1b7e095 phase-1",
-    "13e5679 phase-2",
-    "d72dae2 phase-3",
-    "f96b92f phase-4",
-    "f06bac5 phase-5",
-    "acdb83e phase-6",
-    "657f76b phase-7",
-    "24e4f6b phase-8",
-    "9d0c247 phase-9-initial",
-    "8b3d99c8768b34552f84782c0699589ab6291f30 phase-9-final-docs-e2e"
+  "completedSteps": [
+    "composition-audit",
+    "state-reset-schema-v2",
+    "baseline-corrective-screenshots-66"
   ],
-  "diffStatsVsBase": {
-    "filesChanged": 58,
-    "insertions": 4887,
-    "deletions": 502
-  },
-  "deliverables": {
-    "finalReport": "docs/UX_UI_REDESIGN_FINAL_REPORT.md",
-    "testReport": "docs/UX_UI_REDESIGN_TEST_REPORT.md",
-    "phase9Handoff": "docs/ux-ui-redesign/PHASE_9_HANDOFF.md",
-    "validationLog": "SCRATCH/validation-suite.log"
-  },
-  "lastGreenCommit": "7122de91bf7a7b04df09dadbf40494a3b3b031be",
-  "lastPushedCommit": "7122de91bf7a7b04df09dadbf40494a3b3b031be",
-  "workingTreeClean": true,
-  "knownIssues": [
-    "Multi-viewport screenshot matrix not automated; structural tests + FINAL_REPORT index used",
-    "test:maint one failure: exposes all ten required npm scripts (expects runtime:prepare string) — pre-existing vs redesign UI",
-    "Full npm test may fail helpers fixtures if sample.png/sample.txt missing",
-    "test:e2e requires Playwright + stack; logged honestly if unavailable"
+  "pendingSteps": [
+    "corrective-1-primitives",
+    "corrective-2-converter"
   ],
   "blockers": [],
-  "nextAction": "PR ready base=main head=ux-ui-redesign do-not-merge",
-  "pr": {
-    "base": "main",
-    "head": "ux-ui-redesign",
-    "merge": false,
-    "compareUrl": "https://github.com/anhduyalpha/AlphaStudio/compare/main...ux-ui-redesign"
-  },
-  "updatedAt": "2026-07-23T15:20:25.898Z",
-  "remoteVerification": "git rev-parse HEAD === git rev-parse origin/ux-ui-redesign"
+  "knownIssues": [
+    "Self-assigned quality scores invalidated until C9 screenshot proof",
+    "ModularWorkspaceView still hosts five specialized tools"
+  ],
+  "nextAction": "Corrective Phase 1 — blueprint lock and shared primitives (file rows, timeline, waveform, results)",
+  "updatedAt": "2026-07-23T16:00:00.000Z"
 }

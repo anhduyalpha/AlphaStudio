@@ -1,0 +1,464 @@
+[
+  {
+    "route": "dashboard",
+    "viewport": "320",
+    "width": 320,
+    "height": 720,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/dashboard/320.png"
+  },
+  {
+    "route": "dashboard",
+    "viewport": "375",
+    "width": 375,
+    "height": 812,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/dashboard/375.png"
+  },
+  {
+    "route": "dashboard",
+    "viewport": "768",
+    "width": 768,
+    "height": 1024,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/dashboard/768.png"
+  },
+  {
+    "route": "dashboard",
+    "viewport": "1024",
+    "width": 1024,
+    "height": 768,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/dashboard/1024.png"
+  },
+  {
+    "route": "dashboard",
+    "viewport": "1440",
+    "width": 1440,
+    "height": 900,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/dashboard/1440.png"
+  },
+  {
+    "route": "dashboard",
+    "viewport": "1920",
+    "width": 1920,
+    "height": 1080,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/dashboard/1920.png"
+  },
+  {
+    "route": "converter",
+    "viewport": "320",
+    "width": 320,
+    "height": 720,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/converter/320.png"
+  },
+  {
+    "route": "converter",
+    "viewport": "375",
+    "width": 375,
+    "height": 812,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/converter/375.png"
+  },
+  {
+    "route": "converter",
+    "viewport": "768",
+    "width": 768,
+    "height": 1024,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/converter/768.png"
+  },
+  {
+    "route": "converter",
+    "viewport": "1024",
+    "width": 1024,
+    "height": 768,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/converter/1024.png"
+  },
+  {
+    "route": "converter",
+    "viewport": "1440",
+    "width": 1440,
+    "height": 900,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/converter/1440.png"
+  },
+  {
+    "route": "converter",
+    "viewport": "1920",
+    "width": 1920,
+    "height": 1080,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/converter/1920.png"
+  },
+  {
+    "route": "pdf",
+    "viewport": "320",
+    "width": 320,
+    "height": 720,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/pdf/320.png"
+  },
+  {
+    "route": "pdf",
+    "viewport": "375",
+    "width": 375,
+    "height": 812,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/pdf/375.png"
+  },
+  {
+    "route": "pdf",
+    "viewport": "768",
+    "width": 768,
+    "height": 1024,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/pdf/768.png"
+  },
+  {
+    "route": "pdf",
+    "viewport": "1024",
+    "width": 1024,
+    "height": 768,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/pdf/1024.png"
+  },
+  {
+    "route": "pdf",
+    "viewport": "1440",
+    "width": 1440,
+    "height": 900,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/pdf/1440.png"
+  },
+  {
+    "route": "pdf",
+    "viewport": "1920",
+    "width": 1920,
+    "height": 1080,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/pdf/1920.png"
+  },
+  {
+    "route": "qr",
+    "viewport": "375",
+    "width": 375,
+    "height": 812,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/qr/375.png"
+  },
+  {
+    "route": "qr",
+    "viewport": "768",
+    "width": 768,
+    "height": 1024,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/qr/768.png"
+  },
+  {
+    "route": "qr",
+    "viewport": "1440",
+    "width": 1440,
+    "height": 900,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/qr/1440.png"
+  },
+  {
+    "route": "image",
+    "viewport": "320",
+    "width": 320,
+    "height": 720,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/image/320.png"
+  },
+  {
+    "route": "image",
+    "viewport": "375",
+    "width": 375,
+    "height": 812,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/image/375.png"
+  },
+  {
+    "route": "image",
+    "viewport": "768",
+    "width": 768,
+    "height": 1024,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/image/768.png"
+  },
+  {
+    "route": "image",
+    "viewport": "1024",
+    "width": 1024,
+    "height": 768,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/image/1024.png"
+  },
+  {
+    "route": "image",
+    "viewport": "1440",
+    "width": 1440,
+    "height": 900,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/image/1440.png"
+  },
+  {
+    "route": "image",
+    "viewport": "1920",
+    "width": 1920,
+    "height": 1080,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/image/1920.png"
+  },
+  {
+    "route": "media",
+    "viewport": "320",
+    "width": 320,
+    "height": 720,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/media/320.png"
+  },
+  {
+    "route": "media",
+    "viewport": "375",
+    "width": 375,
+    "height": 812,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/media/375.png"
+  },
+  {
+    "route": "media",
+    "viewport": "768",
+    "width": 768,
+    "height": 1024,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/media/768.png"
+  },
+  {
+    "route": "media",
+    "viewport": "1024",
+    "width": 1024,
+    "height": 768,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/media/1024.png"
+  },
+  {
+    "route": "media",
+    "viewport": "1440",
+    "width": 1440,
+    "height": 900,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/media/1440.png"
+  },
+  {
+    "route": "media",
+    "viewport": "1920",
+    "width": 1920,
+    "height": 1080,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/media/1920.png"
+  },
+  {
+    "route": "archive",
+    "viewport": "320",
+    "width": 320,
+    "height": 720,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/archive/320.png"
+  },
+  {
+    "route": "archive",
+    "viewport": "375",
+    "width": 375,
+    "height": 812,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/archive/375.png"
+  },
+  {
+    "route": "archive",
+    "viewport": "768",
+    "width": 768,
+    "height": 1024,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/archive/768.png"
+  },
+  {
+    "route": "archive",
+    "viewport": "1024",
+    "width": 1024,
+    "height": 768,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/archive/1024.png"
+  },
+  {
+    "route": "archive",
+    "viewport": "1440",
+    "width": 1440,
+    "height": 900,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/archive/1440.png"
+  },
+  {
+    "route": "archive",
+    "viewport": "1920",
+    "width": 1920,
+    "height": 1080,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/archive/1920.png"
+  },
+  {
+    "route": "text",
+    "viewport": "375",
+    "width": 375,
+    "height": 812,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/text/375.png"
+  },
+  {
+    "route": "text",
+    "viewport": "768",
+    "width": 768,
+    "height": 1024,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/text/768.png"
+  },
+  {
+    "route": "text",
+    "viewport": "1440",
+    "width": 1440,
+    "height": 900,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/text/1440.png"
+  },
+  {
+    "route": "audio",
+    "viewport": "320",
+    "width": 320,
+    "height": 720,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/audio/320.png"
+  },
+  {
+    "route": "audio",
+    "viewport": "375",
+    "width": 375,
+    "height": 812,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/audio/375.png"
+  },
+  {
+    "route": "audio",
+    "viewport": "768",
+    "width": 768,
+    "height": 1024,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/audio/768.png"
+  },
+  {
+    "route": "audio",
+    "viewport": "1024",
+    "width": 1024,
+    "height": 768,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/audio/1024.png"
+  },
+  {
+    "route": "audio",
+    "viewport": "1440",
+    "width": 1440,
+    "height": 900,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/audio/1440.png"
+  },
+  {
+    "route": "audio",
+    "viewport": "1920",
+    "width": 1920,
+    "height": 1080,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/audio/1920.png"
+  },
+  {
+    "route": "color",
+    "viewport": "375",
+    "width": 375,
+    "height": 812,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/color/375.png"
+  },
+  {
+    "route": "color",
+    "viewport": "768",
+    "width": 768,
+    "height": 1024,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/color/768.png"
+  },
+  {
+    "route": "color",
+    "viewport": "1440",
+    "width": 1440,
+    "height": 900,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/color/1440.png"
+  },
+  {
+    "route": "security",
+    "viewport": "375",
+    "width": 375,
+    "height": 812,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/security/375.png"
+  },
+  {
+    "route": "security",
+    "viewport": "768",
+    "width": 768,
+    "height": 1024,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/security/768.png"
+  },
+  {
+    "route": "security",
+    "viewport": "1440",
+    "width": 1440,
+    "height": 900,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/security/1440.png"
+  },
+  {
+    "route": "developer",
+    "viewport": "375",
+    "width": 375,
+    "height": 812,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/developer/375.png"
+  },
+  {
+    "route": "developer",
+    "viewport": "768",
+    "width": 768,
+    "height": 1024,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/developer/768.png"
+  },
+  {
+    "route": "developer",
+    "viewport": "1440",
+    "width": 1440,
+    "height": 900,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/developer/1440.png"
+  },
+  {
+    "route": "activity",
+    "viewport": "375",
+    "width": 375,
+    "height": 812,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/activity/375.png"
+  },
+  {
+    "route": "activity",
+    "viewport": "768",
+    "width": 768,
+    "height": 1024,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/activity/768.png"
+  },
+  {
+    "route": "activity",
+    "viewport": "1440",
+    "width": 1440,
+    "height": 900,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/activity/1440.png"
+  },
+  {
+    "route": "profile",
+    "viewport": "375",
+    "width": 375,
+    "height": 812,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/profile/375.png"
+  },
+  {
+    "route": "profile",
+    "viewport": "768",
+    "width": 768,
+    "height": 1024,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/profile/768.png"
+  },
+  {
+    "route": "profile",
+    "viewport": "1440",
+    "width": 1440,
+    "height": 900,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/profile/1440.png"
+  },
+  {
+    "route": "settings",
+    "viewport": "375",
+    "width": 375,
+    "height": 812,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/settings/375.png"
+  },
+  {
+    "route": "settings",
+    "viewport": "768",
+    "width": 768,
+    "height": 1024,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/settings/768.png"
+  },
+  {
+    "route": "settings",
+    "viewport": "1440",
+    "width": 1440,
+    "height": 900,
+    "path": "docs/ux-ui-redesign/screenshots/baseline-corrective/settings/1440.png"
+  }
+]
