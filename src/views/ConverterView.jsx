@@ -10,6 +10,7 @@ import {
   StatusBadge,
   ToggleRow,
 } from '../components/Common';
+import { WorkspaceHeader } from '../components/Workbench';
 import useWorkspace from '../hooks/useWorkspace';
 import useWorkspaceEvents from '../hooks/useWorkspaceEvents';
 import { api } from '../api/client';
@@ -1074,11 +1075,12 @@ export default function ConverterView({ notify }) {
 
   if (workspaceLoading && !hydratedOnce) {
     return (
-      <div className="view-stack">
-        <PageIntro
-          eyebrow="Tools / Universal Converter"
+      <div className="view-stack conversion-board">
+        <WorkspaceHeader
+          meta="Core tools / Converter"
           title="Restoring workspace…"
           description="Loading files, groups, jobs, and outputs from SQLite."
+          family="converter"
         />
         <article className="surface-card content-card">
           <p className="helper-note">Please wait while we hydrate your session…</p>
@@ -1088,11 +1090,18 @@ export default function ConverterView({ notify }) {
   }
 
   return (
-    <div className="view-stack converter-pro">
-      <PageIntro
-        eyebrow="Tools / Universal Converter"
-        title="Convert almost any common file."
-        description="Auto-detects formats, groups compatible files, and keeps results in SQLite across reloads."
+    <div className="view-stack converter-pro conversion-board family-converter" data-testid="conversion-board">
+      <WorkspaceHeader
+        meta="Core tools / Converter"
+        title="Conversion board"
+        description="Files and detected groups are the primary surface. Targets, engines, and results stay contextual."
+        family="converter"
+        status={(
+          <StatusBadge tone="purple">
+            {displayCount} file{displayCount === 1 ? '' : 's'}
+            {anyBusy ? ' · busy' : ''}
+          </StatusBadge>
+        )}
         actions={
           <>
             <SecondaryButton icon="trash" onClick={onClear} disabled={anyBusy}>
@@ -1112,13 +1121,13 @@ export default function ConverterView({ notify }) {
         }
       />
 
-      <section className="workspace-grid">
-        <div className="workspace-primary">
-          {/* Step 1: Inputs */}
+      <section className="workspace-grid conversion-board-grid">
+        <div className="workspace-primary workbench-stage">
+          {/* Stage: inputs + groups (primary object) */}
           <article className="surface-card content-card">
             <div className="card-heading compact-heading">
               <div>
-                <p className="eyebrow">Step 01</p>
+                <p className="eyebrow">Stage</p>
                 <h3>Input files</h3>
               </div>
               <StatusBadge tone="cyan">
@@ -1538,7 +1547,7 @@ export default function ConverterView({ notify }) {
           </article>
         </div>
 
-        <aside className="workspace-sidebar">
+        <aside className="workspace-sidebar workbench-rail" aria-label="Conversion summary">
           <article className="surface-card content-card sticky-card">
             <p className="eyebrow">Session summary</p>
             <h3>{anyBusy ? 'Working…' : displayCount ? 'Ready' : 'Add files to begin'}</h3>

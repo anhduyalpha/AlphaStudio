@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import FilePicker from '../components/FilePicker';
 import JobOutputCard from '../components/JobOutputCard';
 import {
-  PageIntro,
   PrimaryButton,
   SecondaryButton,
   SelectField,
@@ -10,6 +9,7 @@ import {
   TextField,
   WorkspaceTabs,
 } from '../components/Common';
+import { WorkspaceHeader, ProgressWave } from '../components/Workbench';
 import useJobRunner from '../hooks/useJobRunner';
 import useCapabilities from '../hooks/useCapabilities';
 import PdfPageOrganizer from '../components/pdf/PdfPageOrganizer';
@@ -296,11 +296,17 @@ export default function PdfView({ notify }) {
   const displayJob = busy ? job : job || lastOutput;
 
   return (
-    <div className="view-stack">
-      <PageIntro
-        eyebrow="Tools / PDF Studio"
-        title="Production-ready PDF workspace"
-        description="Organize, convert, optimize, and analyze PDFs via the local worker pipeline. Only supported operations are enabled for this machine."
+    <div className="view-stack document-page-workspace family-pdf" data-testid="document-page-workspace">
+      <WorkspaceHeader
+        meta="Core tools / PDF Studio"
+        title="Document workspace"
+        description="Pages, selection, and operations share one board. Only capability-backed tools stay enabled."
+        family="pdf"
+        status={(
+          <StatusBadge tone={unavailable ? 'neutral' : busy ? 'cyan' : 'green'} status={unavailable ? 'unavailable' : busy ? 'converting' : 'completed'} live={busy}>
+            {unavailable ? 'Unavailable' : busy ? status || 'Running' : operation}
+          </StatusBadge>
+        )}
         actions={
           <>
             {busy ? (
@@ -308,23 +314,24 @@ export default function PdfView({ notify }) {
                 Cancel
               </SecondaryButton>
             ) : null}
-            <PrimaryButton icon="upload" onClick={start} disabled={busy || unavailable}>
-              {unavailable ? 'Unavailable' : busy ? `${progress}%` : 'Run PDF operation'}
+            <PrimaryButton icon="upload" onClick={start} disabled={busy || unavailable} busy={busy}>
+              {unavailable ? 'Unavailable' : 'Run PDF operation'}
             </PrimaryButton>
           </>
         }
       />
 
       <WorkspaceTabs tabs={['Workspace', 'Preview', 'Export']} active={tab} onChange={setTab} />
+      {busy ? <ProgressWave value={progress} label="PDF job progress" /> : null}
 
       {tab === 'Workspace' || tab === 'Preview' ? (
-        <section className="workspace-grid">
-          <div className="workspace-primary">
+        <section className="workspace-grid conversion-board-grid">
+          <div className="workspace-primary workbench-stage">
             <article className="surface-card content-card">
               <div className="card-heading">
                 <div>
-                  <p className="eyebrow">Documents</p>
-                  <h3>Input files</h3>
+                  <p className="eyebrow">Stage</p>
+                  <h3>Documents and pages</h3>
                 </div>
                 <StatusBadge tone="cyan">{files.length} selected</StatusBadge>
               </div>
@@ -607,9 +614,9 @@ export default function PdfView({ notify }) {
             ) : null}
           </div>
 
-          <aside className="workspace-sidebar">
+          <aside className="workspace-sidebar workbench-rail" aria-label="PDF operation options">
             <article className="surface-card content-card sticky-card">
-              <p className="eyebrow">Status</p>
+              <p className="eyebrow">Run status</p>
               <h3>{unavailable ? 'Unavailable' : busy ? status : 'Ready'}</h3>
               <div className="summary-list">
                 <div>
