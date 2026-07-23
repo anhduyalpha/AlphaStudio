@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import FilePicker from '../components/FilePicker';
 import JobOutputCard from '../components/JobOutputCard';
 import EmptyState from '../components/EmptyState';
 import { PrimaryButton, SecondaryButton, SelectField, StatusBadge, Panel } from '../components/Common';
 import { WorkbenchLayout, WorkspaceHeader, ProgressWave, CapabilityBanner } from '../components/Workbench';
 import { SegmentedControl, FileRow, FileRowList } from '../components/StudioPrimitives';
+import ArchiveTree from '../components/archive/ArchiveTree';
 import useJobRunner from '../hooks/useJobRunner';
 import useCapabilities from '../hooks/useCapabilities';
 import { api } from '../api/client';
@@ -75,17 +76,6 @@ export default function ArchiveView({ notify }) {
     }
   };
 
-  const entryRows = useMemo(() => entries.slice(0, 200).map((e, i) => {
-    if (typeof e === 'string') return { key: `${i}-${e}`, name: e, meta: '' };
-    const name = e.name || e.path || e.entry || `entry-${i}`;
-    const size = e.size ?? e.uncompressedSize ?? e.compressedSize;
-    return {
-      key: `${i}-${name}`,
-      name,
-      meta: [e.type, size != null ? `${size} B` : null].filter(Boolean).join(' · '),
-    };
-  }), [entries]);
-
   return (
     <div className="view-stack archive-workspace family-archive" data-testid="archive-workspace">
       <WorkspaceHeader
@@ -128,14 +118,10 @@ export default function ArchiveView({ notify }) {
             {mode === 'inspect' ? (
               <div className="archive-tree" style={{ marginTop: 16 }}>
                 <h3 className="panel-card-title" style={{ marginBottom: 8 }}>Contents tree</h3>
-                {!entryRows.length ? (
+                {!entries.length ? (
                   <p className="helper-note">Run Inspect to list archive entries here.</p>
                 ) : (
-                  <FileRowList label="Archive entries">
-                    {entryRows.map((row) => (
-                      <FileRow key={row.key} name={row.name} meta={row.meta || 'entry'} leading={<span className="file-type-icon">·</span>} />
-                    ))}
-                  </FileRowList>
+                  <ArchiveTree entries={entries} />
                 )}
               </div>
             ) : null}
@@ -162,7 +148,7 @@ export default function ArchiveView({ notify }) {
             <div className="preview-info-list" style={{ marginTop: 12 }}>
               <div><span>Mode</span><strong>{modeMeta.label}</strong></div>
               <div><span>Files</span><strong>{files.length}</strong></div>
-              <div><span>Entries listed</span><strong>{entryRows.length}</strong></div>
+              <div><span>Entries listed</span><strong>{entries.length}</strong></div>
             </div>
           </Panel>
         )}
