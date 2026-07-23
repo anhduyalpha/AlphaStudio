@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Icon from '../components/Icon';
-import { PageIntro, SecondaryButton, StatusBadge } from '../components/Common';
+import { SecondaryButton, StatusBadge } from '../components/Common';
+import { WorkspaceHeader } from '../components/Workbench';
 import { api } from '../api/client';
 
 export default function ActivityView({ notify }) {
@@ -76,10 +77,10 @@ export default function ActivityView({ notify }) {
 
   return (
     <div className="view-stack">
-      <PageIntro
-        eyebrow="Manage / Activity"
-        title="Review your recent activity."
-        description="Persistent activity log backed by SQLite — survives restarts. Delete removes a history entry and its job output when safe."
+      <WorkspaceHeader
+        meta="Manage / Activity"
+        title="Result history"
+        description="Persistent activity log backed by SQLite. Delete removes a history entry and its job output when safe."
         actions={
           <>
             <SecondaryButton icon="refresh" onClick={load} disabled={loading || Boolean(deletingId)}>
@@ -91,7 +92,7 @@ export default function ActivityView({ notify }) {
           </>
         }
       />
-      <section className="activity-layout">
+      <section className="activity-layout result-history-manager" data-testid="result-history-manager">
         <article className="surface-card content-card">
           <div className="card-heading">
             <div>

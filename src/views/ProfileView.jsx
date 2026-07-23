@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { PageIntro, PrimaryButton, SecondaryButton, TextField } from '../components/Common';
+import { PrimaryButton, SecondaryButton, TextField } from '../components/Common';
+import { WorkspaceHeader } from '../components/Workbench';
 import { api } from '../api/client';
 
 export default function ProfileView({ notify }) {
@@ -48,9 +49,9 @@ export default function ProfileView({ notify }) {
 
   return (
     <div className="view-stack">
-      <PageIntro
-        eyebrow="Manage / Profile Studio"
-        title="Your local studio identity."
+      <WorkspaceHeader
+        meta="Manage / Profile Studio"
+        title="Local studio identity"
         description="Profile fields persist in SQLite and reload after restart."
         actions={
           <>

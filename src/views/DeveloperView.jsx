@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import Icon from '../components/Icon';
-import { PageIntro, PrimaryButton, SecondaryButton, SelectField } from '../components/Common';
+import { PrimaryButton, SecondaryButton, SelectField } from '../components/Common';
+import { WorkspaceHeader } from '../components/Workbench';
 import { api } from '../api/client';
 
 const exampleInput = `{"studio":"AlphaStudio","mode":"local-api","tools":["convert","pdf","qr"]}`;
@@ -64,18 +65,18 @@ export default function DeveloperView({ notify }) {
 
   return (
     <div className="view-stack">
-      <PageIntro
-        eyebrow="Tools / Developer Utilities"
-        title="Small developer tools, one focused interface."
+      <WorkspaceHeader
+        meta="Tools / Developer Utilities"
+        title="Developer inspector"
         description="Format JSON, encode or decode Base64 and URLs, generate hashes, and clean text via the local API."
         actions={
-          <PrimaryButton icon="play" onClick={runUtility} disabled={busy}>
-            {busy ? 'Running…' : 'Run utility'}
+          <PrimaryButton icon="play" onClick={runUtility} disabled={busy} busy={busy}>
+            Run utility
           </PrimaryButton>
         }
       />
-      <section className="dev-layout">
-        <aside className="surface-card dev-tool-list">
+      <section className="dev-layout inspector-workspace" data-testid="developer-inspector">
+        <aside className="surface-card dev-tool-list workbench-rail" aria-label="Utilities">
           <p className="eyebrow">Utilities</p>
           {Object.keys(UTIL_MAP).map((name, index) => (
             <button type="button" key={name} className={utility === name ? 'active' : ''} onClick={() => setUtility(name)}>

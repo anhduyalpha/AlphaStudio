@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { PageIntro, PrimaryButton, SelectField, ToggleRow } from '../components/Common';
+import { PrimaryButton, SelectField, ToggleRow } from '../components/Common';
+import { WorkspaceHeader } from '../components/Workbench';
 import { api } from '../api/client';
 
 export default function SettingsView({ notify }) {
@@ -34,10 +35,10 @@ export default function SettingsView({ notify }) {
   const bool = (key) => settings[key] === 'true' || settings[key] === true;
 
   return (
-    <div className="view-stack">
-      <PageIntro
-        eyebrow="Manage / Settings"
-        title="Personalize your local studio."
+    <div className="view-stack focused-settings-workspace" data-testid="focused-settings-workspace">
+      <WorkspaceHeader
+        meta="Manage / Settings"
+        title="Studio preferences"
         description="Preferences persist in SQLite via the local API."
         actions={
           <PrimaryButton icon="check" onClick={save} disabled={loading}>
