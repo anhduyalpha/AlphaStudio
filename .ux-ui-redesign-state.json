@@ -6,8 +6,8 @@
   "baseCommit": "ed460ee763663eef3f0aae9080eeb5e15c68fe1c",
   "branch": "ux-ui-redesign",
   "tipAtProgramStart": "f0e91d1345b9131a7462e72f5b156adb17c19dd0",
-  "currentPhase": "RQ4",
-  "currentStep": "color-palette-export",
+  "currentPhase": "RQ7",
+  "currentStep": "security-typed-results-polish",
   "priorPrograms": {
     "phases0to9": {
       "status": "superseded-for-completion-claims",
@@ -33,9 +33,9 @@
     "rq1": "completed",
     "rq2": "completed",
     "rq3": "completed",
-    "rq4": "pending",
-    "rq5": "pending",
-    "rq6": "pending",
+    "rq4": "completed",
+    "rq5": "completed",
+    "rq6": "completed",
     "rq7": "pending",
     "rq8": "pending",
     "rq9": "pending",
@@ -71,21 +71,21 @@
     },
     "image": {
       "composition": "purpose-built",
-      "functional": "functional-gap",
+      "functional": "functional-partial",
       "qualityScore": null,
-      "gaps": ["interactive-crop", "reliable-result-preview-compare"]
+      "gaps": ["stateful-screenshot-matrix"]
     },
     "media": {
       "composition": "purpose-built",
-      "functional": "functional-gap",
+      "functional": "functional-partial",
       "qualityScore": null,
-      "gaps": ["trim-format-honesty", "encode-controls", "typed-inspect-results"]
+      "gaps": ["typed-inspect-results", "stateful-screenshot-matrix"]
     },
     "audio": {
       "composition": "purpose-built",
-      "functional": "functional-gap",
+      "functional": "functional-partial",
       "qualityScore": null,
-      "gaps": ["trim-format-honesty", "bitrate-sample-rate-channels-ui", "normalize-target-loudness", "typed-inspect-results"]
+      "gaps": ["typed-inspect-results", "stateful-screenshot-matrix"]
     },
     "qr": {
       "composition": "purpose-built",
@@ -95,21 +95,21 @@
     },
     "archive": {
       "composition": "purpose-built",
-      "functional": "functional-gap",
+      "functional": "functional-partial",
       "qualityScore": null,
-      "gaps": ["hierarchical-tree", "search", "large-list-handling", "typed-inspect-results"]
+      "gaps": ["virtualized-very-large-lists", "stateful-screenshot-matrix"]
     },
     "text": {
       "composition": "purpose-built",
-      "functional": "functional-gap",
+      "functional": "functional-partial",
       "qualityScore": null,
-      "gaps": ["line-word-diff", "editor-copy-export", "typed-api-results"]
+      "gaps": ["stateful-screenshot-matrix"]
     },
     "color": {
       "composition": "purpose-built",
-      "functional": "functional-gap",
+      "functional": "functional-partial",
       "qualityScore": null,
-      "gaps": ["real-image-palette-extraction", "copy-export-actions"]
+      "gaps": ["stateful-screenshot-matrix"]
     },
     "security": {
       "composition": "purpose-built",
@@ -172,12 +172,12 @@
     "rq0-truth-reset",
     "rq1-typed-results-preview",
     "rq2-audio-media-encode-trim",
-    "rq3-image-crop-compare"
-  ],
-  "pendingSteps": [
+    "rq3-image-crop-compare",
     "rq4-color-palette-export",
     "rq5-archive-tree",
-    "rq6-text-diff-export",
+    "rq6-text-diff-export"
+  ],
+  "pendingSteps": [
     "rq7-security-results",
     "rq8-pdf-density",
     "rq9-converter-mobile-batch",
@@ -191,14 +191,11 @@
   "blockers": [],
   "knownIssues": [
     "OCR remains capability-blocked (no engine bundled)",
-    "Job public payload has downloadUrl but not previewUrl/outputFileId",
-    "Media trim is stream-copy and ignores format; UI still shows format",
-    "Image crop UI hardcodes left=0 top=0",
-    "Color palette is synthetic hex ladder, not image extraction",
+    "Job public payload has downloadUrl but not previewUrl/outputFileId (mitigated via fetchJobBlob)",
     "UI tests are mostly source-regex structural; lack behavioral Playwright",
     "test:maint fails package script surface assertion for runtime:prepare",
     "after-corrective screenshots are empty/idle only"
   ],
-  "nextAction": "Implement RQ4 real color palette extraction and export",
-  "updatedAt": "2026-07-24T01:10:00.000Z"
+  "nextAction": "Implement RQ7 security typed results polish",
+  "updatedAt": "2026-07-24T02:00:00.000Z"
 }
