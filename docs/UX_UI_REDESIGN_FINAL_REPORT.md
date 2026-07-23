@@ -1,13 +1,15 @@
 # AlphaStudio UX/UI Redesign — Final Report
 
-> **SUPERSEDED for completion claims (Corrective C0).**  
-> Independent composition audit (`docs/UX_UI_REDESIGN_COMPOSITION_AUDIT.md`) shows shell/dashboard/foundations are real; Converter/PDF/modular tools are **not** purpose-built.  
-> Self-scores in §8 are **invalid** until corrective phases C2–C9 ship screenshots + JSX composition proof.  
-> Active program: corrective phases C0–C9 on branch `ux-ui-redesign`.
+> **SUPERSEDED for completion claims (2026-07-24, RQ0).**  
+> Corrective C0–C9 delivered **composition shells** (Workbench, dedicated routes, empty after-screenshots).  
+> **Functional depth is incomplete** (crop, trim/format honesty, typed results, real palette, archive tree, line diff, behavioral e2e, stateful screenshots).  
+> Active program: **`residual-quality` RQ0–RQ15** on branch `ux-ui-redesign`.  
+> See `docs/ux-ui-redesign/RESIDUAL_QUALITY_AUDIT.md` and `.ux-ui-redesign-state.json` (schema v3).  
+> Do not merge to main or claim route quality scores from this document alone.
 
 **Branch:** `ux-ui-redesign`  
 **Base commit:** `ed460ee763663eef3f0aae9080eeb5e15c68fe1c` (`origin/main`)  
-**Head:** see latest `[ux-ui-redesign:phase-9]` / corrective commits  
+**Head:** see latest `[ux-ui-redesign:rq-*]` / corrective commits  
 **Direction:** Studio Rail + Workbench (Concept B)  
 **Skills:** ux-ui-pro-max, taste (design-taste-frontend)  
 **Dials:** VARIANCE 5 · MOTION 4 · DENSITY 6  
