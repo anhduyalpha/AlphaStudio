@@ -2,7 +2,8 @@ import React from 'react';
 import Icon, { utilityIconNames } from '../components/Icon';
 import { BrandLockup, BrandMark } from '../components/Brand';
 import EmptyState from '../components/EmptyState';
-import { PageIntro, PrimaryButton, SecondaryButton, StatusBadge } from '../components/Common';
+import { PageIntro, PrimaryButton, SecondaryButton, StatusBadge, FeatureRail, Panel } from '../components/Common';
+import { WorkbenchLayout, WorkspaceHeader, ProgressWave, Skeleton, CapabilityBanner } from '../components/Workbench';
 import {
   brandAssets,
   emptyIllustrations,
@@ -19,11 +20,46 @@ export default function AssetGalleryView() {
 
   return (
     <div className="view-stack asset-gallery">
-      <PageIntro
-        eyebrow="Development / Design system"
+      <WorkspaceHeader
+        meta="Development / Design system"
         title="AlphaStudio asset gallery"
-        description="A development-only surface for checking brand assets, the shared SVG registry, responsive sizes, interaction states, and illustrations in both themes."
+        description="Development-only surface for foundations, brand assets, workbench regions, and interaction states."
       />
+
+      <section className="surface-card content-card asset-section">
+        <div className="card-heading"><div><p className="eyebrow">Foundations</p><h3>Workbench primitives</h3></div><StatusBadge tone="cyan">Phase 2</StatusBadge></div>
+        <WorkbenchLayout
+          family="converter"
+          stage={
+            <Panel title="Stage">
+              <Skeleton lines={4} />
+              <ProgressWave value={42} label="Demo progress" />
+            </Panel>
+          }
+          rail={
+            <>
+              <CapabilityBanner title="Capability sample" reason="Shown when a backend tool is offline." />
+              <FeatureRail
+                active="Resize"
+                onChange={() => {}}
+                items={[
+                  { title: 'Resize', description: 'Scale assets', icon: 'image' },
+                  { title: 'Compress', description: 'Reduce size', icon: 'archive' },
+                ]}
+              />
+            </>
+          }
+          runbar={
+            <>
+              <StatusBadge tone="purple" status="converting">Running sample</StatusBadge>
+              <div className="hero-button-row">
+                <SecondaryButton size="sm">Cancel</SecondaryButton>
+                <PrimaryButton size="sm" icon="arrow">Run</PrimaryButton>
+              </div>
+            </>
+          }
+        />
+      </section>
 
       <section className="surface-card content-card asset-section">
         <div className="card-heading"><div><p className="eyebrow">Identity</p><h3>Brand lockups</h3></div><StatusBadge tone="purple">Studio Nodes</StatusBadge></div>
