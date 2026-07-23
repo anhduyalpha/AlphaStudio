@@ -4,6 +4,7 @@ import { ffmpegEngine } from './ffmpeg.js';
 import { libreOfficeEngine } from './libreoffice.js';
 import { pandocEngine } from './pandoc.js';
 import { pdfRasterizerEngine } from './pdf.js';
+import { pythonEngine } from './python.js';
 import {
   createDefaultRegistry,
   getEngineRegistry,
@@ -19,6 +20,7 @@ const registry = createDefaultRegistry([
   calibreEngine,
   pdfRasterizerEngine,
   sevenZipEngine,
+  pythonEngine,
 ]);
 
 setDefaultEngineRegistry(registry);
@@ -40,6 +42,7 @@ export * from './registry.js';
 export * from './ffmpeg.js';
 export * from './pandoc.js';
 export * from './calibre.js';
+export * from './python.js';
 export * from './errors.js';
 export * from './validation.js';
 export * from './fallback.js';

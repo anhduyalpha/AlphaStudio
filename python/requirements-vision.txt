@@ -1,0 +1,12 @@
+# python-vision profile — Phase 3/4.
+#
+# Image vision operations (image.deskew, image.autocrop) via OpenCV, and
+# background removal (image.background-removal, Phase 4) via rembg.
+# Never installed automatically; opt in with:
+#   npm run python:install -- --profile vision
+opencv-python-headless>=4.9
+numpy>=1.26
+Pillow>=10.0
+# Background removal (image.background-removal). Model installed via python:models.
+rembg>=2.0
+onnxruntime>=1.17

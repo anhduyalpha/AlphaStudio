@@ -91,6 +91,9 @@ export const config = {
   workerCancelGraceMs: boundedIntEnv('WORKER_CANCEL_GRACE_MS', 2_000, 100, 30_000),
   maxJobAttempts: boundedIntEnv('MAX_JOB_ATTEMPTS', 2, 1, 10),
   jobTimeoutMs: intEnv('JOB_TIMEOUT_MS', 5 * 60 * 1000),
+  /** Optional Python bridge timeout / address-space cap (Phase 1 runtime integration). */
+  pythonTimeoutMs: intEnv('PYTHON_TIMEOUT_MS', 5 * 60 * 1000),
+  pythonMaxMemoryMb: boundedIntEnv('PYTHON_MAX_MEMORY_MB', 1024, 128, 16384),
   tempTtlMs: intEnv('TEMP_TTL_MS', 60 * 60 * 1000),
   /** Workspace retention (ms). Default 7 days. */
   workspaceRetentionMs: intEnv('WORKSPACE_RETENTION_MS', 7 * 24 * 60 * 60 * 1000),

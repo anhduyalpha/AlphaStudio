@@ -65,6 +65,7 @@ const DEFINITIONS: FormatDefinition[] = [
   { format: 'ods', family: 'spreadsheet', mime: 'application/vnd.oasis.opendocument.spreadsheet' },
   { format: 'csv', family: 'spreadsheet', mime: 'text/csv' },
   { format: 'tsv', family: 'spreadsheet', mime: 'text/tab-separated-values' },
+  { format: 'parquet', family: 'spreadsheet', mime: 'application/vnd.apache.parquet' },
   { format: 'ppt', family: 'presentation', mime: 'application/vnd.ms-powerpoint' },
   {
     format: 'pptx',
@@ -89,6 +90,7 @@ const DEFINITIONS: FormatDefinition[] = [
   { format: 'html', family: 'text', mime: 'text/html', aliases: ['htm', 'html5'] },
   { format: 'rst', family: 'text', mime: 'text/x-rst', aliases: ['rest'] },
   { format: 'asciidoc', family: 'text', mime: 'text/asciidoc', aliases: ['adoc'] },
+  { format: 'json', family: 'text', mime: 'application/json' },
   { format: 'epub', family: 'ebook', mime: 'application/epub+zip' },
   { format: 'mobi', family: 'ebook', mime: 'application/x-mobipocket-ebook' },
   { format: 'azw3', family: 'ebook', mime: 'application/vnd.amazon.ebook', aliases: ['azw'] },

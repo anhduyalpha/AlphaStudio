@@ -1,0 +1,9 @@
+# python-data profile — Phase 2.
+#
+# Tabular conversions to/from Excel and Parquet (xlsx <-> json, parquet <-> csv/json).
+# CSV/TSV/JSON conversions do NOT need this profile (handled by the standard library).
+# Never installed automatically; opt in with:
+#   npm run python:install -- --profile data
+pandas>=2.0
+openpyxl>=3.1
+pyarrow>=15.0

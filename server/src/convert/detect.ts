@@ -87,7 +87,8 @@ const EXT_FAMILY: Record<string, { family: Family; format: string }> = {
   '.azw3': { family: 'ebook', format: 'azw3' },
   '.fb2': { family: 'ebook', format: 'fb2' },
   '.htmlz': { family: 'ebook', format: 'htmlz' },
-  '.json': { family: 'text', format: 'txt' },
+  '.json': { family: 'text', format: 'json' },
+  '.parquet': { family: 'spreadsheet', format: 'parquet' },
 };
 
 const MIME_TO_FORMAT: Record<string, { family: Family; format: string }> = {

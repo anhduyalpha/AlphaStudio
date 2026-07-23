@@ -1,0 +1,13 @@
+[project]
+name = "alphastudio-python-bridge"
+version = "0.1.0"
+description = "Optional specialized processing runtime invoked by the AlphaStudio Node worker."
+requires-python = ">=3.10"
+# Phase 1 (python-core profile) is stdlib-only. Heavier profiles add their own
+# dependencies via python/requirements-<profile>.txt and are never installed by
+# default.
+dependencies = []
+
+[tool.alphastudio]
+protocol = 1
+profiles = ["core", "data", "documents", "vision", "ocr", "ai"]

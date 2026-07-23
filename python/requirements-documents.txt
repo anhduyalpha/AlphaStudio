@@ -1,0 +1,11 @@
+# python-documents profile — Phase 2.
+#
+# High-fidelity Markdown/HTML -> PDF via WeasyPrint. The built-in pdf-lib route
+# remains the fallback when this profile is absent.
+# WeasyPrint needs native Pango/Cairo libraries; on Windows install the GTK
+# runtime it documents. Never installed automatically; opt in with:
+#   npm run python:install -- --profile documents
+weasyprint>=61
+markdown>=3.5
+# Table extraction (pdf.extract-tables). Uses OpenCV + Ghostscript natively.
+camelot-py[base]>=0.11

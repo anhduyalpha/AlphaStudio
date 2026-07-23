@@ -22,5 +22,9 @@ logs/
 tmp/
 temp/
 terminals/
+# Python bridge bytecode (the venv lives under .runtime/, already ignored above)
+python/**/__pycache__/
+__pycache__/
+*.pyc
 # Nested lockfile is obsolete under npm workspaces (root lockfile only)
 server/package-lock.json

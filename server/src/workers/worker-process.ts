@@ -29,6 +29,7 @@ const allowedTypes = new Set([
   'media',
   'audio',
   'converter',
+  'pyop',
 ]);
 
 let active: { jobId: string; lease: string; cancelled: boolean } | null = null;

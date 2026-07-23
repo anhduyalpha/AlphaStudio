@@ -1,0 +1,7 @@
+# python-core profile — Phase 1.
+#
+# Intentionally empty: the core profile runs on the Python standard library only
+# (json, csv, argparse, ...). This keeps `npm run python:install -- --profile core`
+# fast and dependency-free. Heavier profiles (data/documents/vision/ocr/ai) get
+# their own requirements-<profile>.txt files in later phases and are never
+# installed by default.
