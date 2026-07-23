@@ -2,12 +2,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import FilePicker from '../components/FilePicker';
 import QrPasteModal from '../components/QrPasteModal';
 import {
-  PageIntro,
   PrimaryButton,
   SecondaryButton,
   SelectField,
   TextField,
 } from '../components/Common';
+import { WorkspaceHeader } from '../components/Workbench';
 import useJobRunner from '../hooks/useJobRunner';
 import { api } from '../api/client';
 
@@ -269,11 +269,12 @@ export default function QrView({ notify }) {
   };
 
   return (
-    <div className="view-stack qr-lab">
-      <PageIntro
-        eyebrow="Tools / QR Lab"
+    <div className="view-stack qr-lab inspector-workspace family-qr" data-testid="qr-inspector-workspace">
+      <WorkspaceHeader
+        meta="Core tools / QR Lab"
         title="QR Lab"
-        description="Generate scannable codes or decode images locally."
+        description="Generate scannable codes or decode images locally. Encode form and decode stage share one dual-mode inspector."
+        family="qr"
         actions={
           busy ? (
             <SecondaryButton icon="close" onClick={cancel}>

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import FilePicker from '../components/FilePicker';
 import JobOutputCard from '../components/JobOutputCard';
-import { PageIntro, PrimaryButton, SecondaryButton, SelectField, StatusBadge, TextField } from '../components/Common';
+import EmptyState from '../components/EmptyState';
+import { PrimaryButton, SecondaryButton, SelectField, StatusBadge, TextField, Panel } from '../components/Common';
+import { WorkbenchLayout, WorkspaceHeader, ProgressWave } from '../components/Workbench';
 import useJobRunner from '../hooks/useJobRunner';
 
 const OPS = [
@@ -50,72 +52,68 @@ export default function ImageView({ notify }) {
     }
   };
 
+  const previewUrl = files[0] ? URL.createObjectURL(files[0]) : null;
+
   return (
-    <div className="view-stack">
-      <PageIntro
-        eyebrow="Tools / Image Lab"
-        title="Resize, convert, and optimize images."
-        description="Sharp-powered image operations with real downloads and metadata stripping."
-        actions={
-          <>
-            {busy ? <SecondaryButton icon="close" onClick={cancel}>Cancel</SecondaryButton> : null}
-            <PrimaryButton icon="image" onClick={start} disabled={busy}>
-              {busy ? `${progress}%` : 'Process image'}
-            </PrimaryButton>
-          </>
-        }
+    <div className="view-stack image-canvas-workspace family-image" data-testid="image-canvas-workspace">
+      <WorkspaceHeader
+        meta="Core tools / Image Lab"
+        title="Image canvas"
+        description="Preview is the primary object. Transforms stay in the rail; export runs against the local Sharp pipeline."
+        family="image"
+        status={<StatusBadge tone="green" status={busy ? 'converting' : 'completed'} live={busy}>{busy ? status || 'Running' : operation}</StatusBadge>}
       />
 
-      <section className="workspace-grid">
-        <div className="workspace-primary">
-          <article className="surface-card content-card">
-            <div className="card-heading">
-              <div><p className="eyebrow">Source</p><h3>Image input</h3></div>
-              <StatusBadge tone="green">Sharp</StatusBadge>
-            </div>
+      <WorkbenchLayout
+        family="image"
+        stage={(
+          <Panel title="Canvas" actions={<StatusBadge tone="green">Sharp</StatusBadge>}>
             <FilePicker accept="image/*" multiple={false} files={files} onChange={setFiles} disabled={busy} />
-            {files[0] ? (
+            {previewUrl ? (
               <div className="image-compare" style={{ marginTop: 16 }}>
                 <div className="image-swatch original">
-                  <img src={URL.createObjectURL(files[0])} alt="Original preview" style={{ maxWidth: '100%', borderRadius: 12 }} />
-                  <label>Original • {(files[0].size / 1024).toFixed(0)} KB</label>
+                  <img src={previewUrl} alt="Original preview" style={{ maxWidth: '100%', borderRadius: 12 }} />
                 </div>
               </div>
-            ) : null}
-          </article>
-          <article className="surface-card content-card">
+            ) : (
+              <EmptyState type="noResults" compact title="No image selected" description="Drop an image to preview and transform." />
+            )}
+            {busy ? <ProgressWave value={progress} label="Image job" /> : null}
+            <JobOutputCard job={job} notify={notify} />
+          </Panel>
+        )}
+        rail={(
+          <Panel title="Transforms">
             <div className="form-grid">
               <SelectField label="Operation" value={operation} onChange={(e) => setOperation(e.target.value)}>
-                {OPS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                {OPS.map((op) => <option key={op.id} value={op.id}>{op.label}</option>)}
               </SelectField>
               <SelectField label="Output format" value={format} onChange={(e) => setFormat(e.target.value)}>
-                <option value="webp">WEBP</option>
+                <option value="webp">WebP</option>
                 <option value="png">PNG</option>
                 <option value="jpeg">JPEG</option>
                 <option value="avif">AVIF</option>
               </SelectField>
-              <TextField label="Width" value={width} onChange={(e) => setWidth(e.target.value)} placeholder="1280" />
-              <TextField label="Height" value={height} onChange={(e) => setHeight(e.target.value)} placeholder="auto" />
-              <TextField label="Rotate angle" value={angle} onChange={(e) => setAngle(e.target.value)} />
+              <TextField label="Width" value={width} onChange={(e) => setWidth(e.target.value)} />
+              <TextField label="Height" value={height} onChange={(e) => setHeight(e.target.value)} />
+              <TextField label="Angle" value={angle} onChange={(e) => setAngle(e.target.value)} />
               <TextField label="Quality" value={quality} onChange={(e) => setQuality(e.target.value)} />
             </div>
-          </article>
-        </div>
-        <aside className="workspace-sidebar">
-          <article className="surface-card content-card sticky-card">
-            <p className="eyebrow">Status</p>
-            <h3>{busy ? status : 'Ready'}</h3>
-            <div className="summary-list">
-              <div><span>Operation</span><strong>{operation}</strong></div>
-              <div><span>Progress</span><strong>{busy ? `${progress}%` : '—'}</strong></div>
+          </Panel>
+        )}
+        runbar={(
+          <>
+            <div className="job-row-main">
+              <strong>{operation}</strong>
+              <span>{files[0]?.name || 'No file'} · {busy ? `${progress}%` : 'Ready'}</span>
             </div>
-            <PrimaryButton icon="wand" onClick={start} disabled={busy || !files.length}>
-              Run
-            </PrimaryButton>
-          </article>
-        </aside>
-      </section>
-      <JobOutputCard job={job} notify={notify} title="Processed image" />
+            <div className="hero-button-row">
+              {busy ? <SecondaryButton icon="close" onClick={cancel}>Cancel</SecondaryButton> : null}
+              <PrimaryButton icon="image" onClick={start} disabled={busy} busy={busy}>Process image</PrimaryButton>
+            </div>
+          </>
+        )}
+      />
     </div>
   );
 }
