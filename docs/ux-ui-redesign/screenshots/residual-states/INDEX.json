@@ -1,0 +1,360 @@
+{
+  "frames": [
+    {
+      "route": "dashboard",
+      "state": "empty",
+      "viewport": "375",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/dashboard/empty-375.png"
+    },
+    {
+      "route": "dashboard",
+      "state": "empty",
+      "viewport": "768",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/dashboard/empty-768.png"
+    },
+    {
+      "route": "dashboard",
+      "state": "empty",
+      "viewport": "1440",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/dashboard/empty-1440.png"
+    },
+    {
+      "route": "image",
+      "state": "empty",
+      "viewport": "375",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/image/empty-375.png"
+    },
+    {
+      "route": "image",
+      "state": "empty",
+      "viewport": "768",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/image/empty-768.png"
+    },
+    {
+      "route": "image",
+      "state": "empty",
+      "viewport": "1440",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/image/empty-1440.png"
+    },
+    {
+      "route": "image",
+      "state": "crop-mode",
+      "viewport": "375",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/image/crop-mode-375.png"
+    },
+    {
+      "route": "image",
+      "state": "crop-mode",
+      "viewport": "768",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/image/crop-mode-768.png"
+    },
+    {
+      "route": "image",
+      "state": "crop-mode",
+      "viewport": "1440",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/image/crop-mode-1440.png"
+    },
+    {
+      "route": "text",
+      "state": "empty",
+      "viewport": "375",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/text/empty-375.png"
+    },
+    {
+      "route": "text",
+      "state": "empty",
+      "viewport": "768",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/text/empty-768.png"
+    },
+    {
+      "route": "text",
+      "state": "empty",
+      "viewport": "1440",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/text/empty-1440.png"
+    },
+    {
+      "route": "text",
+      "state": "compare-mode",
+      "viewport": "375",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/text/compare-mode-375.png"
+    },
+    {
+      "route": "text",
+      "state": "compare-mode",
+      "viewport": "768",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/text/compare-mode-768.png"
+    },
+    {
+      "route": "text",
+      "state": "compare-mode",
+      "viewport": "1440",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/text/compare-mode-1440.png"
+    },
+    {
+      "route": "archive",
+      "state": "empty",
+      "viewport": "375",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/archive/empty-375.png"
+    },
+    {
+      "route": "archive",
+      "state": "empty",
+      "viewport": "768",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/archive/empty-768.png"
+    },
+    {
+      "route": "archive",
+      "state": "empty",
+      "viewport": "1440",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/archive/empty-1440.png"
+    },
+    {
+      "route": "archive",
+      "state": "inspect-mode",
+      "viewport": "375",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/archive/inspect-mode-375.png"
+    },
+    {
+      "route": "archive",
+      "state": "inspect-mode",
+      "viewport": "768",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/archive/inspect-mode-768.png"
+    },
+    {
+      "route": "archive",
+      "state": "inspect-mode",
+      "viewport": "1440",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/archive/inspect-mode-1440.png"
+    },
+    {
+      "route": "color",
+      "state": "empty",
+      "viewport": "375",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/color/empty-375.png"
+    },
+    {
+      "route": "color",
+      "state": "empty",
+      "viewport": "768",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/color/empty-768.png"
+    },
+    {
+      "route": "color",
+      "state": "empty",
+      "viewport": "1440",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/color/empty-1440.png"
+    },
+    {
+      "route": "color",
+      "state": "contrast-mode",
+      "viewport": "375",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/color/contrast-mode-375.png"
+    },
+    {
+      "route": "color",
+      "state": "contrast-mode",
+      "viewport": "768",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/color/contrast-mode-768.png"
+    },
+    {
+      "route": "color",
+      "state": "contrast-mode",
+      "viewport": "1440",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/color/contrast-mode-1440.png"
+    },
+    {
+      "route": "security",
+      "state": "empty",
+      "viewport": "375",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/security/empty-375.png"
+    },
+    {
+      "route": "security",
+      "state": "empty",
+      "viewport": "768",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/security/empty-768.png"
+    },
+    {
+      "route": "security",
+      "state": "empty",
+      "viewport": "1440",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/security/empty-1440.png"
+    },
+    {
+      "route": "security",
+      "state": "password-mode",
+      "viewport": "375",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/security/password-mode-375.png"
+    },
+    {
+      "route": "security",
+      "state": "password-mode",
+      "viewport": "768",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/security/password-mode-768.png"
+    },
+    {
+      "route": "security",
+      "state": "password-mode",
+      "viewport": "1440",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/security/password-mode-1440.png"
+    },
+    {
+      "route": "activity",
+      "state": "empty",
+      "viewport": "375",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/activity/empty-375.png"
+    },
+    {
+      "route": "activity",
+      "state": "empty",
+      "viewport": "768",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/activity/empty-768.png"
+    },
+    {
+      "route": "activity",
+      "state": "empty",
+      "viewport": "1440",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/activity/empty-1440.png"
+    },
+    {
+      "route": "settings",
+      "state": "empty",
+      "viewport": "375",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/settings/empty-375.png"
+    },
+    {
+      "route": "settings",
+      "state": "empty",
+      "viewport": "768",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/settings/empty-768.png"
+    },
+    {
+      "route": "settings",
+      "state": "empty",
+      "viewport": "1440",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/settings/empty-1440.png"
+    },
+    {
+      "route": "profile",
+      "state": "empty",
+      "viewport": "375",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/profile/empty-375.png"
+    },
+    {
+      "route": "profile",
+      "state": "empty",
+      "viewport": "768",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/profile/empty-768.png"
+    },
+    {
+      "route": "profile",
+      "state": "empty",
+      "viewport": "1440",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/profile/empty-1440.png"
+    },
+    {
+      "route": "developer",
+      "state": "empty",
+      "viewport": "375",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/developer/empty-375.png"
+    },
+    {
+      "route": "developer",
+      "state": "empty",
+      "viewport": "768",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/developer/empty-768.png"
+    },
+    {
+      "route": "developer",
+      "state": "empty",
+      "viewport": "1440",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/developer/empty-1440.png"
+    },
+    {
+      "route": "media",
+      "state": "empty",
+      "viewport": "375",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/media/empty-375.png"
+    },
+    {
+      "route": "media",
+      "state": "empty",
+      "viewport": "768",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/media/empty-768.png"
+    },
+    {
+      "route": "media",
+      "state": "empty",
+      "viewport": "1440",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/media/empty-1440.png"
+    },
+    {
+      "route": "media",
+      "state": "trim-mode",
+      "viewport": "375",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/media/trim-mode-375.png"
+    },
+    {
+      "route": "media",
+      "state": "trim-mode",
+      "viewport": "768",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/media/trim-mode-768.png"
+    },
+    {
+      "route": "media",
+      "state": "trim-mode",
+      "viewport": "1440",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/media/trim-mode-1440.png"
+    },
+    {
+      "route": "audio",
+      "state": "empty",
+      "viewport": "375",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/audio/empty-375.png"
+    },
+    {
+      "route": "audio",
+      "state": "empty",
+      "viewport": "768",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/audio/empty-768.png"
+    },
+    {
+      "route": "audio",
+      "state": "empty",
+      "viewport": "1440",
+      "path": "docs/ux-ui-redesign/screenshots/residual-states/audio/empty-1440.png"
+    }
+  ],
+  "beforeAfter": [
+    {
+      "route": "dashboard",
+      "before": "docs/ux-ui-redesign/screenshots/after-corrective/dashboard/1440.png",
+      "after": "docs/ux-ui-redesign/screenshots/residual-states/dashboard/empty-1440.png",
+      "note": "Pair for manual side-by-side; empty residual vs prior after-corrective empty frame"
+    },
+    {
+      "route": "image",
+      "before": "docs/ux-ui-redesign/screenshots/after-corrective/image/1440.png",
+      "after": "docs/ux-ui-redesign/screenshots/residual-states/image/empty-1440.png",
+      "note": "Pair for manual side-by-side; empty residual vs prior after-corrective empty frame"
+    },
+    {
+      "route": "text",
+      "before": "docs/ux-ui-redesign/screenshots/after-corrective/text/1440.png",
+      "after": "docs/ux-ui-redesign/screenshots/residual-states/text/empty-1440.png",
+      "note": "Pair for manual side-by-side; empty residual vs prior after-corrective empty frame"
+    },
+    {
+      "route": "archive",
+      "before": "docs/ux-ui-redesign/screenshots/after-corrective/archive/1440.png",
+      "after": "docs/ux-ui-redesign/screenshots/residual-states/archive/empty-1440.png",
+      "note": "Pair for manual side-by-side; empty residual vs prior after-corrective empty frame"
+    },
+    {
+      "route": "color",
+      "before": "docs/ux-ui-redesign/screenshots/after-corrective/color/1440.png",
+      "after": "docs/ux-ui-redesign/screenshots/residual-states/color/empty-1440.png",
+      "note": "Pair for manual side-by-side; empty residual vs prior after-corrective empty frame"
+    }
+  ]
+}

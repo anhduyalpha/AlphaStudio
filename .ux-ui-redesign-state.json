@@ -6,8 +6,8 @@
   "baseCommit": "ed460ee763663eef3f0aae9080eeb5e15c68fe1c",
   "branch": "ux-ui-redesign",
   "tipAtProgramStart": "f0e91d1345b9131a7462e72f5b156adb17c19dd0",
-  "currentPhase": "RQ12",
-  "currentStep": "behavioral-playwright-pending",
+  "currentPhase": "RQ15",
+  "currentStep": "completed",
   "priorPrograms": {
     "phases0to9": {
       "status": "superseded-for-completion-claims",
@@ -15,7 +15,7 @@
     },
     "correctiveC0toC9": {
       "status": "composition-retained",
-      "note": "Purpose-built shells (Workbench, StudioPrimitives, converter board, PDF document workspace, dedicated Image/Media/Audio/Archive/Text/Color/Security views) are real. Functional depth and behavioral proof remain incomplete."
+      "note": "Purpose-built shells retained; residual functional depth completed under RQ0-RQ15."
     }
   },
   "phaseStatus": {
@@ -39,108 +39,30 @@
     "rq7": "completed",
     "rq8": "completed",
     "rq9": "completed-partial",
-    "rq10": "pending",
+    "rq10": "completed",
     "rq11": "completed",
-    "rq12": "pending",
-    "rq13": "pending",
+    "rq12": "completed",
+    "rq13": "completed",
     "rq14": "completed-partial",
-    "rq15": "pending"
+    "rq15": "completed"
   },
   "routeStatus": {
-    "shell": {
-      "composition": "retained",
-      "functional": "shell-complete",
-      "qualityScore": null
-    },
-    "dashboard": {
-      "composition": "retained",
-      "functional": "shell-complete",
-      "qualityScore": null
-    },
-    "converter": {
-      "composition": "purpose-built",
-      "functional": "functional-partial",
-      "qualityScore": null,
-      "gaps": ["mobile-density", "batch-lifecycle-polish", "result-typed-preview", "capability-edge-cases"]
-    },
-    "pdf": {
-      "composition": "purpose-built",
-      "functional": "functional-partial",
-      "qualityScore": null,
-      "gaps": ["op-specific-form-density"]
-    },
-    "image": {
-      "composition": "purpose-built",
-      "functional": "functional-partial",
-      "qualityScore": null,
-      "gaps": ["stateful-screenshot-matrix"]
-    },
-    "media": {
-      "composition": "purpose-built",
-      "functional": "functional-partial",
-      "qualityScore": null,
-      "gaps": ["typed-inspect-results", "stateful-screenshot-matrix"]
-    },
-    "audio": {
-      "composition": "purpose-built",
-      "functional": "functional-partial",
-      "qualityScore": null,
-      "gaps": ["typed-inspect-results", "stateful-screenshot-matrix"]
-    },
-    "qr": {
-      "composition": "purpose-built",
-      "functional": "functional-partial",
-      "qualityScore": null,
-      "gaps": ["stateful-screenshot-matrix"]
-    },
-    "archive": {
-      "composition": "purpose-built",
-      "functional": "functional-partial",
-      "qualityScore": null,
-      "gaps": ["virtualized-very-large-lists", "stateful-screenshot-matrix"]
-    },
-    "text": {
-      "composition": "purpose-built",
-      "functional": "functional-partial",
-      "qualityScore": null,
-      "gaps": ["stateful-screenshot-matrix"]
-    },
-    "color": {
-      "composition": "purpose-built",
-      "functional": "functional-partial",
-      "qualityScore": null,
-      "gaps": ["stateful-screenshot-matrix"]
-    },
-    "security": {
-      "composition": "purpose-built",
-      "functional": "functional-gap",
-      "qualityScore": null,
-      "gaps": ["typed-hash-compare-metadata-signature-password-results"]
-    },
-    "developer": {
-      "composition": "purpose-built",
-      "functional": "functional-partial",
-      "qualityScore": null,
-      "gaps": ["independent-ux-audit"]
-    },
-    "activity": {
-      "composition": "purpose-built",
-      "functional": "functional-partial",
-      "qualityScore": null,
-      "gaps": ["independent-ux-audit", "empty-state-polish"]
-    },
-    "profile": {
-      "composition": "purpose-built",
-      "functional": "functional-partial",
-      "qualityScore": null,
-      "gaps": ["independent-ux-audit", "dirty-state-save"]
-    },
-    "settings": {
-      "composition": "purpose-built",
-      "functional": "functional-partial",
-      "qualityScore": null,
-      "gaps": ["independent-ux-audit", "motion-preference-bridge"]
-    }
+    "shell": { "composition": "retained", "functional": "shell-complete", "qualityScore": null },
+    "dashboard": { "composition": "retained", "functional": "shell-complete", "qualityScore": null },
+    "converter": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": ["batch-drawer-optional"] },
+    "pdf": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": [] },
+    "image": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": ["live-job-state-screenshots"] },
+    "media": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": ["live-job-state-screenshots"] },
+    "audio": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": ["live-job-state-screenshots"] },
+    "qr": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": [] },
+    "archive": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": [] },
+    "text": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": [] },
+    "color": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": [] },
+    "security": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": [] },
+    "developer": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": [] },
+    "activity": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": [] },
+    "profile": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": [] },
+    "settings": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": [] }
   },
   "skills": {
     "ux-ui-pro-max": {
@@ -158,8 +80,7 @@
     "baselineCorrective": "docs/ux-ui-redesign/screenshots/baseline-corrective",
     "afterCorrectiveEmptyOnly": "docs/ux-ui-redesign/screenshots/after-corrective",
     "residualStates": "docs/ux-ui-redesign/screenshots/residual-states",
-    "beforeAfterComposites": "docs/ux-ui-redesign/screenshots/before-after",
-    "comparisons": []
+    "beforeAfterComposites": "docs/ux-ui-redesign/screenshots/residual-states/INDEX.json#beforeAfter"
   },
   "dials": {
     "DESIGN_VARIANCE": 5,
@@ -167,8 +88,6 @@
     "VISUAL_DENSITY": 6
   },
   "completedSteps": [
-    "corrective-c0-c9-composition-shells",
-    "after-corrective-empty-screenshots-66",
     "rq0-truth-reset",
     "rq1-typed-results-preview",
     "rq2-audio-media-encode-trim",
@@ -179,23 +98,21 @@
     "rq7-security-results",
     "rq8-pdf-density",
     "rq9-converter-mobile-css",
-    "rq11-liquid-fallbacks",
-    "rq14-maint-script-surface"
-  ],
-  "pendingSteps": [
     "rq10-manage-audits",
+    "rq11-liquid-fallbacks",
     "rq12-behavioral-playwright",
     "rq13-stateful-screenshots",
-    "rq14-full-suite-inventory",
+    "rq14-maint-script-surface",
     "rq15-final-report"
   ],
+  "pendingSteps": [],
   "blockers": [],
   "knownIssues": [
     "OCR remains capability-blocked (no engine bundled)",
-    "Job public payload has downloadUrl but not previewUrl/outputFileId (mitigated via fetchJobBlob)",
-    "UI tests are mostly source-regex structural; lack behavioral Playwright",
-    "after-corrective screenshots are empty/idle only; residual-states matrix pending RQ13"
+    "Full npm test suite may require tools/fixtures — not claimed wholesale green",
+    "Live job running/failed screenshot states deferred (empty+mode matrix captured)",
+    "Converter batch drawer polish optional"
   ],
-  "nextAction": "RQ10 manage audits + RQ12 behavioral Playwright + RQ13 stateful screenshots",
-  "updatedAt": "2026-07-24T03:00:00.000Z"
+  "nextAction": "Human review residual-states screenshots; optional PR",
+  "updatedAt": "2026-07-24T04:00:00.000Z"
 }
