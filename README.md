@@ -10,13 +10,28 @@ Local-first utility suite built with **React + Vite**, **Fastify + SQLite**, bac
 
 ## Install
 
+Clone the repository:
+
 ```bash
 git clone https://github.com/anhduyalpha/AlphaStudio.git
 cd AlphaStudio
+```
+
+### Full installation
+
+```bash
 npm run bootstrap
 ```
 
-`npm run bootstrap` installs Node dependencies and the full converter runtime: **7-Zip, FFmpeg/ffprobe, LibreOffice, Pandoc, and Calibre**.
+Installs Node dependencies plus **7-Zip, FFmpeg/ffprobe, LibreOffice, Pandoc, and Calibre**.
+
+### App only
+
+```bash
+npm ci --no-audit --no-fund
+```
+
+Use this when you only need to run the app. Missing external tools will appear as unavailable but will not prevent startup.
 
 Create the environment file:
 
@@ -28,27 +43,6 @@ Copy-Item .env.example .env
 ```bash
 # Linux/macOS
 cp .env.example .env
-```
-
-### Optional: install all Python profiles
-
-Python features are not installed by `bootstrap`. Install only the profiles you need, or run all commands below:
-
-```bash
-node scripts/maint/python.mjs install --profile core
-node scripts/maint/python.mjs install --profile data
-node scripts/maint/python.mjs install --profile documents
-node scripts/maint/python.mjs install --profile vision
-node scripts/maint/python.mjs install --profile ocr
-node scripts/maint/python.mjs install --profile ai
-```
-
-Optional AI models:
-
-```bash
-npm run python:models -- --list
-npm run python:models -- --model whisper-base
-npm run python:models -- --model u2net --allow-unverified
 ```
 
 ## Run
@@ -69,6 +63,33 @@ npm start
 ```
 
 Open `http://127.0.0.1:8787`.
+
+`dev`, `build`, and `start` do not install external tools automatically. Install or repair them separately with:
+
+```bash
+npm run runtime:prepare
+```
+
+## Optional Python features
+
+Install only the profiles you need:
+
+```bash
+node scripts/maint/python.mjs install --profile core
+node scripts/maint/python.mjs install --profile data
+node scripts/maint/python.mjs install --profile documents
+node scripts/maint/python.mjs install --profile vision
+node scripts/maint/python.mjs install --profile ocr
+node scripts/maint/python.mjs install --profile ai
+```
+
+Optional AI models:
+
+```bash
+npm run python:models -- --list
+npm run python:models -- --model whisper-base
+npm run python:models -- --model u2net --allow-unverified
+```
 
 ## Check installation
 
