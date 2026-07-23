@@ -8,8 +8,10 @@ import {
   StatusBadge,
   TextField,
   WorkspaceTabs,
+  Panel,
 } from '../components/Common';
-import { WorkspaceHeader, ProgressWave } from '../components/Workbench';
+import { WorkspaceHeader, ProgressWave, WorkbenchLayout } from '../components/Workbench';
+import { SegmentedControl } from '../components/StudioPrimitives';
 import useJobRunner from '../hooks/useJobRunner';
 import useCapabilities from '../hooks/useCapabilities';
 import PdfPageOrganizer from '../components/pdf/PdfPageOrganizer';
@@ -307,34 +309,27 @@ export default function PdfView({ notify }) {
             {unavailable ? 'Unavailable' : busy ? status || 'Running' : operation}
           </StatusBadge>
         )}
-        actions={
-          <>
-            {busy ? (
-              <SecondaryButton icon="close" onClick={cancel}>
-                Cancel
-              </SecondaryButton>
-            ) : null}
-            <PrimaryButton icon="upload" onClick={start} disabled={busy || unavailable} busy={busy}>
-              {unavailable ? 'Unavailable' : 'Run PDF operation'}
-            </PrimaryButton>
-          </>
-        }
       />
 
+      <SegmentedControl
+        label="PDF operation groups"
+        value={opMeta.group}
+        onChange={(groupId) => {
+          const first = ALL_OPS.find((o) => o.group === groupId);
+          if (first) setOperation(first.id);
+        }}
+        options={GROUPS.map((g) => ({ id: g.id, label: g.label }))}
+      />
       <WorkspaceTabs tabs={['Workspace', 'Preview', 'Export']} active={tab} onChange={setTab} />
       {busy ? <ProgressWave value={progress} label="PDF job progress" /> : null}
 
       {tab === 'Workspace' || tab === 'Preview' ? (
-        <section className="workspace-grid conversion-board-grid">
-          <div className="workspace-primary workbench-stage">
-            <article className="surface-card content-card">
-              <div className="card-heading">
-                <div>
-                  <p className="eyebrow">Stage</p>
-                  <h3>Documents and pages</h3>
-                </div>
-                <StatusBadge tone="cyan">{files.length} selected</StatusBadge>
-              </div>
+        <WorkbenchLayout
+          family="pdf"
+          className="pdf-document-board"
+          stage={(
+            <>
+            <Panel title="Documents" actions={<StatusBadge tone="cyan">{files.length} selected</StatusBadge>}>
               <FilePicker
                 accept={opMeta.images ? 'image/*' : 'application/pdf,.pdf'}
                 files={files}
@@ -343,26 +338,26 @@ export default function PdfView({ notify }) {
                 multiple={opMeta.multi || opMeta.images || operation === 'merge'}
                 reorderable={operation === 'merge' || opMeta.images}
               />
-            </article>
+            </Panel>
 
-            <article className="surface-card content-card">
+            {files[0] && opMeta.preview !== false ? (
+              <Panel title="Page canvas" className="pdf-page-canvas-panel">
+                <PdfPageOrganizer
+                  file={files[0]}
+                  operation={operation}
+                  pages={pages}
+                  onPagesChange={setPages}
+                  onPlanChange={setEditPlan}
+                  angle={angle}
+                  onAngleChange={setAngle}
+                  disabled={busy}
+                />
+              </Panel>
+            ) : null}
+
+            <Panel title="Operation options">
               <div className="form-grid">
-                <SelectField
-                  label="Category"
-                  value={opMeta.group}
-                  onChange={(e) => {
-                    const first = ALL_OPS.find((o) => o.group === e.target.value);
-                    if (first) setOperation(first.id);
-                  }}
-                >
-                  {GROUPS.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.label}
-                    </option>
-                  ))}
-                </SelectField>
-
-                <SelectField label="Operation" value={opMeta.id} onChange={(e) => setOperation(e.target.value)}>
+                <SelectField label="Operation" value={opMeta.id} onChange={(e) => setOperation(e.target.value)} id="field-operation">
                   {GROUPS.find((g) => g.id === opMeta.group)?.ops.map((o) => {
                     const avail = isAvailable(o.capability);
                     const gatedOff = avail === false || (capsLoading && GATED_OP_IDS.has(o.id));
@@ -524,29 +519,10 @@ export default function PdfView({ notify }) {
               <p className="helper-note" style={{ marginTop: '0.75rem' }}>
                 Job: {jobSummary}
               </p>
-            </article>
-
-            {tab === 'Preview' && opMeta.preview && files[0] ? (
-              <PdfPageOrganizer
-                file={files[0]}
-                operation={operation}
-                pages={pages}
-                onPagesChange={setPages}
-                onPlanChange={setEditPlan}
-                angle={angle}
-                onAngleChange={setAngle}
-                disabled={busy}
-              />
-            ) : null}
+            </Panel>
 
             {inspectData ? (
-              <article className="surface-card content-card">
-                <div className="card-heading">
-                  <div>
-                    <p className="eyebrow">Inspection</p>
-                    <h3>{inspectData.filename || 'Document'}</h3>
-                  </div>
-                </div>
+              <Panel title={inspectData.filename || 'Inspection'}>
                 <div className="summary-list">
                   <div>
                     <span>Pages</span>
@@ -610,14 +586,13 @@ export default function PdfView({ notify }) {
                     ))}
                   </ul>
                 ) : null}
-              </article>
+              </Panel>
             ) : null}
-          </div>
-
-          <aside className="workspace-sidebar workbench-rail" aria-label="PDF options">
-            <article className="surface-card content-card sticky-card">
-              <p className="eyebrow">Run status</p>
-              <h3>{unavailable ? 'Unavailable' : busy ? status : 'Ready'}</h3>
+            </>
+          )}
+          rail={(
+            <Panel title="Run status">
+              <h3 style={{ marginTop: 0 }}>{unavailable ? 'Unavailable' : busy ? status : 'Ready'}</h3>
               <div className="summary-list">
                 <div>
                   <span>Operation</span>
@@ -645,12 +620,23 @@ export default function PdfView({ notify }) {
               >
                 {capsLoading ? 'Refreshing…' : 'Refresh capabilities'}
               </SecondaryButton>
-              <PrimaryButton icon="file" onClick={start} disabled={busy || unavailable || !files.length}>
-                {unavailable ? 'Unavailable' : busy ? 'Processing…' : 'Process PDF'}
-              </PrimaryButton>
-            </article>
-          </aside>
-        </section>
+            </Panel>
+          )}
+          runbar={(
+            <>
+              <div className="job-row-main">
+                <strong>{opMeta.label}</strong>
+                <span>{unavailable ? 'Blocked' : busy ? `${progress}%` : files.length ? 'Ready' : 'Need a document'}</span>
+              </div>
+              <div className="hero-button-row">
+                {busy ? <SecondaryButton icon="close" onClick={cancel}>Cancel</SecondaryButton> : null}
+                <PrimaryButton icon="file" onClick={start} disabled={busy || unavailable || !files.length} busy={busy}>
+                  {unavailable ? 'Unavailable' : 'Run PDF operation'}
+                </PrimaryButton>
+              </div>
+            </>
+          )}
+        />
       ) : null}
 
       {tab === 'Export' ? (

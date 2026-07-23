@@ -23,7 +23,20 @@ function operationSelect(page) {
 }
 
 function categorySelect(page) {
-  return page.locator('select#field-category, select[name="category"]').first();
+  // Prefer legacy select if present; otherwise segmented control tab buttons.
+  const select = page.locator('select#field-category, select[name="category"]').first();
+  return select;
+}
+
+async function selectPdfGroup(page, groupLabel) {
+  const select = page.locator('select#field-category, select[name="category"]');
+  if (await select.count()) {
+    await select.first().selectOption({ label: groupLabel }).catch(async () => {
+      await select.first().selectOption(groupLabel.toLowerCase());
+    });
+    return;
+  }
+  await page.getByRole('tab', { name: groupLabel, exact: true }).click();
 }
 
 test.describe.serial('PDF Studio browser baseline', () => {
@@ -70,18 +83,18 @@ test.describe.serial('PDF Studio browser baseline', () => {
     });
 
     await openPdfStudio(page);
-    await categorySelect(page).selectOption('analyze');
+    await selectPdfGroup(page, 'Analyze');
     await choosePdf(page, 'text-basic.pdf');
     await page.getByRole('button', { name: 'Run PDF operation' }).click();
     await sawUpload;
-    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await page.getByTestId('workbench-layout').getByRole('button', { name: 'Cancel', exact: true }).click();
     await page.waitForTimeout(1_500);
     expect(createdJobs).toEqual([]);
   });
 
   test('submits one idempotent payload, restores its completed result, and deletes it', async ({ page, browserAudit }) => {
     await openPdfStudio(page);
-    await categorySelect(page).selectOption('analyze');
+    await selectPdfGroup(page, 'Analyze');
     await expect(operationSelect(page)).toHaveValue('inspect');
     await choosePdf(page, 'quarterly.report.final.v1.pdf');
 
