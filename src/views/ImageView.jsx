@@ -6,7 +6,7 @@ import { PrimaryButton, SecondaryButton, SelectField, StatusBadge, TextField, Pa
 import { WorkbenchLayout, WorkspaceHeader, ProgressWave } from '../components/Workbench';
 import { SegmentedControl, CompareSlider, FileRow } from '../components/StudioPrimitives';
 import useJobRunner from '../hooks/useJobRunner';
-import { api } from '../api/client';
+import useJobPreviewUrl from '../hooks/useJobPreviewUrl';
 
 const OPS = [
   { id: 'optimize', label: 'Optimize' },
@@ -44,22 +44,8 @@ export default function ImageView({ notify }) {
     return undefined;
   }, [previewUrl]);
 
-  const resultPreview = useMemo(() => {
-    if (job?.status !== 'completed' || !job?.id) return null;
-    if (job.previewUrl) {
-      return String(job.previewUrl).startsWith('http')
-        ? job.previewUrl
-        : `${api.base}${job.previewUrl}`;
-    }
-    const fileId = job.outputFileId || job.fileId;
-    if (fileId) return api.filePreviewUrl(fileId);
-    if (job.downloadUrl) {
-      return String(job.downloadUrl).startsWith('http')
-        ? job.downloadUrl
-        : `${api.base}${job.downloadUrl}`;
-    }
-    return api.downloadUrl(job.id);
-  }, [job]);
+  // Auth-safe object URL from job download (jobs do not expose previewUrl/outputFileId)
+  const { url: resultPreview, loading: resultLoading } = useJobPreviewUrl(job, { enabled: true });
 
   const start = async () => {
     if (!files.length) {
@@ -133,6 +119,7 @@ export default function ImageView({ notify }) {
                   <div className="image-swatch original">
                     <img src={previewUrl} alt="Original preview" style={{ maxWidth: '100%', borderRadius: 12 }} />
                   </div>
+                  {resultLoading ? <p className="helper-note">Loading result preview…</p> : null}
                 </div>
               )
             ) : (
