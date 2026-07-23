@@ -4,6 +4,7 @@ import { BrandLockup, BrandMark } from '../components/Brand';
 import EmptyState from '../components/EmptyState';
 import { PageIntro, PrimaryButton, SecondaryButton, StatusBadge, FeatureRail, Panel } from '../components/Common';
 import { WorkbenchLayout, WorkspaceHeader, ProgressWave, Skeleton, CapabilityBanner } from '../components/Workbench';
+import { SegmentedControl, TimelineRange, WaveformStrip, FileRow, CompareSlider } from '../components/StudioPrimitives';
 import {
   brandAssets,
   emptyIllustrations,
@@ -27,7 +28,22 @@ export default function AssetGalleryView() {
       />
 
       <section className="surface-card content-card asset-section">
-        <div className="card-heading"><div><p className="eyebrow">Foundations</p><h3>Workbench primitives</h3></div><StatusBadge tone="cyan">Phase 2</StatusBadge></div>
+        <div className="card-heading"><div><p className="eyebrow">Foundations</p><h3>Workbench primitives</h3></div><StatusBadge tone="cyan">Corrective C1</StatusBadge></div>
+        <div style={{ display: 'grid', gap: 16, marginBottom: 16 }}>
+          <SegmentedControl
+            label="Demo modes"
+            value="convert"
+            onChange={() => {}}
+            options={[
+              { id: 'convert', label: 'Convert', icon: 'swap' },
+              { id: 'trim', label: 'Trim', icon: 'scissors' },
+              { id: 'inspect', label: 'Inspect', icon: 'eye' },
+            ]}
+          />
+          <TimelineRange duration={120} start={4} end={48} onChange={() => {}} />
+          <WaveformStrip />
+          <FileRow name="demo-track.wav" meta="audio · sample" status="ready" selected />
+        </div>
         <WorkbenchLayout
           family="converter"
           stage={

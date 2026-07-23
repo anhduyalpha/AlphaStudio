@@ -1,7 +1,14 @@
 # Component Matrix — UX/UI Redesign
 
+> Updated Corrective C1. ModularWorkspaceView is demoted; purpose-built routes own composition.
+
 | Component | Decision | Target API / composition | A11y notes | Phase |
 |-----------|----------|--------------------------|------------|-------|
+| SegmentedControl | **add** | mode switcher for Audio/Archive/Text/Security | tablist | C1 |
+| TimelineRange | **add** | start/end seconds + dual range | labeled inputs | C1 |
+| WaveformStrip | **add** | Web Audio peaks + static fallback | img role | C1 |
+| FileRow / FileRowList | **add** | selectable queue rows | keyboard select | C1 |
+| CompareSlider | **add** | image before/after | range label | C1 |
 | PageIntro | **replace** | `WorkspaceHeader` title/meta/actions/status | one h1 per route | 2–3 |
 | PrimaryButton | **redesign** | size sm/md, liquid-press, busy | disabled aria-busy | 2 |
 | SecondaryButton | **redesign** | ghost/outline variants | same | 2 |
