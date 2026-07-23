@@ -100,16 +100,30 @@ export default function SecurityView({ notify }) {
               <EmptyState type="noResults" compact title="Password generator" description="No file required. Configure length and symbol policy in the rail." />
             )}
             {busy ? <ProgressWave value={progress} label="Security job" /> : null}
-            <JobOutputCard job={job} notify={notify} />
+            <JobOutputCard
+              job={job}
+              notify={notify}
+              showTyped
+              title={
+                mode === 'hash' ? 'Checksums ready'
+                  : mode === 'compare' ? 'Checksum comparison'
+                    : mode === 'password' ? 'Generated password'
+                      : mode === 'signature' ? 'Signature report'
+                        : mode === 'metadata' ? 'Metadata report'
+                          : undefined
+              }
+            />
           </Panel>
         )}
         rail={(
           <Panel title={`${modeMeta.label} options`}>
             {mode === 'hash' ? (
-              <p className="workspace-description" style={{ margin: 0 }}>Computes MD5, SHA-1, SHA-256, and SHA-512 digests for the selected file.</p>
+              <p className="workspace-description" style={{ margin: 0 }} data-testid="security-mode-hash">
+                Computes MD5, SHA-1, SHA-256, and SHA-512 digests. Results render as a copyable table (not raw JSON only).
+              </p>
             ) : null}
             {mode === 'compare' ? (
-              <div className="form-grid">
+              <div className="form-grid" data-testid="security-mode-compare">
                 <SelectField label="Algorithm" value={algorithm} onChange={(e) => setAlgorithm(e.target.value)}>
                   <option value="md5">MD5</option>
                   <option value="sha1">SHA-1</option>
@@ -117,19 +131,25 @@ export default function SecurityView({ notify }) {
                   <option value="sha512">SHA-512</option>
                 </SelectField>
                 <TextField label="Expected checksum (hex)" value={expected} onChange={(e) => setExpected(e.target.value)} placeholder="paste hex digest" />
+                <p className="helper-note" style={{ margin: 0 }}>Result card shows match/mismatch with expected vs actual digests.</p>
               </div>
             ) : null}
             {mode === 'metadata' ? (
-              <p className="workspace-description" style={{ margin: 0 }}>Reports size, MIME, and EXIF presence for local inspection.</p>
+              <p className="workspace-description" style={{ margin: 0 }} data-testid="security-mode-metadata">
+                Reports size, MIME, and image EXIF presence. Typed metadata panel lists fields when the job completes.
+              </p>
             ) : null}
             {mode === 'signature' ? (
-              <p className="workspace-description" style={{ margin: 0 }}>Compares extension vs magic-byte signature.</p>
+              <p className="workspace-description" style={{ margin: 0 }} data-testid="security-mode-signature">
+                Compares extension vs magic-byte signature and shows a pass/fail verdict.
+              </p>
             ) : null}
             {mode === 'password' ? (
-              <>
+              <div data-testid="security-mode-password">
                 <TextField label="Length" value={length} onChange={(e) => setLength(e.target.value)} />
                 <ToggleRow title="Include symbols" description="Use punctuation in the generated password." checked={symbols} onChange={(e) => setSymbols(e.target.checked)} />
-              </>
+                <p className="helper-note">Completed jobs reveal + copy the generated password in the result card.</p>
+              </div>
             ) : null}
             <div className="preview-info-list" style={{ marginTop: 12 }}>
               <div><span>Mode</span><strong>{modeMeta.label}</strong></div>

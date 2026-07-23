@@ -51,6 +51,29 @@ export default function useMotionPreference() {
     document.documentElement.dataset.motion = mode;
   }, [mode]);
 
+  // Optional low-power flag for CSS (Battery API + save-data). Graceful no-op if unavailable.
+  useEffect(() => {
+    let cancelled = false;
+    const apply = (low) => {
+      if (cancelled) return;
+      if (low) document.documentElement.dataset.power = 'low';
+      else delete document.documentElement.dataset.power;
+    };
+    const conn = typeof navigator !== 'undefined' ? navigator.connection : null;
+    if (conn?.saveData) apply(true);
+    const nav = typeof navigator !== 'undefined' ? navigator : null;
+    if (nav && typeof nav.getBattery === 'function') {
+      nav.getBattery().then((bat) => {
+        if (cancelled) return;
+        const update = () => apply(Boolean(bat) && bat.level < 0.15 && !bat.charging);
+        update();
+        bat.addEventListener?.('levelchange', update);
+        bat.addEventListener?.('chargingchange', update);
+      }).catch(() => { /* ignore */ });
+    }
+    return () => { cancelled = true; };
+  }, []);
+
   // Re-resolve whenever the OS reduced-motion preference flips at runtime.
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return undefined;

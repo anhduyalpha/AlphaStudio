@@ -4710,11 +4710,39 @@ html[data-motion="reduced"] .status-icon-inspecting { animation: none; }
 @media (prefers-reduced-transparency: reduce) {
   .workbench-runbar,
   .sidebar,
-  .app-topbar {
+  .app-topbar,
+  .liquid-press,
+  .file-dropzone.liquid-drop {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     background: var(--surface-strong);
   }
+}
+
+/* Unsupported backdrop-filter browsers */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .workbench-runbar,
+  .sidebar,
+  .app-topbar,
+  .liquid-press,
+  .file-dropzone.liquid-drop {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: var(--surface-strong);
+  }
+}
+
+/* Low-power / battery saver (set by app when Battery API reports low) */
+html[data-power="low"] .liquid-press::after,
+html[data-power="low"] .file-dropzone.liquid-drop::before,
+html[data-power="low"] .liquid-complete,
+html[data-power="low"] .progress-wave.is-indeterminate .progress-wave-fill {
+  animation: none !important;
+  transition: none !important;
+  display: none;
+}
+html[data-power="low"] .liquid-press:active:not(:disabled) {
+  transform: none;
 }
 
 /* Reduced motion */
@@ -4744,6 +4772,19 @@ html[data-motion="reduce"] .skeleton-line {
 html[data-motion="reduce"] .liquid-press::after,
 html[data-motion="reduce"] .file-dropzone.liquid-drop::before {
   display: none;
+}
+
+/* Converter board mobile densification (RQ9) */
+@media (max-width: 768px) {
+  .conversion-board .workbench-body,
+  .conversion-board .converter-layout {
+    grid-template-columns: 1fr !important;
+  }
+  .conversion-board .group-list,
+  .conversion-board .batch-group-list {
+    max-height: 240px;
+    overflow: auto;
+  }
 }
 
 @media (max-width: 1024px) {

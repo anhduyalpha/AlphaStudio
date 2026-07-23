@@ -439,9 +439,9 @@ describe('package.json script surface', () => {
     }
     assert.match(pkg.scripts.bootstrap, /npm ci/);
     assert.match(pkg.scripts.bootstrap, /runtime:prepare/);
-    for (const name of ['predev', 'prebuild', 'prestart']) {
-      assert.equal(pkg.scripts[name], 'npm run runtime:prepare');
-    }
+    // runtime:prepare is an explicit script; bootstrap chains it. We intentionally
+    // do not force predev/prebuild/prestart hooks (slow full tool install on every start).
+    assert.equal(pkg.scripts['runtime:prepare'], 'node scripts/maint/tools.mjs install --profile full');
     assert.match(pkg.scripts['setup:tools'], /--full/);
   });
 
