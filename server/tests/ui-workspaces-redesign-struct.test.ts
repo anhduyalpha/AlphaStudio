@@ -13,7 +13,8 @@ describe('Workspace route redesign structural', () => {
     const src = read('src/views/ConverterView.jsx');
     assert.match(src, /conversion-board/);
     assert.match(src, /WorkspaceHeader/);
-    assert.match(src, /workbench-stage|workbench-rail/);
+    assert.match(src, /WorkbenchLayout|workbench-stage|workbench-rail/);
+    assert.match(src, /selectedGroupId|Convert selected/);
     assert.match(src, /useWorkspace/);
     assert.match(src, /skipUploadEffect|hydratedOnce|workspaceId/);
   });
