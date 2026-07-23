@@ -11,37 +11,58 @@ export default function ProfileView({ notify }) {
     locationLabel: '',
     bio: '',
   });
+  const [baseline, setBaseline] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     api
       .getProfile()
       .then((p) => {
-        setForm({
+        const next = {
           displayName: p.displayName || '',
           studioName: p.studioName || '',
           role: p.role || '',
           locationLabel: p.locationLabel || '',
           bio: p.bio || '',
-        });
+        };
+        setForm(next);
+        setBaseline(next);
       })
-      .catch((err) => notify?.(err.message || 'Failed to load profile'))
+      .catch((err) => {
+        const msg = err.message || 'Failed to load profile';
+        setError(msg);
+        notify?.(msg);
+      })
       .finally(() => setLoading(false));
   }, [notify]);
 
+  const dirty = baseline
+    ? Object.keys(form).some((k) => String(form[k] || '') !== String(baseline[k] || ''))
+    : false;
+
   const save = async () => {
+    setSaving(true);
+    setError('');
     try {
       const p = await api.saveProfile(form);
-      setForm({
+      const next = {
         displayName: p.displayName,
         studioName: p.studioName,
         role: p.role,
         locationLabel: p.locationLabel,
         bio: p.bio,
-      });
+      };
+      setForm(next);
+      setBaseline(next);
       notify('Profile saved');
     } catch (err) {
-      notify(err.message || 'Save failed');
+      const msg = err.message || 'Save failed';
+      setError(msg);
+      notify(msg);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -58,13 +79,18 @@ export default function ProfileView({ notify }) {
             <SecondaryButton icon="download" onClick={() => notify('Use the avatar SVG in /avatars for export.')}>
               Export SVG
             </SecondaryButton>
-            <PrimaryButton icon="check" onClick={save} disabled={loading}>
-              Save profile
+            <PrimaryButton icon="check" onClick={save} disabled={loading || saving || !dirty} busy={saving} data-testid="profile-save">
+              {saving ? 'Saving…' : dirty ? 'Save profile' : 'Saved'}
             </PrimaryButton>
           </>
         }
       />
-      <section className="profile-layout" style={{ display: 'grid', gap: 16, gridTemplateColumns: 'minmax(0, 1.4fr) minmax(240px, 0.8fr)' }}>
+      {error ? (
+        <div className="surface-card content-card" data-testid="profile-error" role="alert">
+          <p className="helper-note" style={{ margin: 0 }}>{error}</p>
+        </div>
+      ) : null}
+      <section className="profile-layout" style={{ display: 'grid', gap: 16, gridTemplateColumns: 'minmax(0, 1.4fr) minmax(240px, 0.8fr)' }} data-testid="profile-form">
         <article className="surface-card content-card">
           <div className="card-heading">
             <div>

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Icon from '../components/Icon';
+import EmptyState from '../components/EmptyState';
 import { SecondaryButton, StatusBadge } from '../components/Common';
 import { WorkspaceHeader } from '../components/Workbench';
 import { api } from '../api/client';
@@ -102,10 +103,17 @@ export default function ActivityView({ notify }) {
             </div>
             <StatusBadge tone="cyan">{rows.length} records</StatusBadge>
           </div>
-          <div className="activity-timeline" role="list" aria-busy={loading || undefined}>
-            {loading ? <p className="helper-note">Loading history…</p> : null}
+          <div className="activity-timeline" role="list" aria-busy={loading || undefined} data-testid="activity-timeline">
+            {loading ? <p className="helper-note" data-testid="activity-loading">Loading history…</p> : null}
             {!loading && rows.length === 0 ? (
-              <p className="helper-note">No activity yet. Run a tool to populate this list.</p>
+              <div data-testid="activity-empty">
+                <EmptyState
+                  type="noResults"
+                  compact
+                  title="No activity yet"
+                  description="Run a converter, PDF, image, or security job to populate this history."
+                />
+              </div>
             ) : null}
             {rows.map((row) => (
               <div className="timeline-row" key={row.id} role="listitem">
