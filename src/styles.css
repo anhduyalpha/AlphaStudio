@@ -4835,3 +4835,69 @@ html[data-motion="reduce"] .file-dropzone.liquid-drop::before {
   font-weight: 600;
 }
 
+
+/* === Phase 7–8 lifecycle + liquid polish === */
+.lifecycle-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  margin-bottom: var(--space-3);
+}
+.lifecycle-banner.is-running {
+  border-color: color-mix(in srgb, var(--cyan) 40%, var(--border));
+  background: color-mix(in srgb, var(--cyan) 8%, var(--surface));
+}
+.lifecycle-banner.is-failed {
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+}
+.lifecycle-banner.is-completed {
+  border-color: color-mix(in srgb, var(--green) 40%, var(--border));
+  background: color-mix(in srgb, var(--green) 8%, var(--surface));
+}
+.toast-message {
+  z-index: 80;
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+/* Liquid completion pulse (scoped, reduced-motion safe) */
+@keyframes liquid-complete-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--green) 35%, transparent); }
+  100% { box-shadow: 0 0 0 12px transparent; }
+}
+.liquid-complete {
+  animation: liquid-complete-pulse 0.6s var(--ease-out) 1;
+}
+html[data-motion="reduce"] .liquid-complete {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .liquid-complete { animation: none; }
+}
+/* Responsive composition: denser rail collapse */
+@media (max-width: 900px) {
+  .desktop-app-shell {
+    grid-template-columns: 1fr;
+  }
+  .command-launch-grid {
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  }
+}
+@media (max-width: 480px) {
+  .command-strip {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .workbench-runbar .hero-button-row {
+    width: 100%;
+  }
+  .workbench-runbar .button {
+    flex: 1;
+  }
+}
+
