@@ -4782,3 +4782,56 @@ html[data-motion="reduce"] .file-dropzone.liquid-drop::before {
   }
 }
 
+
+/* Skip link + shell health chips (phase 3) */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 0.65rem 1rem;
+  background: var(--surface-strong);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+.skip-link:focus {
+  left: var(--space-3);
+  top: var(--space-3);
+}
+.local-status.is-offline .status-dot,
+.front-end-pill.is-offline .status-dot {
+  background: var(--danger);
+  box-shadow: 0 0 0 4px rgba(255, 113, 136, 0.15);
+}
+.local-status.is-online .status-dot,
+.front-end-pill.is-online .status-dot {
+  background: var(--green);
+}
+.front-end-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.front-end-pill .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+.command-results button.is-active,
+.command-results button[aria-selected="true"] {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+.topbar-context {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-meta);
+}
+.studio-topbar h1 {
+  margin: 0.1rem 0 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
