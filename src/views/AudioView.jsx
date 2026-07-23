@@ -2,11 +2,17 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import FilePicker from '../components/FilePicker';
 import JobOutputCard from '../components/JobOutputCard';
 import EmptyState from '../components/EmptyState';
-import { PrimaryButton, SecondaryButton, SelectField, StatusBadge, Panel } from '../components/Common';
+import { PrimaryButton, SecondaryButton, SelectField, StatusBadge, Panel, TextField, ToggleRow } from '../components/Common';
 import { WorkbenchLayout, WorkspaceHeader, ProgressWave, CapabilityBanner } from '../components/Workbench';
 import { SegmentedControl, TimelineRange, WaveformStrip, FileRow } from '../components/StudioPrimitives';
 import useJobRunner from '../hooks/useJobRunner';
 import useCapabilities from '../hooks/useCapabilities';
+import {
+  buildMediaJobOptions,
+  describeAudioQuality,
+  showsFormatControl,
+  showsQualityControl,
+} from '../lib/mediaJobOptions';
 
 const MODES = [
   { id: 'convert', label: 'Convert', icon: 'swap', capability: 'audio.convert' },
@@ -29,6 +35,8 @@ export default function AudioView({ notify }) {
   const [files, setFiles] = useState([]);
   const [format, setFormat] = useState('mp3');
   const [quality, setQuality] = useState('balanced');
+  const [targetLoudness, setTargetLoudness] = useState('-16');
+  const [reencodeOnTrim, setReencodeOnTrim] = useState(false);
   const [mediaDuration, setMediaDuration] = useState(0);
   const [range, setRange] = useState({ start: 0, end: 30, duration: 30 });
   const [playhead, setPlayhead] = useState(0);
@@ -41,6 +49,9 @@ export default function AudioView({ notify }) {
   const unavailable = capOk === false;
   const file = files[0] || null;
   const objectUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
+  const qInfo = describeAudioQuality(quality);
+  const showFormat = showsFormatControl(mode, { reencodeOnTrim });
+  const showQuality = showsQualityControl(mode, { reencodeOnTrim });
 
   useEffect(() => () => {
     if (objectUrl) URL.revokeObjectURL(objectUrl);
@@ -74,16 +85,16 @@ export default function AudioView({ notify }) {
       notify('Open an audio file first');
       return;
     }
-    const options = {
+    const options = buildMediaJobOptions({
       operation: mode,
       family: 'audio',
       format,
       quality,
-    };
-    if (mode === 'trim') {
-      options.start = String(range.start);
-      options.duration = String(Math.max(0.05, range.duration));
-    }
+      start: range.start,
+      duration: range.duration,
+      reencodeOnTrim,
+      targetLoudness,
+    });
     try {
       await run('media', {
         files: [file],
@@ -171,11 +182,30 @@ export default function AudioView({ notify }) {
         )}
         rail={(
           <Panel title={modeMeta.label}>
-            {mode === 'convert' || mode === 'trim' ? (
-              <div className="form-grid">
+            {mode === 'trim' ? (
+              <>
+                <p className="workspace-description" style={{ margin: 0 }} data-testid="audio-trim-copy-note">
+                  Default trim is stream-copy: the output container matches the source (format is not re-encoded).
+                </p>
+                <div className="toggle-stack" style={{ marginTop: 12 }}>
+                  <ToggleRow
+                    title="Re-encode on trim"
+                    description="Apply output format and quality instead of stream-copy."
+                    checked={reencodeOnTrim}
+                    onChange={(e) => setReencodeOnTrim(e.target.checked)}
+                  />
+                </div>
+              </>
+            ) : null}
+            {showFormat ? (
+              <div className="form-grid" data-testid="audio-format-controls">
                 <SelectField label="Output format" value={format} onChange={(e) => setFormat(e.target.value)}>
                   {FORMATS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
                 </SelectField>
+              </div>
+            ) : null}
+            {showQuality ? (
+              <div className="form-grid" style={{ marginTop: showFormat ? 12 : 0 }} data-testid="audio-quality-controls">
                 <SelectField label="Quality preset" value={quality} onChange={(e) => setQuality(e.target.value)}>
                   <option value="fast">Fast</option>
                   <option value="balanced">Balanced</option>
@@ -184,13 +214,21 @@ export default function AudioView({ notify }) {
               </div>
             ) : null}
             {mode === 'normalize' ? (
-              <p className="workspace-description" style={{ margin: 0 }}>
-                Loudness normalization via ffmpeg. Bitrate and sample rate follow the balanced audio encode preset.
-              </p>
+              <div className="form-grid" style={{ marginTop: 12 }} data-testid="audio-normalize-controls">
+                <TextField
+                  label="Target loudness (LUFS)"
+                  value={targetLoudness}
+                  onChange={(e) => setTargetLoudness(e.target.value)}
+                  placeholder="-16"
+                />
+                <p className="helper-note" style={{ margin: 0 }}>
+                  ffmpeg loudnorm I=target (default −16). Sample rate and bitrate follow the quality preset.
+                </p>
+              </div>
             ) : null}
             {mode === 'inspect' ? (
               <p className="workspace-description" style={{ margin: 0 }}>
-                Produces media-info JSON (streams, duration, codecs) using ffprobe.
+                Produces media-info JSON (streams, duration, codecs) using ffprobe. No format conversion.
               </p>
             ) : null}
             <div className="preview-info-list" style={{ marginTop: 12 }}>
@@ -199,6 +237,16 @@ export default function AudioView({ notify }) {
               <div><span>Duration</span><strong>{mediaDuration ? `${mediaDuration.toFixed(2)}s` : '—'}</strong></div>
               {mode === 'trim' ? (
                 <div><span>Selection</span><strong>{range.start.toFixed(2)}s – {range.end.toFixed(2)}s</strong></div>
+              ) : null}
+              {showQuality ? (
+                <>
+                  <div><span>Sample rate</span><strong>{qInfo.sampleRate} Hz</strong></div>
+                  <div><span>Channels</span><strong>{qInfo.channels === 1 ? 'Mono' : 'Stereo'}</strong></div>
+                  <div><span>Bitrate target</span><strong>{qInfo.bitrate}</strong></div>
+                </>
+              ) : null}
+              {mode === 'trim' && !reencodeOnTrim ? (
+                <div><span>Container</span><strong>Preserved (stream-copy)</strong></div>
               ) : null}
               <div><span>Engine</span><strong>{unavailable ? 'Unavailable' : 'Local ffmpeg'}</strong></div>
             </div>

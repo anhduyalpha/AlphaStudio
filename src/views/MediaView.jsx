@@ -2,11 +2,17 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import FilePicker from '../components/FilePicker';
 import JobOutputCard from '../components/JobOutputCard';
 import EmptyState from '../components/EmptyState';
-import { PrimaryButton, SecondaryButton, SelectField, StatusBadge, Panel } from '../components/Common';
+import { PrimaryButton, SecondaryButton, SelectField, StatusBadge, Panel, ToggleRow } from '../components/Common';
 import { WorkbenchLayout, WorkspaceHeader, ProgressWave, CapabilityBanner } from '../components/Workbench';
 import { SegmentedControl, TimelineRange, FileRow } from '../components/StudioPrimitives';
 import useJobRunner from '../hooks/useJobRunner';
 import useCapabilities from '../hooks/useCapabilities';
+import {
+  buildMediaJobOptions,
+  describeAudioQuality,
+  showsFormatControl,
+  showsQualityControl,
+} from '../lib/mediaJobOptions';
 
 const OPS = [
   { id: 'inspect', label: 'Inspect', capability: 'media.inspect' },
@@ -15,10 +21,25 @@ const OPS = [
   { id: 'extract-audio', label: 'Extract audio', capability: 'media.extract-audio' },
 ];
 
+const VIDEO_FORMATS = [
+  { id: 'mp4', label: 'MP4' },
+  { id: 'webm', label: 'WEBM' },
+  { id: 'mkv', label: 'MKV' },
+];
+
+const AUDIO_FORMATS = [
+  { id: 'mp3', label: 'MP3' },
+  { id: 'wav', label: 'WAV' },
+  { id: 'm4a', label: 'M4A' },
+  { id: 'ogg', label: 'OGG' },
+];
+
 export default function MediaView({ notify }) {
   const [files, setFiles] = useState([]);
   const [operation, setOperation] = useState('trim');
   const [format, setFormat] = useState('mp4');
+  const [quality, setQuality] = useState('balanced');
+  const [reencodeOnTrim, setReencodeOnTrim] = useState(false);
   const [mediaDuration, setMediaDuration] = useState(0);
   const [range, setRange] = useState({ start: 0, end: 10, duration: 10 });
   const mediaRef = useRef(null);
@@ -31,10 +52,23 @@ export default function MediaView({ notify }) {
   const mediaUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
   useEffect(() => () => { if (mediaUrl) URL.revokeObjectURL(mediaUrl); }, [mediaUrl]);
 
+  const showFormat = showsFormatControl(operation, { reencodeOnTrim });
+  const showQuality = showsQualityControl(operation, { reencodeOnTrim });
+  const formatList = operation === 'extract-audio' ? AUDIO_FORMATS : VIDEO_FORMATS;
+  const qInfo = describeAudioQuality(quality);
+
   useEffect(() => {
     setMediaDuration(0);
     setRange({ start: 0, end: 10, duration: 10 });
   }, [file]);
+
+  useEffect(() => {
+    // Default format when switching ops
+    if (operation === 'extract-audio') setFormat((f) => (AUDIO_FORMATS.some((x) => x.id === f) ? f : 'mp3'));
+    else if (operation === 'transcode' || (operation === 'trim' && reencodeOnTrim)) {
+      setFormat((f) => (VIDEO_FORMATS.some((x) => x.id === f) ? f : 'mp4'));
+    }
+  }, [operation, reencodeOnTrim]);
 
   const onLoadedMetadata = () => {
     const el = mediaRef.current;
@@ -53,15 +87,18 @@ export default function MediaView({ notify }) {
       notify('Open a media file first');
       return;
     }
+    const options = buildMediaJobOptions({
+      operation,
+      format,
+      quality,
+      start: range.start,
+      duration: range.duration,
+      reencodeOnTrim,
+    });
     try {
       await run('media', {
         files: [file],
-        options: {
-          operation,
-          format,
-          start: String(range.start),
-          duration: String(Math.max(0.05, range.duration)),
-        },
+        options,
         autoDownload: false,
       });
     } catch {
@@ -133,23 +170,57 @@ export default function MediaView({ notify }) {
         )}
         rail={(
           <Panel title={`${opMeta.label} settings`}>
-            {(operation === 'transcode' || operation === 'extract-audio' || operation === 'trim') ? (
-              <div className="form-grid">
+            {operation === 'trim' ? (
+              <>
+                <p className="workspace-description" style={{ margin: 0 }} data-testid="media-trim-copy-note">
+                  Default trim is stream-copy and keeps the source container. Format is not applied unless you re-encode.
+                </p>
+                <div className="toggle-stack" style={{ marginTop: 12 }}>
+                  <ToggleRow
+                    title="Re-encode on trim"
+                    description="Convert container/codecs while trimming."
+                    checked={reencodeOnTrim}
+                    onChange={(e) => setReencodeOnTrim(e.target.checked)}
+                  />
+                </div>
+              </>
+            ) : null}
+            {operation === 'inspect' ? (
+              <p className="workspace-description" style={{ margin: 0 }}>
+                Inspect writes media-info JSON via ffprobe (duration, codecs, streams). No output format.
+              </p>
+            ) : null}
+            {showFormat ? (
+              <div className="form-grid" data-testid="media-format-controls">
                 <SelectField label="Output format" value={format} onChange={(e) => setFormat(e.target.value)}>
-                  <option value="mp4">MP4</option>
-                  <option value="webm">WEBM</option>
-                  <option value="mp3">MP3</option>
-                  <option value="wav">WAV</option>
+                  {formatList.map((f) => (
+                    <option key={f.id} value={f.id}>{f.label}</option>
+                  ))}
                 </SelectField>
               </div>
-            ) : (
-              <p className="workspace-description" style={{ margin: 0 }}>
-                Inspect writes media-info JSON via ffprobe (duration, codecs, streams).
-              </p>
-            )}
+            ) : null}
+            {showQuality ? (
+              <div className="form-grid" style={{ marginTop: showFormat ? 12 : 0 }} data-testid="media-quality-controls">
+                <SelectField label="Quality preset" value={quality} onChange={(e) => setQuality(e.target.value)}>
+                  <option value="fast">Fast</option>
+                  <option value="balanced">Balanced</option>
+                  <option value="high">High</option>
+                </SelectField>
+              </div>
+            ) : null}
             <div className="preview-info-list" style={{ marginTop: 12 }}>
               <div><span>Selection</span><strong>{range.start.toFixed(2)}s – {range.end.toFixed(2)}s</strong></div>
               <div><span>Clip length</span><strong>{range.duration.toFixed(2)}s</strong></div>
+              {operation === 'trim' && !reencodeOnTrim ? (
+                <div><span>Container</span><strong>Preserved (stream-copy)</strong></div>
+              ) : null}
+              {showQuality && operation === 'extract-audio' ? (
+                <>
+                  <div><span>Sample rate</span><strong>{qInfo.sampleRate} Hz</strong></div>
+                  <div><span>Channels</span><strong>{qInfo.channels === 1 ? 'Mono' : 'Stereo'}</strong></div>
+                  <div><span>Bitrate target</span><strong>{qInfo.bitrate}</strong></div>
+                </>
+              ) : null}
               <div><span>Engine</span><strong>{unavailable ? 'Unavailable' : 'Local ffmpeg'}</strong></div>
             </div>
           </Panel>
