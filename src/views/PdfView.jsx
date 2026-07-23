@@ -614,7 +614,7 @@ export default function PdfView({ notify }) {
             ) : null}
           </div>
 
-          <aside className="workspace-sidebar workbench-rail" aria-label="PDF operation options">
+          <aside className="workspace-sidebar workbench-rail" aria-label="PDF options">
             <article className="surface-card content-card sticky-card">
               <p className="eyebrow">Run status</p>
               <h3>{unavailable ? 'Unavailable' : busy ? status : 'Ready'}</h3>

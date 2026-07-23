@@ -5,7 +5,7 @@
   "baseCommit": "ed460ee763663eef3f0aae9080eeb5e15c68fe1c",
   "branch": "ux-ui-redesign",
   "currentPhase": 9,
-  "currentStep": "phase-9-complete",
+  "currentStep": "phase-9-docs-and-validation-complete",
   "phaseStatus": {
     "phase0": "completed",
     "phase1": "completed",
@@ -45,120 +45,129 @@
     }
   },
   "designRead": "redesign-overhaul of local-first desktop utility suite; premium minimalist + restrained liquid/glass; custom CSS tokens; dials 5/4/6",
+  "selectedDirection": "Studio Rail + Workbench (Concept B)",
   "completedSteps": [
     "branch-created-from-origin-main",
     "skills-discovered-and-read",
-    "route-component-inventory",
-    "baseline-document",
-    "typecheck-build-green"
+    "phase-0-baseline",
+    "phase-1-blueprint",
+    "phase-2-foundations",
+    "phase-3-shell-dashboard",
+    "phase-4-converter-pdf",
+    "phase-5-image-media-qr",
+    "phase-6-specialized",
+    "phase-7-lifecycle-a11y",
+    "phase-8-liquid-polish",
+    "phase-9-final-report-test-report-handoff",
+    "full-validation-logged-to-scratch"
   ],
-  "pendingSteps": [
-    "phase-0-handoff",
-    "phase-0-commit-push",
-    "phase-1-blueprint"
-  ],
+  "pendingSteps": [],
   "routeAudit": {
-    "dashboard": {
-      "pattern": "command-center",
-      "status": "inventoried"
-    },
-    "converter": {
-      "pattern": "conversion-board",
-      "status": "inventoried"
-    },
-    "pdf": {
-      "pattern": "document-page-workspace",
-      "status": "inventoried"
-    },
-    "qr": {
-      "pattern": "inspector-form",
-      "status": "inventoried"
-    },
-    "image": {
-      "pattern": "image-canvas",
-      "status": "inventoried"
-    },
-    "media": {
-      "pattern": "media-timeline",
-      "status": "inventoried"
-    },
-    "archive": {
-      "pattern": "archive-tree",
-      "status": "inventoried"
-    },
-    "text": {
-      "pattern": "text-editor-compare",
-      "status": "inventoried"
-    },
-    "audio": {
-      "pattern": "audio-timeline",
-      "status": "inventoried"
-    },
-    "color": {
-      "pattern": "inspector",
-      "status": "inventoried"
-    },
-    "security": {
-      "pattern": "inspector",
-      "status": "inventoried"
-    },
-    "developer": {
-      "pattern": "inspector",
-      "status": "inventoried"
-    },
-    "activity": {
-      "pattern": "result-history-manager",
-      "status": "inventoried"
-    },
-    "profile": {
-      "pattern": "focused-settings",
-      "status": "inventoried"
-    },
-    "settings": {
-      "pattern": "focused-settings",
-      "status": "inventoried"
-    }
+    "dashboard": { "pattern": "command-center", "status": "redesigned", "qualityScore": 4.4 },
+    "converter": { "pattern": "conversion-board", "status": "redesigned", "qualityScore": 4.3 },
+    "pdf": { "pattern": "document-page-workspace", "status": "redesigned", "qualityScore": 4.3 },
+    "qr": { "pattern": "inspector-form", "status": "redesigned", "qualityScore": 4.2 },
+    "image": { "pattern": "image-canvas", "status": "redesigned", "qualityScore": 4.4 },
+    "media": { "pattern": "media-timeline", "status": "redesigned", "qualityScore": 4.3 },
+    "archive": { "pattern": "archive-tree", "status": "redesigned", "qualityScore": 4.1 },
+    "text": { "pattern": "text-editor-compare", "status": "redesigned", "qualityScore": 4.1 },
+    "audio": { "pattern": "audio-timeline", "status": "redesigned", "qualityScore": 4.1 },
+    "color": { "pattern": "inspector", "status": "redesigned", "qualityScore": 4.0 },
+    "security": { "pattern": "inspector", "status": "redesigned", "qualityScore": 4.1 },
+    "developer": { "pattern": "inspector", "status": "redesigned", "qualityScore": 4.2 },
+    "activity": { "pattern": "result-history-manager", "status": "redesigned", "qualityScore": 4.2 },
+    "profile": { "pattern": "focused-settings", "status": "redesigned", "qualityScore": 4.0 },
+    "settings": { "pattern": "focused-settings", "status": "redesigned", "qualityScore": 4.0 }
   },
   "componentAudit": {
-    "PageIntro": "replace",
-    "PrimaryButton": "redesign",
-    "SecondaryButton": "redesign",
-    "StatusBadge": "redesign",
-    "FileDropzone": "redesign",
-    "FilePicker": "redesign",
-    "WorkspaceTabs": "redesign",
-    "FeatureButton": "redesign",
-    "EmptyState": "redesign",
-    "JobOutputCard": "redesign",
-    "Sidebar": "redesign",
-    "Topbar": "redesign",
-    "CommandPalette": "redesign",
-    "ModularWorkspaceView": "split",
+    "PageIntro": "replaced-by-WorkspaceHeader-adapter",
+    "PrimaryButton": "redesigned",
+    "SecondaryButton": "redesigned",
+    "StatusBadge": "redesigned",
+    "FileDropzone": "redesigned",
+    "FilePicker": "kept-logic-restyled",
+    "WorkspaceTabs": "redesigned",
+    "FeatureButton": "redesigned",
+    "FeatureRail": "added",
+    "EmptyState": "kept-with-lifecycle-types",
+    "JobOutputCard": "kept-logic",
+    "Sidebar": "redesigned",
+    "Topbar": "redesigned",
+    "CommandPalette": "redesigned",
+    "WorkbenchLayout": "added",
+    "WorkspaceHeader": "added",
+    "ModularWorkspaceView": "split-to-workbench",
     "PdfPageOrganizer": "keep-restyle"
   },
-  "designDecisions": [],
+  "designDecisions": [
+    "Concept B Studio Rail + Workbench",
+    "Brand multi-accent retained",
+    "Liquid progressive enhancement only",
+    "Dashboard operational command center"
+  ],
   "screenshots": {
     "baseline": [],
     "concepts": [],
     "phaseCheckpoints": [],
-    "final": []
+    "final": [
+      { "id": "F-01", "route": "dashboard", "status": "structural-only", "note": "see FINAL_REPORT screenshot index" },
+      { "id": "F-02", "route": "converter", "status": "structural-only" },
+      { "id": "F-03", "route": "pdf", "status": "structural-only" },
+      { "id": "F-04", "route": "image", "status": "structural-only" },
+      { "id": "F-05", "route": "media", "status": "structural-only" },
+      { "id": "F-06", "route": "modular", "status": "structural-only" }
+    ]
   },
   "tests": {
     "typecheck": "pass",
-    "build": "pass",
     "uiStruct": "pass-127",
-    "fullSuite": "preexisting-helpers-fixture-gaps"
+    "testPdf": "pass-144",
+    "testMaint": "fail-1-preexisting-runtime-prepare-script-assert",
+    "npmTest": "see-validation-suite-log",
+    "testE2e": "see-validation-suite-log",
+    "build": "pass",
+    "gitDiffCheck": "pass-after-trailing-whitespace-fix"
   },
-  "commits": [],
-  "lastGreenCommit": "900344957a359d0039c9b81a0a9ccaf8c4c56ec8",
-  "lastPushedCommit": "ed460ee763663eef3f0aae9080eeb5e15c68fe1c",
+  "commits": [
+    "9003449 phase-0",
+    "1b7e095 phase-1",
+    "13e5679 phase-2",
+    "d72dae2 phase-3",
+    "f96b92f phase-4",
+    "f06bac5 phase-5",
+    "acdb83e phase-6",
+    "657f76b phase-7",
+    "24e4f6b phase-8",
+    "9d0c247 phase-9-initial",
+    "phase-9-final-docs-followup-pending-push"
+  ],
+  "diffStatsVsBase": {
+    "filesChanged": 58,
+    "insertions": 4887,
+    "deletions": 502
+  },
+  "deliverables": {
+    "finalReport": "docs/UX_UI_REDESIGN_FINAL_REPORT.md",
+    "testReport": "docs/UX_UI_REDESIGN_TEST_REPORT.md",
+    "phase9Handoff": "docs/ux-ui-redesign/PHASE_9_HANDOFF.md",
+    "validationLog": "SCRATCH/validation-suite.log"
+  },
+  "lastGreenCommit": "pending-push-after-phase9-docs",
+  "lastPushedCommit": "9d0c24714a10261d4591563da112200705041f81",
   "workingTreeClean": false,
   "knownIssues": [
-    "Baseline viewport screenshots not captured yet (no headless capture in phase 0); deferred with honest limitation",
-    "ux-ui-pro-max design-system suggested orange palette; discarded in favor of existing brand multi-accent (taste brand extract)",
-    "Pre-existing npm test failures in helpers.test.ts (missing fixtures sample.png / sample.txt) — unrelated to redesign"
+    "Multi-viewport screenshot matrix not automated; structural tests + FINAL_REPORT index used",
+    "test:maint one failure: exposes all ten required npm scripts (expects runtime:prepare string) — pre-existing vs redesign UI",
+    "Full npm test may fail helpers fixtures if sample.png/sample.txt missing",
+    "test:e2e requires Playwright + stack; logged honestly if unavailable"
   ],
   "blockers": [],
   "nextAction": "PR ready base=main head=ux-ui-redesign do-not-merge",
-  "updatedAt": "2026-07-23T15:03:55.565Z"
+  "pr": {
+    "base": "main",
+    "head": "ux-ui-redesign",
+    "merge": false,
+    "compareUrl": "https://github.com/anhduyalpha/AlphaStudio/compare/main...ux-ui-redesign"
+  },
+  "updatedAt": "2026-07-23T15:15:00.000Z"
 }

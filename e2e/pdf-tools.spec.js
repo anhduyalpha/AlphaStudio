@@ -9,7 +9,7 @@ async function openPdfStudio(page) {
   await page.goto('/', { waitUntil: 'commit' });
   await expect(page.getByRole('button', { name: 'PDF Studio', exact: true })).toBeVisible({ timeout: 60_000 });
   await page.getByRole('button', { name: 'PDF Studio', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Production-ready PDF workspace' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Document workspace' })).toBeVisible();
 }
 
 async function choosePdf(page, name) {
@@ -17,10 +17,19 @@ async function choosePdf(page, name) {
   await expect(page.getByText(name, { exact: false })).toBeVisible();
 }
 
+/** Prefer the select control — workbench rail aria-label also contains "operation". */
+function operationSelect(page) {
+  return page.locator('select#field-operation, select[name="operation"]').first();
+}
+
+function categorySelect(page) {
+  return page.locator('select#field-category, select[name="category"]').first();
+}
+
 test.describe.serial('PDF Studio browser baseline', () => {
   test('loads the bundled preview worker, renders bounded thumbnails, and replaces files safely', async ({ page, browserAudit }) => {
     await openPdfStudio(page);
-    await page.getByLabel('Operation').selectOption('reorder');
+    await operationSelect(page).selectOption('reorder');
     await choosePdf(page, 'organizer-8-pages.pdf');
 
     await page.getByRole('tab', { name: 'Preview' }).click();
@@ -61,9 +70,9 @@ test.describe.serial('PDF Studio browser baseline', () => {
     });
 
     await openPdfStudio(page);
-    await page.getByLabel('Category').selectOption('analyze');
+    await categorySelect(page).selectOption('analyze');
     await choosePdf(page, 'text-basic.pdf');
-    await page.getByRole('button', { name: 'Process PDF' }).click();
+    await page.getByRole('button', { name: 'Run PDF operation' }).click();
     await sawUpload;
     await page.getByRole('button', { name: 'Cancel', exact: true }).click();
     await page.waitForTimeout(1_500);
@@ -72,14 +81,14 @@ test.describe.serial('PDF Studio browser baseline', () => {
 
   test('submits one idempotent payload, restores its completed result, and deletes it', async ({ page, browserAudit }) => {
     await openPdfStudio(page);
-    await page.getByLabel('Category').selectOption('analyze');
-    await expect(page.getByLabel('Operation')).toHaveValue('inspect');
+    await categorySelect(page).selectOption('analyze');
+    await expect(operationSelect(page)).toHaveValue('inspect');
     await choosePdf(page, 'quarterly.report.final.v1.pdf');
 
     const createRequestPromise = page.waitForRequest(
       (request) => request.method() === 'POST' && /\/api\/jobs$/.test(request.url()),
     );
-    await page.getByRole('button', { name: 'Process PDF' }).click();
+    await page.getByRole('button', { name: 'Run PDF operation' }).click();
     const createRequest = await createRequestPromise;
     const payload = createRequest.postDataJSON();
     expect(payload.type).toBe('pdf');
@@ -97,7 +106,7 @@ test.describe.serial('PDF Studio browser baseline', () => {
     ).toBeTruthy();
 
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'Production-ready PDF workspace' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Document workspace' })).toBeVisible();
     await expect(page.locator('.job-output-card .file-info strong')).toHaveText(outputName, { timeout: 15_000 });
 
     const deleteResponse = page.waitForResponse(
@@ -116,7 +125,7 @@ test.describe.serial('PDF Studio browser baseline', () => {
     ]) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await page.goto('/#/pdf', { waitUntil: 'commit' });
-      await expect(page.getByRole('heading', { name: 'Production-ready PDF workspace' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Document workspace' })).toBeVisible();
       await expect(page.getByRole('tab', { name: 'Workspace' })).toBeVisible();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(overflow, `${viewport.name} horizontal overflow`).toBeLessThanOrEqual(1);
