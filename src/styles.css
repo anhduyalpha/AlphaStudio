@@ -5120,6 +5120,47 @@ html[data-motion="reduce"] .liquid-complete {
   min-height: 280px;
 }
 
+/* RQ3 crop selector */
+.crop-selector {
+  position: relative;
+  margin-top: var(--space-4);
+  user-select: none;
+  touch-action: none;
+}
+.crop-selector-img {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-strong);
+}
+.crop-selector-rect {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid color-mix(in srgb, var(--family-accent, var(--green)) 80%, white);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+  cursor: move;
+}
+.crop-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: var(--text);
+  border: 2px solid var(--surface);
+  border-radius: 2px;
+}
+.crop-handle.nw { left: -6px; top: -6px; cursor: nwse-resize; }
+.crop-handle.ne { right: -6px; top: -6px; cursor: nesw-resize; }
+.crop-handle.sw { left: -6px; bottom: -6px; cursor: nesw-resize; }
+.crop-handle.se { right: -6px; bottom: -6px; cursor: nwse-resize; }
+.crop-selector.is-disabled {
+  pointer-events: none;
+  opacity: 0.7;
+}
+.crop-selector-meta { margin-top: var(--space-2); }
+
 /* RQ1 typed job results */
 .job-result-body-wrap {
   border-top: 1px solid var(--border);
