@@ -32,9 +32,11 @@ describe('Workspace route redesign structural', () => {
     const media = read('src/views/MediaView.jsx');
     assert.match(image, /image-canvas-workspace/);
     assert.match(image, /WorkbenchLayout/);
+    assert.match(image, /CompareSlider/);
     assert.match(media, /media-timeline-workspace/);
     assert.match(media, /WorkbenchLayout/);
     assert.match(media, /CapabilityBanner/);
+    assert.match(media, /TimelineRange/);
   });
 
   it('qr uses inspector workspace header without dropping paste/decode contracts', () => {
@@ -56,7 +58,18 @@ describe('Workspace route redesign structural', () => {
 
   it('activity/settings/developer use operational headers', () => {
     assert.match(read('src/views/ActivityView.jsx'), /result-history-manager|WorkspaceHeader/);
+    assert.match(read('src/views/ActivityView.jsx'), /activity-workspace/);
     assert.match(read('src/views/SettingsView.jsx'), /focused-settings-workspace/);
     assert.match(read('src/views/DeveloperView.jsx'), /developer-inspector|WorkspaceHeader/);
+    assert.match(read('src/views/ProfileView.jsx'), /profile-workspace|WorkspaceHeader/);
+  });
+
+  it('specialized tools are dedicated views not modular shells', () => {
+    for (const file of ['ArchiveView.jsx', 'TextView.jsx', 'ColorView.jsx', 'SecurityView.jsx']) {
+      const src = read(`src/views/${file}`);
+      assert.doesNotMatch(src, /ModularWorkspaceView/);
+      assert.match(src, /WorkbenchLayout/);
+      assert.match(src, /WorkspaceHeader/);
+    }
   });
 });

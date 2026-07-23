@@ -5106,8 +5106,35 @@ html[data-motion="reduce"] .liquid-complete {
 }
 @media (max-width: 720px) {
   .timeline-range-inputs { grid-template-columns: 1fr 1fr; }
+  .profile-layout { grid-template-columns: 1fr !important; }
+  .archive-tree .studio-file-list { max-height: 280px; overflow: auto; }
 }
 @media (prefers-reduced-motion: reduce) {
   .segmented-item { transition: none; }
+}
+
+/* Corrective C4–C8 workspace polish */
+.image-canvas-workspace .image-compare,
+.image-canvas-workspace .compare-slider {
+  margin-top: var(--space-4);
+  min-height: 280px;
+}
+.media-timeline-workspace video,
+.media-timeline-workspace audio {
+  background: var(--surface-strong);
+}
+.color-workspace input[type="color"] {
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: transparent;
+}
+.activity-workspace .timeline-row {
+  align-items: center;
+  gap: var(--space-3);
+}
+.profile-preview-card h3 {
+  margin: 0.25rem 0;
+  font-size: var(--text-title, 1.35rem);
 }
 

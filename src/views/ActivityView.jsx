@@ -76,11 +76,12 @@ export default function ActivityView({ notify }) {
   };
 
   return (
-    <div className="view-stack">
+    <div className="view-stack activity-workspace family-neutral" data-testid="activity-workspace">
       <WorkspaceHeader
         meta="Manage / Activity"
         title="Result history"
         description="Persistent activity log backed by SQLite. Delete removes a history entry and its job output when safe."
+        status={<StatusBadge tone="cyan">{loading ? '…' : `${rows.length} records`}</StatusBadge>}
         actions={
           <>
             <SecondaryButton icon="refresh" onClick={load} disabled={loading || Boolean(deletingId)}>
@@ -101,12 +102,14 @@ export default function ActivityView({ notify }) {
             </div>
             <StatusBadge tone="cyan">{rows.length} records</StatusBadge>
           </div>
-          <div className="activity-timeline">
-            {loading ? <p>Loading…</p> : null}
-            {!loading && rows.length === 0 ? <p>No activity yet. Run a tool to populate this list.</p> : null}
+          <div className="activity-timeline" role="list" aria-busy={loading || undefined}>
+            {loading ? <p className="helper-note">Loading history…</p> : null}
+            {!loading && rows.length === 0 ? (
+              <p className="helper-note">No activity yet. Run a tool to populate this list.</p>
+            ) : null}
             {rows.map((row) => (
-              <div className="timeline-row" key={row.id}>
-                <div className="timeline-marker">
+              <div className="timeline-row" key={row.id} role="listitem">
+                <div className="timeline-marker" aria-hidden="true">
                   <Icon name={iconFor(row.tool)} size={17} />
                 </div>
                 <div className="timeline-content">

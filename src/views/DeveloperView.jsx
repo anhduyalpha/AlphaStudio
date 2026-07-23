@@ -64,7 +64,7 @@ export default function DeveloperView({ notify }) {
   };
 
   return (
-    <div className="view-stack">
+    <div className="view-stack developer-workspace family-neutral" data-testid="developer-workspace">
       <WorkspaceHeader
         meta="Tools / Developer Utilities"
         title="Developer inspector"

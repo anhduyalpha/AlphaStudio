@@ -48,7 +48,7 @@ export default function ProfileView({ notify }) {
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
   return (
-    <div className="view-stack">
+    <div className="view-stack profile-workspace family-neutral" data-testid="profile-workspace">
       <WorkspaceHeader
         meta="Manage / Profile Studio"
         title="Local studio identity"
@@ -64,8 +64,14 @@ export default function ProfileView({ notify }) {
           </>
         }
       />
-      <section className="profile-layout" style={{ display: 'grid', gap: 16 }}>
+      <section className="profile-layout" style={{ display: 'grid', gap: 16, gridTemplateColumns: 'minmax(0, 1.4fr) minmax(240px, 0.8fr)' }}>
         <article className="surface-card content-card">
+          <div className="card-heading">
+            <div>
+              <p className="eyebrow">Identity</p>
+              <h3>Studio profile</h3>
+            </div>
+          </div>
           <div className="form-grid">
             <TextField label="Display name" value={form.displayName} onChange={set('displayName')} placeholder="AlphaD" />
             <TextField label="Studio name" value={form.studioName} onChange={set('studioName')} placeholder="AlphaStudio" />
@@ -73,15 +79,16 @@ export default function ProfileView({ notify }) {
             <TextField label="Location label" value={form.locationLabel} onChange={set('locationLabel')} placeholder="Localhost" />
           </div>
           <label className="field-group" style={{ marginTop: 12, display: 'block' }}>
-            <span>Bio</span>
-            <textarea value={form.bio} onChange={set('bio')} rows={4} style={{ width: '100%' }} />
+            <span className="field-label">Bio</span>
+            <textarea value={form.bio} onChange={set('bio')} rows={4} style={{ width: '100%' }} disabled={loading} />
           </label>
         </article>
-        <aside className="surface-card content-card">
-          <p className="eyebrow">Preview</p>
+        <aside className="surface-card content-card profile-preview-card">
+          <p className="eyebrow">Live preview</p>
           <h3>{form.displayName || '—'}</h3>
-          <p>{form.role}</p>
-          <p>{form.studioName} · {form.locationLabel}</p>
+          <p className="workspace-description" style={{ margin: '0.35rem 0' }}>{form.role || 'Role not set'}</p>
+          <p className="helper-note">{form.studioName || 'Studio'} · {form.locationLabel || 'Local'}</p>
+          {form.bio ? <p style={{ marginTop: 12 }}>{form.bio}</p> : null}
         </aside>
       </section>
     </div>
