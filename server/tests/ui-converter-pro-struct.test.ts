@@ -40,9 +40,19 @@ describe('Converter Pro + QR paste structural', () => {
 
     it('supports Batch convert or buildConversionGroups', () => {
       assert.ok(
-        /Batch convert|buildConversionGroups/.test(converter),
-        'expected Batch convert label or buildConversionGroups import/use',
+        /Batch convert|buildConversionGroups|Convert all|Convert group/.test(converter),
+        'expected Batch convert label, Convert all/group, or buildConversionGroups import/use',
       );
+    });
+
+    it('wires Convert selected, Convert group, and Convert all to real job helpers', () => {
+      assert.match(converter, /Convert selected/);
+      assert.match(converter, /Convert group/);
+      assert.match(converter, /Convert all/);
+      assert.match(converter, /startSelectedConvert|buildConvertSelectionPlan/);
+      assert.match(converter, /startConvertAll|buildConvertAllPlans/);
+      assert.match(converter, /queueConvertJob|createJob/);
+      assert.match(converter, /aggregateJobProgress|runProgress/);
     });
 
     it('persists groupSettings via toolSettings.converter', () => {

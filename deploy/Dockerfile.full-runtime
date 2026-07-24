@@ -1,0 +1,40 @@
+# AlphaStudio full-runtime image for personal self-host / VPS.
+# Build: docker build -f deploy/Dockerfile.full-runtime -t alphastudio:full .
+# Run:   docker run --rm -p 8787:8787 -v alphastudio-data:/app/data alphastudio:full
+#
+# Image is large (~3+ GiB) because tools install into .runtime during build.
+# Conversion jobs never download tools at runtime.
+
+FROM node:20-bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tar unzip xz-utils python3 python3-venv ca-certificates \
+    libegl1 libopengl0 libxcb-cursor0 libxcb-xinerama0 \
+    poppler-utils ghostscript qpdf tesseract-ocr \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+COPY server/package.json server/
+RUN npm ci --no-audit --no-fund
+
+COPY . .
+
+# Install portable Converter tools (FFmpeg, 7z, Pandoc, LibreOffice, Calibre)
+# Prefer system packages already present for PDF stack above.
+RUN npm run tools:install || true
+RUN npm run python:install -- --profile core || true
+
+RUN npm run build
+
+ENV NODE_ENV=production \
+    HOST=0.0.0.0 \
+    PORT=8787 \
+    SERVE_FRONTEND=1
+
+EXPOSE 8787
+VOLUME ["/app/data"]
+
+# Do not run tools:install on start — only start the server.
+CMD ["npm", "start"]

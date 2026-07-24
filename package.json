@@ -34,6 +34,8 @@
     "tools:install": "node scripts/maint/tools.mjs install --profile full",
     "tools:repair": "node scripts/maint/tools.mjs repair --profile full",
     "tools:update": "node scripts/maint/tools.mjs update --profile full",
+    "runtime:verify": "node scripts/maint/runtime-verify.mjs",
+    "runtime:repair": "node scripts/maint/tools.mjs repair --profile full && node scripts/maint/python.mjs repair --profile core",
     "python:install": "node scripts/maint/python.mjs install --profile core",
     "python:check": "node scripts/maint/python.mjs check --profile core",
     "python:repair": "node scripts/maint/python.mjs repair --profile core",

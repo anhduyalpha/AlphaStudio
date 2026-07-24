@@ -58,8 +58,13 @@ npm run tools:install
 npm run tools:check -- --force
 npm run tools:repair
 npm run tools:update
+npm run runtime:verify
 npm run doctor
 ```
+
+`npm run runtime:verify` gộp tools check (profile full) và python check (core).
+Không tải tool. Python data/documents: `npm run python:install -- --profile data`
+hoặc `--profile documents`. Docker/VPS: xem `docs/DEPLOY_DOCKER_VPS.md`.
 
 `tools.mjs` in download và installed-size estimate trước khi thao tác. FFmpeg,
 7-Zip, Pandoc, LibreOffice và Calibre đều được xử lý trong cùng một lượt.

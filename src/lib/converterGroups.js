@@ -384,3 +384,182 @@ export function hasActiveDuplicateJob(jobs, { uploadIds = [], format, type = 'co
     return k2 === key;
   });
 }
+
+/**
+ * Toggle a file id in a multi-select set (immutable).
+ * @param {Iterable<string>} selected
+ * @param {string} fileId
+ * @returns {Set<string>}
+ */
+export function toggleFileSelection(selected, fileId) {
+  const next = new Set(selected || []);
+  const id = String(fileId || '');
+  if (!id) return next;
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  return next;
+}
+
+/**
+ * Select or clear all members of a group within the selection set.
+ * @param {Iterable<string>} selected
+ * @param {{ fileIds?: string[] }} group
+ * @param {boolean} select
+ * @returns {Set<string>}
+ */
+export function setGroupFileSelection(selected, group, select = true) {
+  const next = new Set(selected || []);
+  for (const id of group?.fileIds || []) {
+    if (select) next.add(String(id));
+    else next.delete(String(id));
+  }
+  return next;
+}
+
+/**
+ * Intersection of available output formats for a subset of files.
+ * @param {Array<{ id?: string, detect?: { outputs?: Array } }>} files
+ * @param {Iterable<string>} selectedIds
+ */
+export function outputsForSelectedFiles(files = [], selectedIds = []) {
+  const idSet = new Set([...selectedIds].map(String));
+  const members = (files || []).filter((f) => idSet.has(String(f.id)));
+  return compatibleOutputsForMembers(members);
+}
+
+/**
+ * Whether a selected subset can convert with the given format.
+ */
+export function canConvertSelection(files, selectedIds, format) {
+  if (!format || !selectedIds || ![...selectedIds].length) return false;
+  return outputsForSelectedFiles(files, selectedIds).some(
+    (o) => o.available && o.format === format,
+  );
+}
+
+/**
+ * Build convert-all job plans: one plan per valid group using its settings.
+ * Pure helper used by Convert all and unit tests.
+ *
+ * @param {Array} groups from buildConversionGroups
+ * @param {Record<string, { format?: string, quality?: string, preserveMetadata?: boolean }>} groupSettings
+ * @returns {Array<{ groupId: string, fileIds: string[], format: string, quality: string, preserveMetadata: boolean, inputFormat: string|null, inputFamily: string|null }>}
+ */
+export function buildConvertAllPlans(groups = [], groupSettings = {}) {
+  const plans = [];
+  for (const group of groups || []) {
+    const settings = groupSettings[group.id] || defaultGroupSettings(group);
+    if (!canConvertGroup(group, settings)) continue;
+    plans.push({
+      groupId: group.id,
+      fileIds: [...(group.fileIds || [])],
+      format: settings.format,
+      quality: settings.quality || 'balanced',
+      preserveMetadata: settings.preserveMetadata !== false,
+      inputFormat: group.format || null,
+      inputFamily: group.family || null,
+    });
+  }
+  return plans;
+}
+
+/**
+ * Build a convert plan for a subset of files (must share a compatible target).
+ * Uses group settings for the primary group when provided.
+ */
+export function buildConvertSelectionPlan(files, selectedIds, format, settings = {}) {
+  const ids = [...(selectedIds || [])].map(String).filter(Boolean);
+  if (!ids.length || !format) return null;
+  if (!canConvertSelection(files, ids, format)) return null;
+  return {
+    fileIds: ids,
+    format,
+    quality: settings.quality || 'balanced',
+    preserveMetadata: settings.preserveMetadata !== false,
+  };
+}
+
+/**
+ * Aggregate progress across active converter jobs (0–100).
+ * Returns { value, indeterminate, label } for ProgressWave.
+ */
+export function aggregateJobProgress(jobs = {}) {
+  const active = Object.values(jobs || {}).filter((j) =>
+    ['queued', 'running'].includes(j?.status),
+  );
+  if (!active.length) {
+    return { value: 0, indeterminate: false, label: 'Idle' };
+  }
+  const running = active.filter((j) => j.status === 'running');
+  if (!running.length) {
+    return {
+      value: 0,
+      indeterminate: true,
+      label: `${active.length} queued`,
+    };
+  }
+  const withProgress = running.filter((j) => typeof j.progress === 'number' && j.progress > 0);
+  if (!withProgress.length) {
+    return {
+      value: 0,
+      indeterminate: true,
+      label: `${running.length} running`,
+    };
+  }
+  const sum = withProgress.reduce((acc, j) => acc + (Number(j.progress) || 0), 0);
+  const value = Math.round(sum / withProgress.length);
+  return {
+    value,
+    indeterminate: false,
+    label: `${running.length} running · ${value}%`,
+  };
+}
+
+/**
+ * Settings schema for the selected engine/family — only real knobs.
+ * @returns {Array<{ id: string, type: string, label: string, description?: string }>}
+ */
+export function settingsSchemaForEngine(engineName, family) {
+  const name = String(engineName || '').toLowerCase();
+  const fam = String(family || '').toLowerCase();
+  const schema = [];
+  const isMedia = fam === 'audio' || fam === 'video' || /ffmpeg/i.test(name);
+  const isImage = fam === 'image' || /sharp|alphastudio/i.test(name);
+  const isOffice = /libreoffice/i.test(name) || ['document', 'spreadsheet', 'presentation'].includes(fam);
+  const isPandoc = /pandoc/i.test(name);
+  const isCalibre = /calibre/i.test(name);
+  const isPython = /python/i.test(name);
+
+  if (isImage || isMedia) {
+    schema.push({
+      id: 'quality',
+      type: 'select',
+      label: 'Quality',
+      options: [
+        { value: 'fast', label: 'Fast' },
+        { value: 'balanced', label: 'Balanced' },
+        { value: 'high', label: 'High quality' },
+      ],
+    });
+    schema.push({
+      id: 'preserveMetadata',
+      type: 'toggle',
+      label: 'Preserve metadata',
+      description: 'Only when the selected encoder supports it.',
+    });
+  } else if (isOffice || isPandoc || isCalibre || isPython) {
+    // No fake quality knobs for engines that ignore them.
+  } else {
+    schema.push({
+      id: 'quality',
+      type: 'select',
+      label: 'Quality',
+      options: [
+        { value: 'fast', label: 'Fast' },
+        { value: 'balanced', label: 'Balanced' },
+        { value: 'high', label: 'High quality' },
+      ],
+    });
+  }
+  return schema;
+}
