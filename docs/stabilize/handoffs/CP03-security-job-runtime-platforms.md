@@ -3,8 +3,8 @@
 **Date:** 2026-07-24  
 **Branch:** `stabilize/alphastudio-stable-baseline`  
 **Base before work:** `77c2601` (CP02 tip)  
-**HEAD after push:** *(updated after honesty follow-up push — see tip)*  
-**Local HEAD == remote:** **YES** (prove with `git rev-parse HEAD` == `@{u}`)
+**HEAD after push:** `f67e012f46379c5af9c60a9cf830b5b05857c29f`  
+**Local HEAD == remote:** **YES**
 
 ## Goal
 
