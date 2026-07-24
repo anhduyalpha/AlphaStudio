@@ -37,7 +37,7 @@ CP1 addresses **git hygiene + clean-clone reproducibility** only.
 | ID | Date | Summary | Commit | Local HEAD == remote? |
 |----|------|---------|--------|------------------------|
 | CP0 | 2026-07-24 | Process bootstrap + 8 audits | `5ec253f`…`c48bca1` | YES at CP0 close |
-| CP1 | 2026-07-24 | Hygiene + clean-clone repairs | (tip after push) | (verify after push) |
+| CP1 | 2026-07-24 | Hygiene + clean-clone repairs | `0c39f5879cf617b43048fb2c6dfe33b519a3d5c5` | (verify after push) |
 
 ## CP1 repairs landed (in-scope P0–P2)
 
@@ -62,3 +62,4 @@ CP1 addresses **git hygiene + clean-clone reproducibility** only.
 ## Exact next action
 
 After CP1 green push: **CP2** — minimal GitHub Actions (typecheck+build+test) + backup/rollback notes per master plan; do not declare product stable.
+

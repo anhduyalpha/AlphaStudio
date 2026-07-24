@@ -4,9 +4,9 @@
 **Author / agent:** coordinator  
 **Branch:** `stabilize/alphastudio-stable-baseline`  
 **Base SHA before work:** `c48bca1c35173c7710b76db59c3666ccc1745079`  
-**HEAD after commit:** (fill at push)  
-**Remote HEAD after push:** (fill at push)  
-**Local HEAD == remote HEAD:** (fill at push)
+**HEAD after commit:** `0c39f5879cf617b43048fb2c6dfe33b519a3d5c5`  
+**Remote HEAD after push:** `0c39f5879cf617b43048fb2c6dfe33b519a3d5c5` (pending push proof)  
+**Local HEAD == remote HEAD:** pending push
 
 ### Goal of this checkpoint
 
@@ -48,3 +48,4 @@ ignore hygiene, db:repair full path, regression guards. Prove virgin clone
 ### Follow-ups / next exact action
 
 1. CP2 (master plan): minimal CI + backup/rollback notes — or CP3 security path confinement if CI deferred.
+
