@@ -58,9 +58,17 @@ export async function processText(ctx: ProcessContext): Promise<ProcessResult> {
         const indent = Number(ctx.options.indent ?? 2);
         const sortKeys = Boolean(ctx.options.sortKeys);
         const value = sortKeys ? sortObject(parsed) : parsed;
+        // Pretty JSON must declare application/json + .json so output validation matches MIME.
+        const outputPath = path.join(ctx.outputDir, 'formatted.json');
         const out = JSON.stringify(value, null, Number.isFinite(indent) ? indent : 2);
+        fs.writeFileSync(outputPath, out, 'utf8');
         ctx.onProgress(100, 'JSON formatted');
-        return writeTextResult(ctx, out, 'formatted.json');
+        return {
+          outputPath,
+          outputName: 'formatted.json',
+          outputMime: 'application/json',
+          meta: { length: out.length },
+        };
       } catch (e) {
         throw badRequest(`Invalid JSON: ${e instanceof Error ? e.message : 'parse error'}`);
       }

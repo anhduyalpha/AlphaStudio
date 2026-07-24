@@ -12,6 +12,7 @@ import {
 } from '../db/index.js';
 import { config } from '../config.js';
 import { notFound } from '../lib/errors.js';
+import { assertDownloadablePath } from '../lib/paths.js';
 import { logger } from '../lib/logger.js';
 import {
   checksumFileChunked,
@@ -931,6 +932,12 @@ export function listOutputsForZip(
   for (const r of rows) {
     try {
       if (!r.path || !fs.existsSync(r.path)) continue;
+      // Skip poisoned paths that escape data roots (S-01)
+      try {
+        assertDownloadablePath(r.path);
+      } catch {
+        continue;
+      }
       const st = fs.statSync(r.path);
       if (!st.isFile() || st.size <= 0) continue;
       out.push({

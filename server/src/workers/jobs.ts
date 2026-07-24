@@ -23,10 +23,12 @@ import {
   type JobRow,
 } from '../db/index.js';
 import { logger } from '../lib/logger.js';
-import { badRequest, notFound } from '../lib/errors.js';
+import { AppError, badRequest, notFound, unavailable } from '../lib/errors.js';
 import { deleteTerminalJob, type JobDeletionResult } from '../services/job-deletion.js';
 import { assertJobCapable } from '../processors/index.js';
 import type { ProcessResult } from '../processors/types.js';
+import { formatDefinition } from '../convert/formats.js';
+import { listOutputsFor, normalizeFormatToken, type DetectedKind } from '../convert/matrix.js';
 import { killJobChildren, killProcessTreeByPid } from '../lib/child-registry.js';
 import { emitWorkspaceEvent, nextEventVersion } from '../lib/workspace-events.js';
 import { sanitizeUserError } from '../lib/sanitize.js';
@@ -240,6 +242,35 @@ export function findActiveDuplicateJob(params: {
   return undefined;
 }
 
+/**
+ * Extension-based create gate for converter jobs (F-B03 / XR-08).
+ * When the matrix knows the output format but no installed engine can produce it,
+ * fail at create (503) instead of after queue claim. Unknown pairs / same-format
+ * still reach the processor (detect may refine kind; dedupe tests use synthetic pairs).
+ */
+function gateConverterCreate(originalName: string, options: Record<string, unknown>): void {
+  const format = normalizeFormatToken(String(options.format || options.outputFormat || ''));
+  if (!format) return;
+  const extRaw = path.extname(originalName || '').toLowerCase().replace(/^\./, '');
+  if (!extRaw) return;
+  const def = formatDefinition(extRaw);
+  if (!def) return;
+  const kind: DetectedKind = {
+    family: def.family,
+    format: def.format,
+    ext: extRaw,
+    mime: def.mime,
+  };
+  const option = listOutputsFor(kind).find((candidate) => candidate.format === format);
+  if (!option) return;
+  if (!option.available) {
+    throw unavailable(
+      `converter:${def.format}->${format}`,
+      option.reason || `No installed engine can convert ${def.format} to ${format}`,
+    );
+  }
+}
+
 export function createJob(input: CreateJobInput): JobRow {
   const type = input.type;
   if (!type) throw badRequest('type required');
@@ -308,6 +339,12 @@ export function createJob(input: CreateJobInput): JobRow {
     if (!(type === 'qr' && String(options.operation) === 'generate') && type !== 'text' && !(type === 'security' && String(options.operation) === 'password')) {
       throw badRequest('At least one upload is required');
     }
+  }
+
+  // Converter honesty: when output format is known, refuse create if no installed engine
+  // can perform the conversion (F-B03 / XR-08). Avoids queue-then-fail for missing LO/ffmpeg.
+  if (type === 'converter' && uploads.length > 0) {
+    gateConverterCreate(uploads[0].original_name || path.basename(uploads[0].path), options);
   }
 
   const workspaceId = input.workspaceId || null;
@@ -418,6 +455,74 @@ export function deleteJob(id: string): JobDeletionResult {
     'Job history entry deleted',
   );
   return result;
+}
+
+/**
+ * Same-row retry for a failed job marked retryable.
+ * Re-queues the existing row (attempt_count increments on next claim).
+ * Password-bearing jobs require a fresh password when the in-memory vault is empty
+ * (e.g. after server restart) — error code PASSWORD_REQUIRED.
+ */
+export function retryJob(id: string, opts: { password?: string } = {}): JobRow {
+  const job = getJob(id);
+  if (!job) throw notFound('Job not found');
+  if (job.status !== 'failed') {
+    throw badRequest('Only failed jobs can be retried');
+  }
+  if (!job.retryable) {
+    throw badRequest('Job is not retryable');
+  }
+  const attempts = Number(job.attempt_count || 0);
+  const maxAttempts = Number(job.max_attempts || config.maxJobAttempts);
+  if (attempts >= maxAttempts) {
+    throw badRequest('Maximum attempts reached');
+  }
+
+  const stored = safeParse(job.options) as Record<string, unknown>;
+  // redactSensitiveOptions sets passwordProvided when a secret was present at create
+  const passwordWasProvided = stored?.passwordProvided === true;
+
+  const supplied =
+    opts.password != null && String(opts.password).length > 0 ? String(opts.password) : undefined;
+  if (supplied) {
+    jobPasswordVault.set(id, supplied);
+  }
+
+  if (passwordWasProvided && !hasVaultedPassword(id)) {
+    throw new AppError(400, 'PASSWORD_REQUIRED', 'Password required to retry this job', {
+      errorCode: 'PASSWORD_REQUIRED',
+    });
+  }
+
+  const now = new Date().toISOString();
+  const db = getDb();
+  const updated = db
+    .prepare(
+      `UPDATE jobs SET status = 'queued', progress = 0, message = 'Queued for retry',
+       error = NULL, error_code = NULL, retryable = 0, cancel_requested = 0,
+       finished_at = NULL, worker_id = NULL, worker_lease = NULL, claimed_at = NULL,
+       last_heartbeat_at = NULL, timeout_at = NULL, started_at = NULL, updated_at = ?
+       WHERE id = ? AND status = 'failed' AND retryable = 1
+       RETURNING *`,
+    )
+    .get(now, id) as JobRow | undefined;
+
+  if (!updated) {
+    throw badRequest('Job could not be retried (state changed)');
+  }
+
+  cancelFlags.delete(id);
+  logActivity({
+    jobId: id,
+    tool: job.type,
+    action: `${job.type}:retry`,
+    status: 'queued',
+    detail: `Job ${id} re-queued for retry`,
+  });
+  pumpQueue();
+  const row = getJob(id)!;
+  emitJob(row, 'updated');
+  return row;
 }
 
 export function cancelJob(id: string): JobRow {

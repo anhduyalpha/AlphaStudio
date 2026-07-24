@@ -9,8 +9,10 @@ import {
   jobEvents,
   jobPublic,
   listJobs,
+  retryJob,
 } from '../workers/jobs.js';
 import { corsAllowOriginHeader } from '../lib/cors-origin.js';
+import { assertDownloadablePath } from '../lib/paths.js';
 import { contentDispositionAttachment } from '../pdf/output-names.js';
 
 export async function jobRoutes(app: FastifyInstance): Promise<void> {
@@ -69,11 +71,20 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
     if (job.status !== 'completed' || !job.output_path) {
       throw badRequest('Job has no downloadable output');
     }
+    assertDownloadablePath(job.output_path);
     if (!fs.existsSync(job.output_path)) throw notFound('Output file missing');
     const filename = job.output_name || 'download';
     reply.header('Content-Type', job.output_mime || 'application/octet-stream');
     reply.header('Content-Disposition', contentDispositionAttachment(filename));
     return reply.send(fs.createReadStream(job.output_path));
+  });
+
+  /** Same-row retry for failed/retryable jobs; optional password re-supply for vault. */
+  app.post('/api/jobs/:id/retry', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const body = (req.body || {}) as { password?: string };
+    const job = retryJob(id, { password: body.password });
+    return reply.send(jobPublic(job));
   });
 
   // SSE progress stream

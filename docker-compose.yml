@@ -1,0 +1,35 @@
+# Local / home-server style compose. Does NOT mount the Docker socket.
+services:
+  alphastudio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8787:8787"
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8787"
+      DATA_DIR: "/data"
+      SERVE_FRONTEND: "1"
+      ALLOW_INSECURE_BIND: "1"
+      # Set API_AUTH_TOKEN for any non-trusted network.
+      # API_AUTH_TOKEN: ""
+      LOG_LEVEL: "info"
+    volumes:
+      - alphastudio-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8787/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+
+volumes:
+  alphastudio-data:

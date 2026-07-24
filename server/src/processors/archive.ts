@@ -449,11 +449,23 @@ export function parse7zEntries(listing: string): Array<{ path: string; size: num
     }
   }
   flush();
-  // Drop first path if it looks like the archive container name only once
-  return entries.filter(
-    (entry, i) =>
-      !(i === 0 && /\.(7z|zip|rar)$/i.test(entry.path) && !entry.path.includes('/') && !entry.path.includes('\\')),
-  );
+  // Drop 7z listing noise: container path (basename or absolute Windows path to the .7z itself).
+  // `7z l -slt` often emits the archive as the first Path= line (e.g. C:\...\file.7z).
+  return entries.filter((entry, i) => {
+    const p = entry.path.replace(/\\/g, '/');
+    const base = p.split('/').pop() || p;
+    const looksLikeArchiveContainer =
+      /\.(7z|zip|rar)$/i.test(base) &&
+      (i === 0 || path.isAbsolute(entry.path) || /^[A-Za-z]:/.test(entry.path));
+    if (!looksLikeArchiveContainer) return true;
+    // Keep only if it appears to be a nested archive *member* (has a parent directory segment
+    // that is not a drive root) — i.e. "folder/nested.7z".
+    const slashCount = (p.match(/\//g) || []).length;
+    if (slashCount >= 1 && !path.isAbsolute(entry.path) && !/^[A-Za-z]:/.test(entry.path)) {
+      return true;
+    }
+    return false;
+  });
 }
 
 export function assertSafe7zEntry(entryName: string): void {

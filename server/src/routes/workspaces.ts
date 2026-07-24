@@ -6,7 +6,12 @@ import archiver from 'archiver';
 import { config } from '../config.js';
 import { corsAllowOriginHeader } from '../lib/cors-origin.js';
 import { badRequest, notFound, payloadTooLarge } from '../lib/errors.js';
-import { randomServerName, sanitizeFilename } from '../lib/paths.js';
+import {
+  assertDownloadablePath,
+  isActivePreviewContent,
+  randomServerName,
+  sanitizeFilename,
+} from '../lib/paths.js';
 import { contentDispositionAttachment } from '../pdf/output-names.js';
 import {
   nextEventVersion,
@@ -247,6 +252,7 @@ export async function workspaceRoutes(app: FastifyInstance): Promise<void> {
     });
 
     for (let i = 0; i < files.length; i++) {
+      assertDownloadablePath(files[i].path);
       archive.file(files[i].path, { name: entryNames[i] });
     }
 
@@ -277,6 +283,7 @@ export async function fileDownloadRoutes(app: FastifyInstance): Promise<void> {
     const { id } = req.params as { id: string };
     const row = getFile(id);
     if (!row || row.status === 'deleted') throw notFound('File not found');
+    assertDownloadablePath(row.path);
     if (!fs.existsSync(row.path)) throw notFound('File missing on disk');
     reply.header('Content-Type', row.mime || 'application/octet-stream');
     reply.header('Content-Disposition', contentDispositionAttachment(row.original_name || 'file'));
@@ -287,9 +294,20 @@ export async function fileDownloadRoutes(app: FastifyInstance): Promise<void> {
     const { id } = req.params as { id: string };
     const row = getFile(id);
     if (!row || row.status === 'deleted') throw notFound('File not found');
+    assertDownloadablePath(row.path);
     if (!fs.existsSync(row.path)) throw notFound('File missing on disk');
-    reply.header('Content-Type', row.mime || 'application/octet-stream');
-    reply.header('Cache-Control', 'private, max-age=3600');
+    const name = row.original_name || path.basename(row.path);
+    // S-02: never inline HTML/SVG (or similar) on the app origin — force attachment.
+    if (isActivePreviewContent(name, row.mime)) {
+      reply.header('Content-Type', 'application/octet-stream');
+      reply.header('Content-Disposition', contentDispositionAttachment(name));
+      reply.header('X-Content-Type-Options', 'nosniff');
+      reply.header('Content-Security-Policy', "default-src 'none'; sandbox");
+    } else {
+      reply.header('Content-Type', row.mime || 'application/octet-stream');
+      reply.header('Cache-Control', 'private, max-age=3600');
+      reply.header('X-Content-Type-Options', 'nosniff');
+    }
     return reply.send(fs.createReadStream(row.path));
   });
 
@@ -297,6 +315,7 @@ export async function fileDownloadRoutes(app: FastifyInstance): Promise<void> {
     const { id } = req.params as { id: string };
     const row = getOutput(id);
     if (!row) throw notFound('Output not found');
+    assertDownloadablePath(row.path);
     if (!fs.existsSync(row.path)) throw notFound('Output missing on disk');
     reply.header('Content-Type', row.mime || 'application/octet-stream');
     reply.header('Content-Disposition', contentDispositionAttachment(row.name || 'download'));

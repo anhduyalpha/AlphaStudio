@@ -2,21 +2,21 @@
 
 **Program:** AlphaStudio stable baseline  
 **Branch:** `stabilize/alphastudio-stable-baseline`  
-**Status:** CP02_TEST_SURFACE_GREEN (not fully product-stable)  
+**Status:** CP03_SECURITY_JOB_RUNTIME_PLATFORMS (not fully product-stable)  
 **Last updated:** 2026-07-24  
 **Base create SHA:** `ed460ee`  
-**Pre-CP02 tip:** `24d108e`
+**Pre-CP03 tip:** `77c2601`
 
 ## Declaration
 
-**Not fully product-stable.** CP02 closed the **required test surface, fixtures, and core runtime** gates with multi-run evidence.
+**Not fully product-stable.** CP03 closed security path/preview confinement, job retry/password honesty, multi-domain scope verification, Core/Full modes, Docker packaging evidence, and minimal CI — with green suite matrix.
 
 ## Topology
 
 | Item | Value |
 |------|--------|
 | main | ed460ee unchanged |
-| ux-ui-redesign | preserve |
+| ux-ui-redesign | preserve (+37) |
 | stabilize tip | see git after push |
 
 ## Checkpoint log
@@ -25,32 +25,33 @@
 |----|---------|--------------|
 | CP0 | Process audits | YES |
 | CP1 / CP1b | Hygiene + clean-clone + CC-07 | YES |
-| CP02 | Test matrix + full suites multi-run green | after push |
+| CP02 | Test matrix + full suites multi-run green | YES |
+| CP03 | Security S-01/S-02, job retry, 7z/json fixes, scopes, Docker/CI | after push |
 
 ## Test surface (required)
 
 | Gate | Status |
 |------|--------|
 | typecheck / build | green |
-| npm test ×2 | 566/566, 0 skip both runs |
+| npm test | 587/587, 0 skip |
 | test:maint / hygiene | green |
 | test:pdf / fixtures:pdf:verify | green |
 | test:python | 15 OK |
-| test:e2e ×2 | 4/4 both runs |
-| core /api/health | healthy |
+| Docker health + conversion | healthy + hash job completed |
+| core/full capabilities | honest unavailable + full tools OK |
 
 Matrix: `docs/stabilize/TEST_MATRIX.md`  
-Handoff: `docs/stabilize/handoffs/CP02-test-surface-green.md`
-
-## Repair in CP02
-
-- `rate-limit-absent.test.ts`: remove `data-test-ratelimit` in `after()` (pollution cleanup)
+Handoff: `docs/stabilize/handoffs/CP03-security-job-runtime-platforms.md`
 
 ## Residuals (outside this gate)
 
-- Master-plan product CPs (security path, job retry, a11y, full CI)
+- Frontend a11y P1s (CP6)
+- Color UI stubs / dual OCR capability ids
+- Full Linux host matrix (no WSL user distro)
+- VPS multi-user TLS/rate-limit (deploy epic)
 - GitHub branch protection (ops)
+- Tool download SHA integrity (CP5 residual)
 
 ## Exact next action
 
-**CP3** — security: re-confine download/preview paths (S-01) + regression tests; or stand up minimal CI workflow first if process priority wins.
+**CP6** — frontend a11y P1s (command palette focus trap/names/Escape; drawer/search; motion setting wire or relabel), **or** residual capability honesty (OCR dual ids / color stubs) if UX is deferred.
