@@ -27,7 +27,7 @@
 | CP1 / CP1b | Hygiene + clean-clone + CC-07 | YES |
 | CP02 | Test matrix + full suites multi-run green | YES |
 | CP03 | Security S-01/S-02, job retry, 7z/json, capability honesty, Docker/CI | YES |
-| CP04 | S-04/S-06 + boundary, deps 0 vuln, Linux CI parity, cleanup evidence | (prove after push) |
+| CP04 | S-04/S-06 + boundary, deps 0 vuln, Linux CI parity, cleanup evidence | YES (`cb01099` + CI run 30118515153) |
 
 ## Test surface (required)
 
