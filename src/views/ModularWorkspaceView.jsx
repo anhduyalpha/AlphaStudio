@@ -64,11 +64,6 @@ export default function ModularWorkspaceView({ config, notify }) {
       notify(`Unavailable: ${reason(jobSpec.capability) || jobSpec.capability || 'loading capabilities…'}`);
       return;
     }
-    // Never map OCR to cleanup — hard block
-    if (jobSpec.capability === 'text.ocr' || currentFeature.operation === 'ocr') {
-      notify('OCR is not available: no OCR engine is bundled.');
-      return;
-    }
     if (currentFeature.requiresFiles !== false && files.length === 0 && !currentFeature.allowEmpty) {
       notify('Add at least one file first');
       return;

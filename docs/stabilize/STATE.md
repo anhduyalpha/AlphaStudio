@@ -26,14 +26,14 @@
 | CP0 | Process audits | YES |
 | CP1 / CP1b | Hygiene + clean-clone + CC-07 | YES |
 | CP02 | Test matrix + full suites multi-run green | YES |
-| CP03 | Security S-01/S-02, job retry, 7z/json fixes, scopes, Docker/CI | after push |
+| CP03 | Security S-01/S-02, job retry, 7z/json, capability honesty, Docker/CI | YES |
 
 ## Test surface (required)
 
 | Gate | Status |
 |------|--------|
 | typecheck / build | green |
-| npm test | 587/587, 0 skip |
+| npm test | 597/597, 0 skip |
 | test:maint / hygiene | green |
 | test:pdf / fixtures:pdf:verify | green |
 | test:python | 15 OK |

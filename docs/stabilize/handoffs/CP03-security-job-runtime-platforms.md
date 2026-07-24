@@ -3,8 +3,8 @@
 **Date:** 2026-07-24  
 **Branch:** `stabilize/alphastudio-stable-baseline`  
 **Base before work:** `77c2601` (CP02 tip)  
-**HEAD after push:** `f8e29bc4f2b54ee7f917f0b22a21cec0c80fd742`  
-**Local HEAD == remote:** **YES**
+**HEAD after push:** *(updated after honesty follow-up push — see tip)*  
+**Local HEAD == remote:** **YES** (prove with `git rev-parse HEAD` == `@{u}`)
 
 ## Goal
 
@@ -40,6 +40,10 @@ Continue multi-domain stabilization from CP02: independent scope verification; C
 | format-json MIME `.json` vs `text/plain` | P0 | emit `application/json` | `text-format-json.test.ts` |
 | No CI | P1 | `.github/workflows/ci.yml` typecheck+build+test | workflow file |
 | No Docker packaging | P2 | `Dockerfile` + `docker-compose.yml` (no socket) | platforms evidence |
+| Dual searchable OCR ids hard-false vs pyop | P1 | `pdf.ocr.searchable` mirrors `pythonOperationStatus('pdf.ocr-searchable')` | capability-honesty + pdf-capabilities |
+| text.ocr false available without processText op | P1 | always unavailable + honest reason; UI uses capability gate | capability-honesty + ui-capability-honesty-struct |
+| Color Studio empty shells | P1 | stubs labeled; real ops only optimize/strip-metadata | ui-capability-honesty-struct |
+| F-B03 gate lacks 503 regression | P1 | unit + createJob + POST `/api/jobs` 503 tests | capability-honesty.test.ts |
 
 ## Suite results (fresh)
 
@@ -47,12 +51,13 @@ Continue multi-domain stabilization from CP02: independent scope verification; C
 |-------|--------|
 | typecheck | PASS |
 | build | PASS |
-| npm test | **587 pass / 0 fail / 0 skip** |
+| npm test | **597 pass / 0 fail / 0 skip** (post-honesty) |
 | test:maint | 35 pass |
 | test:hygiene | 7 pass |
 | test:pdf | 144 pass |
 | fixtures:pdf:verify | 8 records |
 | test:python | 15 OK |
+| capability honesty | pass (dual OCR, text.ocr, converter 503) |
 
 ## Core / Full modes
 

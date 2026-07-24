@@ -509,9 +509,12 @@ export default function PdfView({ notify }) {
                     : `Repair uses ${engineLabel}. Damaged PDFs may still fail if the structure is unrecoverable.`}
                 </p>
               ) : null}
-              {operation === 'ocr' && !isAvailable('pdf.ocr.searchable') ? (
+              {operation === 'ocr' &&
+              !isAvailable('pdf.ocr.searchable') &&
+              !isAvailable('pdf.ocr-searchable') ? (
                 <p className="helper-note" style={{ marginTop: '0.75rem' }}>
-                  Output is plain text (.txt). Searchable PDF OCR is not available with the current toolchain.
+                  Output is plain text (.txt). Searchable PDF OCR (ocrmypdf / ocr profile) is not available
+                  with the current toolchain.
                 </p>
               ) : null}
               <p className="helper-note" style={{ marginTop: '0.75rem' }}>

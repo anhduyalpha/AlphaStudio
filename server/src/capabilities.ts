@@ -6,7 +6,10 @@ import {
   hasPdfRasterizer,
   resolveAllOptionalBinaries,
 } from './tools/optional-binaries.js';
-import { listPythonSpecializedCapabilities } from './convert/engines/python.js';
+import {
+  listPythonSpecializedCapabilities,
+  pythonOperationStatus,
+} from './convert/engines/python.js';
 
 export type BinaryStatus = {
   name: string;
@@ -194,6 +197,9 @@ export function detectCapabilities(force = false) {
   const archive7zOk = sevenZa.available;
   const officeOk = libreoffice.available;
 
+  // Shared status for UI id pdf.ocr.searchable and pyop id pdf.ocr-searchable.
+  const searchableOcr = pythonOperationStatus('pdf.ocr-searchable');
+
   const tools: ToolCapability[] = [
     { id: 'text.format-json', label: 'JSON format', available: true },
     { id: 'text.base64', label: 'Base64 encode/decode', available: true },
@@ -279,12 +285,14 @@ export function detectCapabilities(force = false) {
       requires: ['tesseract', 'pdf-rasterizer'],
       engine: hasOcrStack() ? 'tesseract' : undefined,
     },
+    // Canonical UI id; same truth as pyop operation pdf.ocr-searchable (no hard-false dualism).
     {
       id: 'pdf.ocr.searchable',
       label: 'PDF searchable OCR',
-      available: false,
-      reason: 'Searchable PDF OCR is not available with the current toolchain',
-      requires: ['tesseract', 'pdf-rasterizer'],
+      available: searchableOcr.available,
+      reason: searchableOcr.reason,
+      requires: ['python', 'ocrmypdf'],
+      engine: searchableOcr.available ? 'ocrmypdf' : undefined,
     },
     {
       id: 'pdf.inspect',
@@ -390,10 +398,12 @@ export function detectCapabilities(force = false) {
       requires: ['ffmpeg'],
     },
     {
+      // Honesty: processText has no `ocr` operation. PDF OCR is `pdf.ocr` / searchable pyop.
       id: 'text.ocr',
-      label: 'OCR',
-      available: hasOcrStack(),
-      reason: hasOcrStack() ? undefined : 'OCR engine (Tesseract + rasterizer) not found',
+      label: 'Image/text OCR',
+      available: false,
+      reason:
+        'Image/text OCR is not implemented for the text job type. Use PDF OCR (pdf.ocr) when Tesseract and a PDF rasterizer are installed, or searchable OCR via the ocr Python profile.',
     },
     { id: 'audio.extract-vocals', label: 'Vocal separation', available: false, reason: 'ML vocal separation not supported' },
   ];

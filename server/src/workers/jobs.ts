@@ -247,8 +247,22 @@ export function findActiveDuplicateJob(params: {
  * When the matrix knows the output format but no installed engine can produce it,
  * fail at create (503) instead of after queue claim. Unknown pairs / same-format
  * still reach the processor (detect may refine kind; dedupe tests use synthetic pairs).
+ * `listOutputs` is injectable for focused regression tests.
  */
-function gateConverterCreate(originalName: string, options: Record<string, unknown>): void {
+/** Test-only override used by createJob path (cleared after each inject test). */
+let testListOutputsFor: typeof listOutputsFor | null = null;
+
+/** Test helper: inject listOutputsFor for createJob gate (null to restore). */
+export function setTestListOutputsFor(fn: typeof listOutputsFor | null): void {
+  testListOutputsFor = fn;
+}
+
+export function gateConverterCreate(
+  originalName: string,
+  options: Record<string, unknown>,
+  listOutputs: typeof listOutputsFor = listOutputsFor,
+): void {
+  const listFn = listOutputs === listOutputsFor && testListOutputsFor ? testListOutputsFor : listOutputs;
   const format = normalizeFormatToken(String(options.format || options.outputFormat || ''));
   if (!format) return;
   const extRaw = path.extname(originalName || '').toLowerCase().replace(/^\./, '');
@@ -261,7 +275,7 @@ function gateConverterCreate(originalName: string, options: Record<string, unkno
     ext: extRaw,
     mime: def.mime,
   };
-  const option = listOutputsFor(kind).find((candidate) => candidate.format === format);
+  const option = listFn(kind).find((candidate) => candidate.format === format);
   if (!option) return;
   if (!option.available) {
     throw unavailable(
