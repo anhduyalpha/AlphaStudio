@@ -95,34 +95,77 @@ export function buildConversionGroups(files = []) {
 }
 
 /**
- * Intersection of available outputs across members of a group.
+ * Merge detect.outputs across group members for the conversion board.
+ *
+ * - Available targets: formats every member can convert to (intersection).
+ * - Unavailable targets: formats listed by any member that are not available
+ *   for the whole group, keeping reason/profile so the UI can explain missing tools.
+ * Never forces available:true on fail-closed routes.
  */
 export function compatibleOutputsForMembers(members) {
   if (!members?.length) return [];
-  let inter = null;
-  let baseList = members[0].detect?.outputs || [];
-  for (const m of members) {
-    const list = m.detect?.outputs || [];
-    const avail = new Set(list.filter((o) => o.available).map((o) => o.format));
-    if (!inter) inter = avail;
-    else inter = new Set([...inter].filter((x) => avail.has(x)));
-  }
-  if (!inter) return [];
-  // Prefer labels from first member
-  const seen = new Set();
-  const out = [];
+
+  /** @type {Map<string, object>} */
+  const byFormat = new Map();
+
   for (const m of members) {
     for (const o of m.detect?.outputs || []) {
-      if (!inter.has(o.format) || seen.has(o.format)) continue;
-      seen.add(o.format);
-      out.push({ ...o, available: true });
+      if (!o || o.format == null) continue;
+      const fmt = String(o.format);
+      const existing = byFormat.get(fmt);
+      if (!existing) {
+        byFormat.set(fmt, { ...o, format: fmt });
+        continue;
+      }
+      // Prefer richer metadata; availability is re-resolved against all members below.
+      byFormat.set(fmt, {
+        ...existing,
+        ...o,
+        format: fmt,
+        label: o.label || existing.label,
+        reason: o.reason || existing.reason,
+        profile: o.profile || existing.profile,
+        engine: o.engine || existing.engine,
+        engines: o.engines || existing.engines,
+        lossy: o.lossy ?? existing.lossy,
+        experimental: o.experimental ?? existing.experimental,
+      });
     }
   }
-  // Fallback if base empty but inter non-empty
-  if (!out.length && baseList.length) {
-    return baseList.filter((o) => inter.has(o.format)).map((o) => ({ ...o, available: true }));
+
+  const out = [];
+  for (const [fmt, base] of byFormat) {
+    const memberHits = members.map((m) =>
+      (m.detect?.outputs || []).find((o) => String(o.format) === fmt),
+    );
+    // Available only when every member lists the format as available.
+    // Missing listing on a member ⇒ not a shared available target.
+    const available = memberHits.every((hit) => Boolean(hit?.available));
+    const unavailableHit = memberHits.find((hit) => hit && hit.available === false);
+    const reason = available
+      ? undefined
+      : unavailableHit?.reason ||
+        base.reason ||
+        (memberHits.some((hit) => !hit)
+          ? 'Not available for all files in this group'
+          : `No installed engine can convert to ${fmt}`);
+    out.push({
+      ...base,
+      format: fmt,
+      available,
+      reason: available ? undefined : reason,
+      profile: unavailableHit?.profile || base.profile,
+      engine: (available ? memberHits.find((h) => h?.available)?.engine : undefined) || base.engine,
+      engines: base.engines,
+    });
   }
-  return out;
+
+  // Available first, then label/format for stable UI
+  return out.sort(
+    (a, b) =>
+      Number(b.available) - Number(a.available) ||
+      String(a.label || a.format).localeCompare(String(b.label || b.format)),
+  );
 }
 
 /**

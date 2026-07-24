@@ -21,10 +21,12 @@ RUN npm ci --no-audit --no-fund
 
 COPY . .
 
-# Install portable Converter tools (FFmpeg, 7z, Pandoc, LibreOffice, Calibre)
+# Install portable Converter tools (FFmpeg, 7z, Pandoc, LibreOffice, Calibre).
 # Prefer system packages already present for PDF stack above.
-RUN npm run tools:install || true
-RUN npm run python:install -- --profile core || true
+# Fail the image build if install or verify fails — never ship a "full" image without tools.
+RUN npm run tools:install \
+ && npm run python:install -- --profile core \
+ && npm run runtime:verify
 
 RUN npm run build
 
