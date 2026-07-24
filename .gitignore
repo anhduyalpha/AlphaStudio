@@ -22,6 +22,13 @@ logs/
 tmp/
 temp/
 terminals/
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+*.db
+*.db-shm
+*.db-wal
 # Python bridge bytecode (the venv lives under .runtime/, already ignored above)
 python/**/__pycache__/
 __pycache__/

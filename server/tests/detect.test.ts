@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '../..');
-const fixtures = path.join(root, 'audit', 'fixtures');
+const fixtures = path.join(root, 'fixtures', 'samples');
 const testData = path.join(root, 'data-test-detect');
 
 process.env.PORT = '8797';

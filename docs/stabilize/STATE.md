@@ -2,85 +2,63 @@
 
 **Program:** AlphaStudio stable baseline  
 **Branch:** `stabilize/alphastudio-stable-baseline`  
-**Status:** AUDIT_PASS_RECONCILED (not stable)  
+**Status:** CP1_HYGIENE_IN_PROGRESS → green after push  
 **Last updated:** 2026-07-24  
-**Base / create SHA:** `ed460ee763663eef3f0aae9080eeb5e15c68fe1c`
+**Base / create SHA:** `ed460ee763663eef3f0aae9080eeb5e15c68fe1c`  
+**Pre-CP1 tip:** `c48bca1`
 
 ## Declaration
 
-**This repository is not declared stable.** This file tracks process state only.
+**This repository is not declared fully product-stable.**  
+CP1 addresses **git hygiene + clean-clone reproducibility** only.
 
 ## Topology (summary)
 
 | Item | Value |
 |------|--------|
 | Remote | `origin` → `https://github.com/anhduyalpha/AlphaStudio.git` |
-| `main` | `ed460ee` = `origin/main` |
-| `ux-ui-redesign` | `d03497f`, 37 commits ahead of main; **preserve** |
-| Merge-base main…ux-ui-redesign | `ed460ee` |
-| Stabilize branch | created from main @ `ed460ee` |
-| Tags | none |
-| Working tree at program start | clean |
-| Product code this goal | unchanged |
-
-Full write-up: [TOPOLOGY.md](./TOPOLOGY.md)
+| `main` | `ed460ee` = `origin/main` (must stay) |
+| `ux-ui-redesign` | `d03497f`, 37 ahead — **preserve** |
+| Stabilize | work branch for process + hygiene repairs |
 
 ## Artifact index
 
 | Artifact | Path | Status |
 |----------|------|--------|
-| Topology | `docs/stabilize/TOPOLOGY.md` | written |
-| State (this file) | `docs/stabilize/STATE.md` | written |
-| Handoff format | `docs/stabilize/HANDOFF_FORMAT.md` | written |
-| Master plan | `docs/stabilize/MASTER_PLAN.md` | written |
-| Risk register | section 4 of master plan | written |
-| Audit: git/hygiene | `docs/stabilize/audits/01-git-hygiene.md` | written |
-| Audit: backend/workers | `docs/stabilize/audits/02-backend-workers.md` | written |
-| Audit: frontend/a11y | `docs/stabilize/audits/03-frontend-a11y.md` | written |
-| Audit: tests/coverage | `docs/stabilize/audits/04-tests-coverage.md` | written |
-| Audit: runtime/tools | `docs/stabilize/audits/05-runtime-tools.md` | written |
-| Audit: platforms | `docs/stabilize/audits/06-platforms.md` | written |
-| Audit: security | `docs/stabilize/audits/07-security.md` | written |
-| Audit: CI/release | `docs/stabilize/audits/08-ci-release.md` | written |
+| Repair sequence (approved before fixes) | `docs/stabilize/REPAIR_SEQUENCE_CP1_HYGIENE.md` | written |
+| Audit clean-clone | `docs/stabilize/audits/09-hygiene-clean-clone.md` | written |
+| Audit git integrity | `docs/stabilize/audits/10-hygiene-git-integrity.md` | written |
+| Handoff CP01 | `docs/stabilize/handoffs/CP01-hygiene-clean-clone.md` | written |
+| Master plan | `docs/stabilize/MASTER_PLAN.md` | prior |
+| Hygiene regression tests | `scripts/maint/tests/package-scripts-hygiene.test.mjs` | added |
 
 ## Checkpoint log
 
 | ID | Date | Summary | Commit | Local HEAD == remote? |
 |----|------|---------|--------|------------------------|
-| CP0 | 2026-07-24 | Process bootstrap: topology, 8 audits, master plan, state, handoff | content `5ec253f`; handoff `0c2decb`; state pins on branch tip | **YES** — re-verify with `git rev-parse HEAD` vs `origin/stabilize/alphastudio-stable-baseline` after each push |
+| CP0 | 2026-07-24 | Process bootstrap + 8 audits | `5ec253f`…`c48bca1` | YES at CP0 close |
+| CP1 | 2026-07-24 | Hygiene + clean-clone repairs | (tip after push) | (verify after push) |
 
-## Required gates for every future checkpoint
+## CP1 repairs landed (in-scope P0–P2)
 
-See [HANDOFF_FORMAT.md](./HANDOFF_FORMAT.md):
+| Finding | Resolution |
+|---------|------------|
+| P0 broken `test:audit` / `audit:backend` | Removed from `package.json` |
+| P0 false docs claims | `RUNTIME_VALIDATION.md`, BUILD §6 scrubbed |
+| P1 fixtures gitignored | Tracked `fixtures/samples/*`; tests retargeted |
+| P1 maint pre* hooks assertion | Test expects **absent** predev/prebuild/prestart |
+| P2 ignore gaps | `.gitignore` + new `.dockerignore` |
+| P2 legacy check/repair-tools | Forward to `scripts/maint/tools.mjs` |
+| P2 db:repair partial heal | `npm run db:repair` uses `--import tsx`; full repairDb preferred |
 
-1. Focused tests  
-2. Typecheck  
-3. Build  
-4. Relevant smoke test  
-5. Diff validation  
-6. State + handoff update  
-7. One coherent commit  
-8. Normal (non-force) push  
-9. Proof local HEAD equals remote HEAD  
+## Residual (explicitly accepted)
 
-## Cross-review (high-risk)
-
-See master plan §3. Key elevations:
-
-- XR-01 broken audit scripts (P0 process)  
-- XR-02 download path trust elevated P1 (backend+security)  
-- XR-03 inline HTML/SVG preview P1  
-- XR-04 no CI  
-- XR-07/08 job retry + capability honesty P1  
+| Item | Severity | Notes |
+|------|----------|-------|
+| GitHub branch protection | P2 ops | Cannot enable from app commit alone |
+| Linux case-sensitive FS runtime | evidence static | No case collisions in `git ls-files` |
+| Full optional tool install | non-goal | Core mode only for CP1 |
 
 ## Exact next action
 
-**CP1** — Remove or restore broken `test:audit` / `audit:backend`; fix clean-clone fixtures; correct false doc claims; handoff + push.  
-Details: [MASTER_PLAN.md](./MASTER_PLAN.md) §9.
-
-## Non-claims
-
-- Not stable  
-- Not VPS-ready  
-- Not redesign-complete (`ux-ui-redesign` unmerged)  
-- Full test suite not re-run as a green stamp in the audit pass  
+After CP1 green push: **CP2** — minimal GitHub Actions (typecheck+build+test) + backup/rollback notes per master plan; do not declare product stable.

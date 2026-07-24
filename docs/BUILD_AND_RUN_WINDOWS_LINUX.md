@@ -16,12 +16,23 @@ một origin.
 Không chạy `npm install` riêng trong `server/`. Repo dùng npm workspaces và một
 `package-lock.json` ở thư mục gốc.
 
-## 2. Full runtime được cài mặc định
+## 2. Full runtime (tùy chọn — không gắn vào build/start)
 
-Quy trình chuẩn không còn yêu cầu người dùng tự chọn profile. `npm run
-bootstrap`, `dev`, `build` và `start` đều gọi bước chuẩn bị runtime đầy đủ.
-`tools:check`, `tools:install`, `tools:repair` và `tools:update` trong
-`package.json` luôn gắn `--profile full`.
+**Core mode (mặc định sau `npm ci`):** app build/start chỉ cần Node dependencies.
+Sharp/pdf-lib và các job native chạy không cần `.runtime/tools`.
+
+**Full external tools:** cài tường minh qua:
+
+```text
+npm run bootstrap          # npm ci + runtime:prepare (full profile)
+# hoặc sau khi đã npm ci:
+npm run tools:install      # --profile full
+npm run tools:check
+```
+
+`dev` / `build` / `start` **không** tự cài multi-GiB tool runtime (clean-clone /
+CI friendly). `tools:check`, `tools:install`, `tools:repair` và `tools:update`
+trong `package.json` luôn gắn `--profile full` khi bạn chạy chúng.
 
 | Profile | Công cụ | Định dạng/chức năng chính | Download / cài đặt ước tính |
 |---|---|---|---|
@@ -142,18 +153,20 @@ npm run dev:server
 
 ## 6. Kiểm tra trước khi chạy production
 
+Gates **hiện có** trên tree (không còn `test:audit` / `audit:backend` — `scripts/audit/` đã gỡ khỏi package scripts vì không tồn tại trong repo):
+
 ```text
 npm run build
+npm run typecheck
 npm test
 npm run test:maint
-npm run test:audit
+npm run test:hygiene
 npm run deps:check
 npm audit
-npm run audit:backend
+npm run doctor
 ```
 
-Đọc `audit/backend-audit.json`, không chỉ dựa vào exit code của audit. Hai
-benchmark nặng hơn, chạy khi cần đo release:
+Hai benchmark nặng hơn, chạy khi cần đo release:
 
 Main server suite chạy tuần tự theo file để các integration test dùng process
 worker/SQLite/port không tranh chấp tài nguyên và để peak RAM ổn định.

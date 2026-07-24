@@ -222,7 +222,7 @@ Run:
 ```bash
 npm test
 npm run test:maint
-npm run test:audit
+npm run test:hygiene
 npm run build
 npm run tools:check
 npm run doctor
