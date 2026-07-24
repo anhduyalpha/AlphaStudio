@@ -3,8 +3,8 @@
 **Date:** 2026-07-24  
 **Branch:** `stabilize/alphastudio-stable-baseline`  
 **Base before work:** `77c2601` (CP02 tip)  
-**HEAD after push:** `0e428ab4028f313a9da85c672560950b2cc1fb61`  
-**Local HEAD == remote:** **YES**
+**Content HEAD (product package):** `f67e012f46379c5af9c60a9cf830b5b05857c29f`  
+**Local HEAD == remote:** **YES** (docs-only tip commits may advance after content; prove with `git rev-parse HEAD` == `@{u}`)
 
 ## Goal
 

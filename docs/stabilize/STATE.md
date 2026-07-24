@@ -17,7 +17,7 @@
 |------|--------|
 | main | ed460ee unchanged |
 | ux-ui-redesign | preserve (+37) |
-| stabilize tip | 0e428ab (HEAD == origin) |
+| stabilize tip | equals origin (content package f67e012 + docs pins) |
 
 ## Checkpoint log
 
