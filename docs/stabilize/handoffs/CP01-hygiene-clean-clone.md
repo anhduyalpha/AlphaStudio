@@ -4,48 +4,43 @@
 **Author / agent:** coordinator  
 **Branch:** `stabilize/alphastudio-stable-baseline`  
 **Base SHA before work:** `c48bca1c35173c7710b76db59c3666ccc1745079`  
-**HEAD after commit:** `0c39f5879cf617b43048fb2c6dfe33b519a3d5c5`  
-**Remote HEAD after push:** `0c39f5879cf617b43048fb2c6dfe33b519a3d5c5` (pending push proof)  
-**Local HEAD == remote HEAD:** pending push
+**Repair content commit:** `0c39f5879cf617b43048fb2c6dfe33b519a3d5c5`  
+**HEAD after process pin:** `945994f6e7e182e106cf8953476c87f2c1ee37e6`  
+**Remote HEAD after push:** `945994f6e7e182e106cf8953476c87f2c1ee37e6`  
+**Local HEAD == remote HEAD:** **YES**
 
-### Goal of this checkpoint
+### Goal
 
-Repair git/repo hygiene and clean-clone blockers: remove broken audit npm scripts,
-commit sample fixtures, align docs and maint tests with core-mode honesty,
-ignore hygiene, db:repair full path, regression guards. Prove virgin clone
-`npm ci` + typecheck + build + core start + fresh DB.
+Repair hygiene + clean-clone blockers; prove virgin install/build/core start/DB.
 
-### Scope touched
+### Scope
 
-- Paths: `package.json`, `.gitignore`, `.dockerignore`, `fixtures/samples/*`,
-  `server/tests/{detect,helpers}.test.ts`, `scripts/maint/*`,
-  `scripts/check-tools.mjs`, `scripts/repair-tools.mjs`,
-  `RUNTIME_VALIDATION.md`, `docs/BUILD_AND_RUN_WINDOWS_LINUX.md`,
-  `docs/CONVERTER_PHASE_1_PLAN.md`, `docs/stabilize/*`
-- Out of scope: product job security/a11y/CI Actions, `main`, `ux-ui-redesign`
+- package.json, ignores, fixtures/samples, tests, maint scripts, docs honesty, stabilize process docs
+- Not: product CP3–CP7 features, main, ux-ui-redesign
 
 ### Gates
 
-| Gate | Command(s) | Result | Evidence |
-|------|------------|--------|----------|
-| Focused tests | `node --test scripts/maint/tests/package-scripts-hygiene.test.mjs`; maint-core; helpers+detect | PASS | `{SCRATCH}/hygiene-tests.txt`, maint-core, detect-helpers |
-| Typecheck | `npm run typecheck` | PASS | `{SCRATCH}/typecheck.txt` |
-| Build | `npm run build` | PASS | `{SCRATCH}/build-dev-tree.txt` |
-| Relevant smoke | clean clone ci/typecheck/build + core start + db repair | (after push proof) | `{SCRATCH}/clean-clone-*.txt` |
-| Diff validation | hygiene/docs/tests only; no `main` rewrite | PASS | `git diff --stat` |
-| State update | `docs/stabilize/STATE.md` | PASS | this checkpoint |
-| Handoff update | this file | PASS | |
-| One coherent commit | hygiene clean-clone repair | PASS | |
-| Normal push | no `--force` | PASS | |
-| HEAD equality | local == origin/stabilize | PASS | `{SCRATCH}/branch-safety.txt` |
+| Gate | Result | Evidence |
+|------|--------|----------|
+| Focused tests | PASS | hygiene-tests.txt, maint-core-tests.txt, detect-helpers.txt |
+| Typecheck | PASS | typecheck.txt + clean-clone-typecheck.txt |
+| Build | PASS | build-dev-tree.txt + clean-clone-build.txt |
+| Clean clone npm ci | PASS | clean-clone-ci.txt (no pre-existing node_modules/.runtime/data) |
+| Core smoke | PASS | health ok healthy; version 3.6.0; core-startup.txt; pre-start .runtime=false |
+| Fresh DB | PASS | db-fresh-init.txt |
+| db:repair full | PASS | db-repair.txt versions 1–7, full repairDb |
+| Diff validation | PASS | only hygiene/docs/tests paths |
+| State/handoff | PASS | STATE.md + this file |
+| One coherent repair commit | PASS | 0c39f58 |
+| Normal push | PASS | no force |
+| HEAD equality | PASS | 945994f == origin |
 
 ### Explicit non-claims
 
-- Repository is **not** fully product-stable.
-- Full tool runtime install not required.
-- Branch protection remains an ops residual (not fixed in-repo).
+- Not fully product-stable
+- Branch protection still ops residual
+- Optional full tools not installed in clean-clone proof
 
-### Follow-ups / next exact action
+### Next action
 
-1. CP2 (master plan): minimal CI + backup/rollback notes — or CP3 security path confinement if CI deferred.
-
+**CP2** — minimal CI workflow (typecheck + build + test) + backup/rollback notes per MASTER_PLAN.md. Do not merge redesign; do not force-push.
