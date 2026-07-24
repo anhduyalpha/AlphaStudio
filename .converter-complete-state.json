@@ -2,58 +2,26 @@
   "branch": "ux-ui-redesign",
   "base": "main",
   "currentPhase": "C8",
-  "matrixRevision": 2,
+  "residualClosed": true,
+  "matrixRevision": 3,
   "matrixDoc": "docs/converter/FORMAT_ENGINE_MATRIX.md",
   "phases": {
-    "C0": {
-      "id": "C0",
-      "title": "Freeze format-engine matrix and completion state",
-      "status": "completed",
-      "behaviorChange": false
-    },
-    "C1": {
-      "id": "C1",
-      "title": "Multi-select + convert selected/group/all + real progress",
-      "status": "completed"
-    },
-    "C2": {
-      "id": "C2",
-      "title": "Engine-aware settings, honest previews, responsive/a11y",
-      "status": "completed"
-    },
-    "C3": {
-      "id": "C3",
-      "title": "Adapter execute dispatch parity refactor",
-      "status": "completed"
-    },
-    "C4": {
-      "id": "C4",
-      "title": "Expand reliable capability-gated routes",
-      "status": "completed",
-      "notes": "Honesty flags (lossy/experimental) on OutputOption; matrix freeze updated"
-    },
-    "C5": {
-      "id": "C5",
-      "title": "Full runtime install/verify (pdf + python profiles)",
-      "status": "completed",
-      "notes": "runtime:verify + runtime:repair scripts; PDF OS packages documented for Docker"
-    },
-    "C6": {
-      "id": "C6",
-      "title": "Docker full-runtime + VPS docs",
-      "status": "completed"
-    },
-    "C7": {
-      "id": "C7",
-      "title": "Cancel/timeout/batch/reload reliability",
-      "status": "completed",
-      "notes": "Preserved existing paths; no-install-during-job structural gate"
-    },
-    "C8": {
-      "id": "C8",
-      "title": "Evidence, e2e, final handoff",
-      "status": "completed"
-    }
+    "C0": { "id": "C0", "title": "Freeze format-engine matrix and completion state", "status": "completed", "behaviorChange": false },
+    "C1": { "id": "C1", "title": "Multi-select + convert selected/group/all + real progress", "status": "completed" },
+    "C2": { "id": "C2", "title": "Engine-aware settings, honest previews, responsive/a11y", "status": "completed" },
+    "C3": { "id": "C3", "title": "Adapter execute dispatch parity refactor", "status": "completed" },
+    "C4": { "id": "C4", "title": "Expand reliable capability-gated routes", "status": "completed" },
+    "C5": { "id": "C5", "title": "Full runtime install/verify (pdf + python profiles)", "status": "completed" },
+    "C6": { "id": "C6", "title": "Docker full-runtime + VPS docs", "status": "completed" },
+    "C7": { "id": "C7", "title": "Cancel/timeout/batch/reload reliability", "status": "completed" },
+    "C8": { "id": "C8", "title": "Evidence, e2e, final handoff", "status": "completed" }
   },
-  "updatedAt": "2026-07-24T03:00:00.000Z"
+  "residuals": {
+    "unavailableBoardOutputs": "closed",
+    "missingToolFailClosedTests": "closed",
+    "dockerStrictInstall": "closed",
+    "portablePopplerDownloadUnits": "deferred-non-goal",
+    "playwrightScreenshotGallery": "deferred-non-goal"
+  },
+  "updatedAt": "2026-07-24T12:00:00.000Z"
 }

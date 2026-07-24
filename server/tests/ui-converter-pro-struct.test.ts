@@ -55,6 +55,15 @@ describe('Converter Pro + QR paste structural', () => {
       assert.match(converter, /aggregateJobProgress|runProgress/);
     });
 
+    it('renders unavailable panel from group.outputs that are not available', () => {
+      assert.match(converter, /filter\(\(o\)\s*=>\s*!o\.available\)/);
+      assert.match(converter, /converter-unavailable-panel/);
+      assert.match(converter, /Unavailable:/);
+      // Multi-select for Convert selected
+      assert.match(converter, /toggleFileSelection|selectedFileIds/);
+      assert.match(converter, /type="checkbox"/);
+    });
+
     it('persists groupSettings via toolSettings.converter', () => {
       assert.match(converter, /groupSettings/);
       assert.match(converter, /toolSettings\.converter|toolSettings:\s*\{\s*converter/);

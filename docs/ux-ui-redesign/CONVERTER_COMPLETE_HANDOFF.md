@@ -42,9 +42,21 @@
 - taste + redesign-existing-projects applied (file-first board, no card-grid, honest progress)
 - ux-ui-pro-max not installed; Corrective-2 board rules followed
 
+## Residual C status (2026-07-24)
+
+All C0–C8 items closed. Skeptic residuals closed in `[converter:fix]` + residual evidence commit:
+
+| Residual | Status |
+| --- | --- |
+| Unavailable outputs on `group.outputs` + panel | closed (`compatibleOutputsForMembers`) |
+| Missing-tool fail-closed `listOutputsFor` tests | closed |
+| Docker `|| true` soft-fail | closed (requires `runtime:verify`) |
+| Portable Poppler/GS/qpdf in tools.mjs | **non-goal** (Docker apt + docs) |
+| Full Playwright screenshot gallery | **non-goal** if headless unavailable |
+
 ## Verify locally
 ```text
-node --import tsx --test server/tests/converter-c0-matrix-struct.test.ts server/tests/converter-groups-c1.test.ts server/tests/converter-no-install-during-job.test.ts server/tests/converter-lossy-flags.test.ts server/tests/ui-converter-pro-struct.test.ts
+node --import tsx --test server/tests/converter-c0-matrix-struct.test.ts server/tests/converter-groups.test.ts server/tests/converter-groups-c1.test.ts server/tests/converter-missing-tool-failclosed.test.ts server/tests/converter-no-install-during-job.test.ts server/tests/converter-lossy-flags.test.ts server/tests/ui-converter-pro-struct.test.ts server/tests/ui-converter-struct.test.ts
 npm run typecheck
 npm run build
 npm run runtime:verify
