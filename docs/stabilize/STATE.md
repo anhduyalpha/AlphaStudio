@@ -47,7 +47,7 @@ Full write-up: [TOPOLOGY.md](./TOPOLOGY.md)
 
 | ID | Date | Summary | Commit | Local HEAD == remote? |
 |----|------|---------|--------|------------------------|
-| CP0 | 2026-07-24 | Process bootstrap: topology, 8 audits, master plan, state, handoff | tip `0c2decb` (content `5ec253f` + handoff pin) | **YES** @ `0c2decbce0207d1e4905cee393213a51fece68b1` = `origin/stabilize/alphastudio-stable-baseline` |
+| CP0 | 2026-07-24 | Process bootstrap: topology, 8 audits, master plan, state, handoff | content `5ec253f`; handoff `0c2decb`; state pins on branch tip | **YES** — re-verify with `git rev-parse HEAD` vs `origin/stabilize/alphastudio-stable-baseline` after each push |
 
 ## Required gates for every future checkpoint
 
