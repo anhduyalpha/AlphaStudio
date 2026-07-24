@@ -41,14 +41,14 @@ describe('rapid health requests never 429 from rate limit', () => {
   let app: any;
   let base: string;
   let closeDb: () => void;
+  const dataDir = path.join(root, '..', 'data-test-ratelimit');
 
   before(async () => {
-    const data = path.join(root, '..', 'data-test-ratelimit');
-    fs.rmSync(data, { recursive: true, force: true });
+    fs.rmSync(dataDir, { recursive: true, force: true });
     process.env.PORT = '8791';
     process.env.HOST = '127.0.0.1';
-    process.env.DATA_DIR = data;
-    process.env.DB_PATH = path.join(data, 't.db');
+    process.env.DATA_DIR = dataDir;
+    process.env.DB_PATH = path.join(dataDir, 't.db');
     process.env.LOG_LEVEL = 'error';
     const paths = await import('../src/lib/paths.js');
     paths.ensureDataDirs();
@@ -74,6 +74,15 @@ describe('rapid health requests never 429 from rate limit', () => {
       /* ignore */
     }
     closeDb?.();
+    // Remove test data so suite multi-runs and local trees do not accumulate pollution
+    for (let i = 0; i < 5; i++) {
+      try {
+        fs.rmSync(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+        break;
+      } catch {
+        await new Promise((r) => setTimeout(r, 50));
+      }
+    }
   });
 
   it('50 rapid /api/health calls all succeed (no 429)', async () => {
