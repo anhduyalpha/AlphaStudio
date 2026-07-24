@@ -47,7 +47,7 @@ Full write-up: [TOPOLOGY.md](./TOPOLOGY.md)
 
 | ID | Date | Summary | Commit | Local HEAD == remote? |
 |----|------|---------|--------|------------------------|
-| CP0 | 2026-07-24 | Process bootstrap: topology, 8 audits, master plan, state, handoff | (see git log) | (update after push) |
+| CP0 | 2026-07-24 | Process bootstrap: topology, 8 audits, master plan, state, handoff | `5ec253f` (+ follow-up state pin if any) | **YES** @ `5ec253f0bb038b16820cea41783fdc403e197afa` = `origin/stabilize/alphastudio-stable-baseline` |
 
 ## Required gates for every future checkpoint
 
