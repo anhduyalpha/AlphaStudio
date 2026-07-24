@@ -1,4 +1,7 @@
 # Local / home-server style compose. Does NOT mount the Docker socket.
+# NOT multi-user/VPS-ready: HOST=0.0.0.0 + ALLOW_INSECURE_BIND without a token
+# exposes an unauthenticated API on all interfaces. Set API_AUTH_TOKEN before
+# publishing port 8787 beyond a trusted host (see docs/stabilize/SECURITY_BOUNDARY.md).
 services:
   alphastudio:
     build:
@@ -12,8 +15,8 @@ services:
       DATA_DIR: "/data"
       SERVE_FRONTEND: "1"
       ALLOW_INSECURE_BIND: "1"
-      # Set API_AUTH_TOKEN for any non-trusted network.
-      # API_AUTH_TOKEN: ""
+      # Required for any non-trusted network / LAN multi-device use:
+      # API_AUTH_TOKEN: "replace-with-long-random-token"
       LOG_LEVEL: "info"
     volumes:
       - alphastudio-data:/data

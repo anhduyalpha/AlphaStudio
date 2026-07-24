@@ -1,4 +1,5 @@
-# Minimal stabilize CI — typecheck, build, unit tests (no full tool bootstrap).
+# Core stabilize CI — typecheck, build, unit tests (no full tool bootstrap).
+# Required check name: "CI / core-ubuntu" (do not enable branch protection until green once).
 name: CI
 
 on:
@@ -7,8 +8,16 @@ on:
   pull_request:
     branches: [main, stabilize/**]
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
-  test:
+  core-ubuntu:
+    name: core-ubuntu
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -29,6 +38,24 @@ jobs:
         run: npm run build
 
       - name: Unit / integration tests
-        run: npm test
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee npm-test.log
         env:
           LOG_LEVEL: error
+          CI: '1'
+
+      - name: Maint + hygiene scripts
+        run: |
+          npm run test:maint
+          npm run test:hygiene
+
+      - name: Upload failure logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-core-ubuntu-logs
+          path: |
+            npm-test.log
+          retention-days: 14
+          if-no-files-found: ignore

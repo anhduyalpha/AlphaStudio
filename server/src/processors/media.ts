@@ -17,6 +17,45 @@ import {
 import type { ProcessContext, ProcessResult } from './types.js';
 import type { EngineRoute } from '../convert/engines/index.js';
 
+/**
+ * Allowlisted ffmpeg time for -ss / -t / -to (S-04).
+ * Accepts non-negative seconds (int/float) or HH:MM:SS(.ms) / MM:SS(.ms).
+ */
+export function parseFfmpegTime(value: unknown, field = 'time'): string {
+  if (value == null || value === '') throw badRequest(`Invalid ${field}`);
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value) || value < 0 || value > 86400 * 24) {
+      throw badRequest(`Invalid ${field}`);
+    }
+    return String(value);
+  }
+  const raw = String(value).trim();
+  if (!raw || raw.length > 32) throw badRequest(`Invalid ${field}`);
+  // Reject filter/arg injection separators
+  if (/[;|&$`\\\n\r\t,]/.test(raw) || raw.includes('://')) {
+    throw badRequest(`Invalid ${field}`);
+  }
+  if (/^\d+(\.\d+)?$/.test(raw)) {
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0 || n > 86400 * 24) throw badRequest(`Invalid ${field}`);
+    return raw;
+  }
+  // HH:MM:SS(.frac) or MM:SS(.frac) — minutes/seconds always 00-59
+  if (/^(?:\d{1,2}:)?[0-5]\d:[0-5]\d(?:\.\d{1,3})?$/.test(raw)) {
+    return raw;
+  }
+  throw badRequest(`Invalid ${field}`);
+}
+
+/** Loudnorm integrated loudness target in LUFS; closed range (S-04). */
+export function parseTargetLoudness(value: unknown): number {
+  const n = value == null || value === '' ? -16 : Number(value);
+  if (!Number.isFinite(n) || n < -70 || n > -5) {
+    throw badRequest('targetLoudness must be a finite number between -70 and -5 LUFS');
+  }
+  return n;
+}
+
 function requireFfprobe(): string {
   const caps = detectCapabilities();
   if (!caps.binaries.ffprobe?.available) {
@@ -109,9 +148,10 @@ export async function processMedia(ctx: ProcessContext): Promise<ProcessResult> 
   const audioQ = audioEncodeSettings(qualityPreset);
 
   if (op === 'trim') {
-    const start = String(ctx.options.start || '0');
-    const duration = ctx.options.duration != null ? String(ctx.options.duration) : undefined;
-    const end = ctx.options.end != null ? String(ctx.options.end) : undefined;
+    const start = parseFfmpegTime(ctx.options.start ?? '0', 'start');
+    const duration =
+      ctx.options.duration != null ? parseFfmpegTime(ctx.options.duration, 'duration') : undefined;
+    const end = ctx.options.end != null ? parseFfmpegTime(ctx.options.end, 'end') : undefined;
     const ext = path.extname(ctx.inputNames[0] || ctx.inputPaths[0]) || '.mp4';
     const outName = randomServerName(ext);
     const outputPath = path.join(ctx.outputDir, outName);
@@ -256,7 +296,7 @@ export async function processMedia(ctx: ProcessContext): Promise<ProcessResult> 
     const ext = `.${format}`;
     const outName = randomServerName(ext);
     const outputPath = path.join(ctx.outputDir, outName);
-    const target = String(ctx.options.targetLoudness || '-16');
+    const target = parseTargetLoudness(ctx.options.targetLoudness);
     const args = [
       ...safeFfmpegInputArgs(),
       '-i',

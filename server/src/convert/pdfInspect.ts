@@ -359,15 +359,39 @@ export function extractTextSampleFromBytes(bytes: Buffer, maxChars = 4000): stri
   return fromRaw;
 }
 
+/** Decode PDF hex string body `<48656C6C6F>` → "Hello" (pdf-lib uses this form). */
+function decodePdfHexLiteral(hex: string): string {
+  const clean = hex.replace(/\s+/g, '');
+  if (!clean.length || clean.length % 2 !== 0 || /[^0-9A-Fa-f]/.test(clean)) return '';
+  const out: number[] = [];
+  for (let i = 0; i < clean.length; i += 2) {
+    out.push(parseInt(clean.slice(i, i + 2), 16));
+  }
+  // Prefer UTF-16BE when BOM present; else latin1/PDFDoc-ish bytes
+  if (out.length >= 2 && out[0] === 0xfe && out[1] === 0xff) {
+    let s = '';
+    for (let i = 2; i + 1 < out.length; i += 2) {
+      s += String.fromCharCode((out[i] << 8) | out[i + 1]);
+    }
+    return s;
+  }
+  return Buffer.from(out).toString('latin1');
+}
+
 /** Harvest Tj/TJ and BT/ET string literals from decoded PDF content. */
 function harvestTextOperators(raw: string, maxChars: number): string {
   const chunks: string[] = [];
   let total = 0;
 
-  const re = /\(((?:\\.|[^\\)])*)\)\s*Tj|\[((?:[^\[\]]|\([^\)]*\))*)\]\s*TJ/g;
+  // Parentheses literals, hex literals (pdf-lib), and TJ arrays
+  const re =
+    /\(((?:\\.|[^\\)])*)\)\s*Tj|<([0-9A-Fa-f \t\r\n]+)>\s*Tj|\[((?:[^\[\]]|\([^\)]*\)|<[^>]*>)*)\]\s*TJ/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(raw)) !== null && total < maxChars) {
-    const lit = m[1] != null ? unescapePdfLiteral(m[1]) : extractFromTjArray(m[2] || '');
+    let lit = '';
+    if (m[1] != null) lit = unescapePdfLiteral(m[1]);
+    else if (m[2] != null) lit = decodePdfHexLiteral(m[2]);
+    else lit = extractFromTjArray(m[3] || '');
     if (lit && /[\x20-\x7E\u00A0-\uFFFF]/.test(lit)) {
       chunks.push(lit);
       total += lit.length;
@@ -379,10 +403,10 @@ function harvestTextOperators(raw: string, maxChars: number): string {
     let b: RegExpExecArray | null;
     while ((b = bt.exec(raw)) !== null && total < maxChars) {
       const inner = b[1];
-      const litRe = /\(((?:\\.|[^\\)])*)\)/g;
+      const litRe = /\(((?:\\.|[^\\)])*)\)|<([0-9A-Fa-f \t\r\n]+)>/g;
       let lm: RegExpExecArray | null;
       while ((lm = litRe.exec(inner)) !== null && total < maxChars) {
-        const lit = unescapePdfLiteral(lm[1]);
+        const lit = lm[1] != null ? unescapePdfLiteral(lm[1]) : decodePdfHexLiteral(lm[2] || '');
         if (lit.trim()) {
           chunks.push(lit);
           total += lit.length;
@@ -508,10 +532,10 @@ function unescapePdfLiteral(s: string): string {
 
 function extractFromTjArray(s: string): string {
   const parts: string[] = [];
-  const re = /\(((?:\\.|[^\\)])*)\)/g;
+  const re = /\(((?:\\.|[^\\)])*)\)|<([0-9A-Fa-f \t\r\n]+)>/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(s)) !== null) {
-    parts.push(unescapePdfLiteral(m[1]));
+    parts.push(m[1] != null ? unescapePdfLiteral(m[1]) : decodePdfHexLiteral(m[2] || ''));
   }
   return parts.join('');
 }

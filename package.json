@@ -62,7 +62,7 @@
   },
   "allowScripts": {
     "better-sqlite3@12.11.1": true,
-    "esbuild@0.21.5": true,
+    "esbuild@0.25.12": true,
     "esbuild@0.28.1": true,
     "sharp@0.35.3": true
   }

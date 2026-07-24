@@ -314,25 +314,56 @@ export function routeConversion(
       reason: `Unsupported conversion: ${normalizeFormat(kind.format)} → ${format}`,
     };
   }
+  // Map engineId so UI/tests know the intended engine even when binary is missing
+  // (availability is separate via listOutputsFor / createJob gates).
+  const engineFromId = (
+    engineId: string | undefined,
+  ): RouteDecision['engine'] => {
+    if (engineId === 'alphastudio') {
+      if (kind.family === 'pdf' && format === 'txt') return 'pdf-text';
+      if (kind.family === 'image' && format === 'pdf') return 'sharp+pdf-lib';
+      return 'pure';
+    }
+    if (engineId === 'libreoffice') return 'libreoffice';
+    if (engineId === 'ffmpeg') return 'ffmpeg';
+    if (engineId === 'pandoc') return 'pandoc';
+    if (engineId === 'calibre') return 'calibre';
+    if (engineId === 'python') return 'python';
+    if (engineId === '7z' || engineId === 'sevenzip') return 'sevenzip';
+    return 'unsupported';
+  };
+
   if (!preferred.available) {
+    // Intentionally disabled pairs (e.g. PDF→DOCX Phase 1) stay unsupported.
+    // EngineRoute omits `supported` from the type; adapters still attach it at runtime.
+    const routeSupported = (preferred as { supported?: boolean }).supported;
+    const intentional =
+      routeSupported === false ||
+      /intentionally unavailable|not supported|Phase 1/i.test(String(preferred.reason || ''));
+    if (intentional) {
+      return {
+        engine: 'unsupported',
+        engineId: preferred.engineId,
+        engineName: preferred.engineName,
+        requires: preferred.requiredCompanions || [],
+        libreOfficeAllowed: false,
+        reason: preferred.reason || `${preferred.engineName} is unavailable`,
+        route: preferred,
+      };
+    }
+    const mapped = engineFromId(preferred.engineId);
     return {
-      engine: 'unsupported',
+      engine: mapped,
       engineId: preferred.engineId,
       engineName: preferred.engineName,
       requires: preferred.requiredCompanions || [],
-      libreOfficeAllowed: false,
+      // LO is the intended engine for office→pdf even when binary is absent
+      libreOfficeAllowed: preferred.engineId === 'libreoffice',
       reason: preferred.reason || `${preferred.engineName} is unavailable`,
       route: preferred,
     };
   }
-  const engine =
-    preferred.engineId === 'alphastudio'
-      ? kind.family === 'pdf' && format === 'txt'
-        ? 'pdf-text'
-        : kind.family === 'image' && format === 'pdf'
-          ? 'sharp+pdf-lib'
-          : 'pure'
-      : (preferred.engineId as Exclude<RouteDecision['engine'], 'pure' | 'unsupported'>);
+  const engine = engineFromId(preferred.engineId);
   return {
     engine,
     engineId: preferred.engineId,
