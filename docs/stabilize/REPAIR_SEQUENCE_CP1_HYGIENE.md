@@ -66,6 +66,17 @@ Audits: `09-hygiene-clean-clone.md`, `10-hygiene-git-integrity.md`, scratch cros
 
 - Improve `scripts/maint/db-repair.mjs` to load full `repairDb`/`initDb` via `tsx` when dist missing (or document + use `node --import tsx` in package script). Prefer: `db:repair` script uses `node --import tsx` to call server repair API so fresh clone after typecheck/build OR without dist still migrates fully.
 
+### R7b — reset.mjs CC-07 tsx root-hoist (P2) — closed in follow-up
+
+- **Was:** `reset.mjs` looked only at `server/node_modules/tsx/dist/cli.mjs` (absent after workspace `npm ci` root hoist) and soft-fell to dirs-only.
+- **Fix:** `scripts/maint/lib/tsx-resolve.mjs` + `scripts/maint/init-db.mjs`; reset uses `node --import tsx scripts/maint/init-db.mjs` (or dist). Refuses dirs-only soft-fail.
+- **Guard:** hygiene tests assert tsx resolve + full init-db.
+- **Evidence:** `{SCRATCH}/reset-db-init.txt`, `hygiene-tests-cc07.txt`.
+
+### R7c — bench-startup fixtures (P2)
+
+- Retarget `defaultUploadFixture()` to `fixtures/samples/*` first (legacy `audit/fixtures` last).
+
 ### R8 — Regression guards + process
 
 - Add `scripts/maint/tests/package-scripts-hygiene.test.mjs` (or section in maint-core) for script path existence + no audit scripts + fixtures/samples present.

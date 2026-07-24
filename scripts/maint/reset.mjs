@@ -74,50 +74,48 @@ if (!skipInstall) {
   console.log('\n>> skip dependency reinstall (--skip-install)');
 }
 
-// Initialize database via real server module
+// Initialize database via real server initDb (root-hoisted tsx under workspaces)
 console.log('\n>> initialize database');
 if (dryRun) {
-  console.log('   (dry-run) would run server initDb');
+  console.log('   (dry-run) would run scripts/maint/init-db.mjs via node --import tsx (or dist)');
 } else {
-  const initScript = `
-import { ensureDataDirs } from './server/src/lib/paths.ts';
-import { initDb, closeDb } from './server/src/db/index.ts';
-ensureDataDirs();
-initDb();
-closeDb();
-console.log('DB initialized');
-`;
-  // Use tsx from server if available
-  const tsxBin = path.join(projectRoot, 'server', 'node_modules', 'tsx', 'dist', 'cli.mjs');
-  const nodeArgs = fs.existsSync(tsxBin)
-    ? [
-        tsxBin,
-        '--eval',
-        `import { ensureDataDirs } from './src/lib/paths.ts'; import { initDb, closeDb } from './src/db/index.ts'; ensureDataDirs(); initDb(); closeDb(); console.log('DB initialized');`,
-      ]
-    : null;
+  const { canResolveTsxPackage, resolveTsxCli } = await import('./lib/tsx-resolve.mjs');
+  const initDbScript = path.join(projectRoot, 'scripts', 'maint', 'init-db.mjs');
+  const distDb = path.join(projectRoot, 'server', 'dist', 'db', 'index.js');
+  const env = {
+    ...process.env,
+    DATA_DIR: path.join(projectRoot, 'data'),
+    DB_PATH: path.join(projectRoot, 'data', 'alphastudio.db'),
+  };
 
-  if (nodeArgs) {
-    const r = spawnSync(process.execPath, nodeArgs, {
-      cwd: path.join(projectRoot, 'server'),
-      stdio: 'inherit',
-      windowsHide: true,
-      env: {
-        ...process.env,
-        DATA_DIR: path.join(projectRoot, 'data'),
-        DB_PATH: path.join(projectRoot, 'data', 'alphastudio.db'),
-      },
-    });
-    if (r.status !== 0) {
-      console.error('ACTION REQUIRED: DB init failed. Ensure deps installed: npm install (workspaces)');
-      process.exit(r.status || 1);
-    }
-  } else {
-    // Fallback: ensure data dirs only
-    fs.mkdirSync(path.join(projectRoot, 'data', 'uploads'), { recursive: true });
-    fs.mkdirSync(path.join(projectRoot, 'data', 'outputs'), { recursive: true });
-    fs.mkdirSync(path.join(projectRoot, 'data', 'temp'), { recursive: true });
-    console.log('tsx not found; created data dirs only. Start server once to fully init DB.');
+  /** @type {string[]|null} */
+  let nodeArgs = null;
+  if (canResolveTsxPackage(projectRoot) || resolveTsxCli(projectRoot)) {
+    // Prefer node --import tsx so root-hoisted workspaces resolve (not server/node_modules only)
+    nodeArgs = ['--import', 'tsx', initDbScript];
+    console.log(`   tsx: ${resolveTsxCli(projectRoot) || 'package-resolvable (root hoist)'}`);
+  } else if (fs.existsSync(distDb)) {
+    // Built tree: init-db.mjs loads dist without tsx
+    nodeArgs = [initDbScript];
+    console.log('   using server/dist (no tsx)');
+  }
+
+  if (!nodeArgs) {
+    console.error(
+      'ACTION REQUIRED: cannot init DB — tsx not found at root or server node_modules, and server/dist missing. Run npm ci (workspaces) or npm run build first. Refusing dirs-only soft-fail.',
+    );
+    process.exit(1);
+  }
+
+  const r = spawnSync(process.execPath, nodeArgs, {
+    cwd: projectRoot,
+    stdio: 'inherit',
+    windowsHide: true,
+    env,
+  });
+  if (r.status !== 0) {
+    console.error('ACTION REQUIRED: DB init failed. Ensure deps installed: npm ci (workspaces)');
+    process.exit(r.status || 1);
   }
 }
 
