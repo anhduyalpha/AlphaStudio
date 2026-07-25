@@ -61,7 +61,7 @@ describe('UX/UI redesign foundations structural', () => {
   it('includes reduced-motion and reduced-transparency fallbacks', () => {
     assert.match(styles, /prefers-reduced-motion:\s*reduce/);
     assert.match(styles, /prefers-reduced-transparency:\s*reduce/);
-    assert.match(styles, /data-motion="reduce"/);
+    assert.match(styles, /data-motion="reduced"/);
   });
 
   it('blueprint selected Studio Rail \\+ Workbench direction', () => {

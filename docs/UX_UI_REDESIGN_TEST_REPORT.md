@@ -9,7 +9,7 @@
 | Command | Purpose | Result (this session) | Evidence |
 |---------|---------|----------------------|----------|
 | `npm run typecheck` | Server TS | **PASS** (exit 0) | validation-suite.log |
-| `npm test` | Full server suite | **EXIT 1** — missing `audit/fixtures/*` (sample.png/txt/pdf/wav); not redesign regressions | validation-suite.log |
+| `npm test` | Full server suite | **EXIT 0** — fixtures under `fixtures/samples`; full suite green after validation fixes | validation-suite.log |
 | `npm run test:pdf` | PDF suites | **PASS** (144 tests, 0 fail) | validation-suite.log |
 | `npm run test:maint` | Maint scripts tests | **EXIT 1** — 1 fail: `exposes all ten required npm scripts` (expects `runtime:prepare` string); pre-existing maint contract | validation-suite.log |
 | `npm run test:e2e` | Playwright | **PASS 4/4** after selector updates (`Document workspace`, `Run PDF operation`, disambiguated Operation select) | validation-suite.log + e2e-rerun2.log |

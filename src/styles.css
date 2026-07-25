@@ -4760,17 +4760,17 @@ html[data-power="low"] .liquid-press:active:not(:disabled) {
   }
 }
 
-html[data-motion="reduce"] .liquid-press:active:not(:disabled) {
+html[data-motion="reduced"] .liquid-press:active:not(:disabled) {
   transform: none;
 }
 
-html[data-motion="reduce"] .progress-wave.is-indeterminate .progress-wave-fill,
-html[data-motion="reduce"] .skeleton-line {
+html[data-motion="reduced"] .progress-wave.is-indeterminate .progress-wave-fill,
+html[data-motion="reduced"] .skeleton-line {
   animation: none;
 }
 
-html[data-motion="reduce"] .liquid-press::after,
-html[data-motion="reduce"] .file-dropzone.liquid-drop::before {
+html[data-motion="reduced"] .liquid-press::after,
+html[data-motion="reduced"] .file-dropzone.liquid-drop::before {
   display: none;
 }
 
@@ -4967,7 +4967,7 @@ html[data-motion="reduce"] .file-dropzone.liquid-drop::before {
 .liquid-complete {
   animation: liquid-complete-pulse 0.6s var(--ease-out) 1;
 }
-html[data-motion="reduce"] .liquid-complete {
+html[data-motion="reduced"] .liquid-complete {
   animation: none;
 }
 @media (prefers-reduced-motion: reduce) {

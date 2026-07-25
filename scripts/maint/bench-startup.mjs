@@ -183,8 +183,10 @@ function pickPort(explicit) {
 
 function defaultUploadFixture() {
   const candidates = [
-    path.join(projectRoot, 'audit', 'fixtures', 'sample.png'),
-    path.join(projectRoot, 'audit', 'fixtures', 'sample.txt'),
+    path.join(projectRoot, 'fixtures', 'samples', 'sample.png'),
+    path.join(projectRoot, 'fixtures', 'samples', 'sample.txt'),
+    path.join(projectRoot, 'fixtures', 'converter', 'sample.png'),
+    path.join(projectRoot, 'fixtures', 'converter', 'sample.txt'),
   ];
   return candidates.find((p) => fs.existsSync(p)) || null;
 }

@@ -24,7 +24,6 @@
     "fixtures:pdf": "node scripts/test/generate-pdf-fixtures.mjs",
     "fixtures:pdf:verify": "node scripts/test/verify-pdf-fixtures.mjs",
     "test:maint": "node --test scripts/maint/tests/*.test.mjs",
-    "test:audit": "node --test scripts/audit/tests/*.test.mjs",
     "benchmark:workers": "node scripts/benchmark-worker-latency.mjs",
     "benchmark:upload": "node scripts/benchmark-upload-detect.mjs",
     "clear": "node scripts/maint/clear.mjs",
@@ -45,7 +44,6 @@
     "deps:check": "node scripts/maint/deps.mjs check",
     "deps:prune": "node scripts/maint/deps.mjs prune",
     "doctor": "node scripts/maint/doctor.mjs",
-    "audit:backend": "node scripts/audit/backend.mjs",
     "setup:tools": "node scripts/setup-tools.mjs --full",
     "check:tools": "node scripts/maint/tools.mjs check --profile full",
     "repair:tools": "node scripts/maint/tools.mjs repair --profile full"
