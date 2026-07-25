@@ -69,3 +69,15 @@ ux-ui-redesign -> main
 
 After each approved merge: fetch, rerun required checks, verify local/remote HEAD equality.  
 **Do not** create a stable tag without explicit approval.
+
+## Integrated topology (UX stacked under stabilize)
+
+- Date: 2026-07-25T14:45:01.6572526+07:00
+- Verified UX tip (ancestor): `a73f065233fa3d2321274cdd887229aacfe3e4d2`
+- Merge commit (pre-fix tip may advance): `492bf7f37b1b2c6039dffbd1671c03d55eea25aa`
+- Stacked PR order:
+  1. `ux-ui-redesign` → `main`
+  2. `stabilize/alphastudio-stable-baseline` → updated `main`
+- Conflict resolutions: UX product workflows + stabilize a11y/security/hygiene/capability honesty (see conflict rationales in goal scratch).
+- Validation: clean npm ci, typecheck, build, npm test ×2 (706 pass / 3 skip), test:maint, test:hygiene, production /api/health restart smoke on Windows.
+- main not modified; no force-push.

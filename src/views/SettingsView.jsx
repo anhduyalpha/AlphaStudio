@@ -15,6 +15,7 @@ export default function SettingsView({ notify }) {
     preserveMetadata: 'true',
   });
   const [baseline, setBaseline] = useState(null);
+  const [motionBaseline, setMotionBaseline] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -26,6 +27,7 @@ export default function SettingsView({ notify }) {
         const next = { theme: 'system', density: 'comfortable', animations: 'true', defaultQuality: 'balanced', openAfterExport: 'true', preserveMetadata: 'true', ...(data.settings || {}) };
         setSettings(next);
         setBaseline(next);
+        setMotionBaseline(motionMode);
       })
       .catch((err) => {
         const msg = err.message || 'Failed to load settings';
@@ -33,6 +35,8 @@ export default function SettingsView({ notify }) {
         notify?.(msg);
       })
       .finally(() => setLoading(false));
+    // motionMode intentionally read once at load for baseline; live changes via setMotionMode
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notify]);
 
   const applyTheme = (value) => {
@@ -47,33 +51,25 @@ export default function SettingsView({ notify }) {
     }
   };
 
-  const dirty = baseline
+  const dirty = (baseline
     ? Object.keys(settings).some((k) => String(settings[k]) !== String(baseline[k]))
-    : false;
+    : false) || (motionBaseline != null && motionMode !== motionBaseline);
 
   const save = async () => {
     setSaving(true);
     setError('');
     try {
-      // Keep SQLite animations flag aligned with real motion preference for API consumers.
+      // Single Motion control owns data-motion; keep SQLite animations flag aligned.
       const payload = {
         ...settings,
-        animations: motionMode === 'reduced' || settings.animations === 'false' || settings.animations === false
-          ? 'false'
-          : 'true',
+        animations: motionMode === 'reduced' ? 'false' : 'true',
       };
       const data = await api.saveSettings(payload);
       const next = { ...payload, ...(data.settings || {}) };
       setSettings(next);
       setBaseline(next);
+      setMotionBaseline(motionMode);
       applyTheme(next.theme);
-      // Bridge animations preference into motion attribute when user disabled animations
-      if (next.animations === 'false' || next.animations === false) {
-        if (motionMode !== 'reduced') setMotionMode('reduced');
-        if (typeof document !== 'undefined') {
-          document.documentElement.dataset.motion = 'reduced';
-        }
-      }
       notify('Settings saved');
     } catch (err) {
       const msg = err.message || 'Save failed';
@@ -151,18 +147,6 @@ export default function SettingsView({ notify }) {
               <option value="balanced">Balanced</option>
               <option value="reduced">Reduced</option>
             </SelectField>
-          </div>
-          <div className="toggle-stack">
-            <ToggleRow
-              title="Subtle animations"
-              description="When off, prefers reduced motion for studio chrome."
-              checked={bool('animations')}
-              onChange={(e) => {
-                const on = e.target.checked;
-                patch('animations', String(on));
-                if (!on) setMotionMode('reduced');
-              }}
-            />
           </div>
           <p className="settings-hint">
             OS “prefers reduced motion” always wins over the Motion setting. Density is saved for future layout support.
