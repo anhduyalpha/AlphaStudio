@@ -1,0 +1,114 @@
+name: Diagnostic UX and stability integration
+
+on:
+  pull_request:
+    branches: [ux-ui-redesign]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: diagnostic-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration-smoke:
+    name: merge, test, and start production server
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout diagnostic branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Merge stability branch into UX snapshot
+        run: python scripts/diagnostic/resolve-integration.py
+
+      - name: Install dependencies from merged lockfile
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build client and server
+        run: npm run build
+
+      - name: Maintenance and hygiene tests
+        run: |
+          npm run test:maint
+          npm run test:hygiene
+
+      - name: Full server tests
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee npm-test.log
+        env:
+          CI: '1'
+          LOG_LEVEL: error
+
+      - name: Start production server and verify HTTP
+        shell: bash
+        run: |
+          set -euo pipefail
+          export HOST=127.0.0.1
+          export PORT=8787
+          export SERVE_FRONTEND=1
+          export WORKER_POOL_SIZE=1
+          export LOG_LEVEL=debug
+          export DATA_DIR="$RUNNER_TEMP/alphastudio-data"
+          export DB_PATH="$RUNNER_TEMP/alphastudio-data/alphastudio.db"
+          mkdir -p "$DATA_DIR"
+
+          node server/dist/index.js > server-start.log 2>&1 &
+          SERVER_PID=$!
+          cleanup() {
+            kill -TERM "$SERVER_PID" 2>/dev/null || true
+            wait "$SERVER_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          ok=0
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8787/api/health > health.json; then
+              ok=1
+              break
+            fi
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+              echo 'Server exited before health became ready.'
+              cat server-start.log
+              exit 1
+            fi
+            sleep 1
+          done
+
+          if [ "$ok" -ne 1 ]; then
+            echo 'Health endpoint did not become ready.'
+            cat server-start.log
+            exit 1
+          fi
+
+          curl -fsS http://127.0.0.1:8787/ > frontend.html
+          grep -q '<div id="root"></div>' frontend.html
+          cat health.json
+          cat server-start.log
+
+      - name: Upload diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integrated-server-evidence
+          path: |
+            npm-test.log
+            server-start.log
+            health.json
+            frontend.html
+          if-no-files-found: ignore
+          retention-days: 14
