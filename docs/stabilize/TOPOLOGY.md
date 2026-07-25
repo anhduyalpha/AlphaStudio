@@ -1,81 +1,37 @@
-# Git topology (stabilization baseline)
+# Git topology (integrated stabilize baseline)
 
-**Captured:** 2026-07-24 (this pass only — do not treat older reports as proof)  
-**Branch for process artifacts:** `stabilize/alphastudio-stable-baseline`  
-**Base commit:** `ed460ee763663eef3f0aae9080eeb5e15c68fe1c` (`main` tip)
+**Captured:** 2026-07-25  
+**Branch:** `stabilize/alphastudio-stable-baseline`  
+**Base commit (program start):** `ed460ee763663eef3f0aae9080eeb5e15c68fe1c` (`main`)
 
-## Remotes
+## Branch tips (authoritative after integration)
 
-| Remote | URL |
-|--------|-----|
-| origin (fetch/push) | `https://github.com/anhduyalpha/AlphaStudio.git` |
+| Ref | SHA | Notes |
+|-----|-----|--------|
+| `origin/main` | `ed460ee…` | Unchanged; do not mutate without approval |
+| `origin/ux-ui-redesign` | `a73f065…` | Verified independently; **ancestor** of stabilize |
+| `origin/stabilize/alphastudio-stable-baseline` | `c32629f…` | Integrated tip; local HEAD must equal remote |
 
-## Working tree
-
-- Clean: no uncommitted or unstaged changes at capture time.
-- No stash entries.
-- No tags in the repository.
-
-## Branch tips
-
-| Ref | SHA | Upstream | Notes |
-|-----|-----|----------|--------|
-| `main` | `ed460ee` | `origin/main` (0/0) | Local main matches remote |
-| `origin/main` | `ed460ee` | — | Same as local main |
-| `ux-ui-redesign` | `d03497f` | `origin/ux-ui-redesign` | **[gone]** after fetch --prune: remote-tracking ref may be deleted or not fetchable as expected; local tip still at `d03497f` |
-| `origin/ux-ui-redesign` | `d03497f` | — | Present at capture after fetch (0 ahead/behind local) |
-| `stabilize/alphastudio-stable-baseline` | `ed460ee` (at create) | none initially | Created from `main` @ `ed460ee` for this program |
-
-**Note on `[gone]`:** `git branch -vv` reported `[origin/ux-ui-redesign] [gone]` even while `origin/ux-ui-redesign` resolved to the same SHA after `git fetch --prune`. Treat remote tracking of `ux-ui-redesign` as fragile; **never delete** the local branch until its 37 commits are reviewed and either merged or explicitly archived.
-
-## Merge base
+## Ancestry
 
 ```text
-git merge-base main ux-ui-redesign
-→ ed460ee763663eef3f0aae9080eeb5e15c68fe1c
+git merge-base --is-ancestor origin/ux-ui-redesign origin/stabilize/alphastudio-stable-baseline
+# must exit 0
 ```
 
-`ux-ui-redesign` is **exactly 37 commits ahead** of `main` (left-right count `0 37`).  
-Those commits are local design/converter residual work and must be preserved.
+Stabilize is a **descendant** of the verified UX tip. The pre-integration divergence between the branches is closed by merge commit `492bf7f` and subsequent tip commits on stabilize.
 
-## Other remote branches (not checked out)
+## Stacked PR order only
 
-- `origin/feature/converter-phase-1-engine-registry`
-- `origin/features/python-runtime`
-- `origin/HEAD` → `origin/main`
+```text
+1. ux-ui-redesign                         -> main
+2. stabilize/alphastudio-stable-baseline  -> updated main
+```
 
-## Stabilize branch policy
+Do **not** merge stabilize into `ux-ui-redesign` first.
 
-- Create/resume from recorded safer base: **`main` @ `ed460ee`**.
-- Do **not** modify `main`, force-push, hard-reset, or delete `ux-ui-redesign`.
-- Process-only commits land on `stabilize/alphastudio-stable-baseline`.
-- Product features are out of scope for this program’s audit pass.
+## Policy
 
-## Evidence files (scratch; ephemeral)
-
-- `{SCRATCH}/git-topology.txt` — raw command capture
-- `{SCRATCH}/repo-inventory.txt` — scripts/docs/tests inventory
-- `{SCRATCH}/branch-safety.txt` — post-commit branch safety proof
-
-## Explicit non-proofs
-
-The following exist but are **not** accepted as proof of repository stability without fresh command/test evidence:
-
-- `RUNTIME_VALIDATION.md`
-- PDF tools “final report” docs under `docs/`
-- Completion flags or prior audit narratives
-- Presence of `audit/fixtures/` without `scripts/audit/`
-
-## Inventory highlights (this pass)
-
-| Item | Observation |
-|------|-------------|
-| `.github/` | **Absent** — no CI/CD workflows in tree |
-| Dockerfile / compose at root | **Absent** (0 files) |
-| `scripts/audit/` | **Absent** while `package.json` defines `test:audit` and `audit:backend` |
-| `audit/` | Fixtures only (`sample.jpg/pdf/png/txt/wav`) |
-| `server/tests/` | 52 `*.ts` test files |
-| `e2e/` | `pdf-tools.spec.js` + `support/browser-audit.js` |
-| Maint scripts | `scripts/maint/*` (doctor, tools, python, db-repair, deps, clean/clear/reset) |
-| Docs | BUILD_AND_RUN_WINDOWS_LINUX, job-engine, python-runtime, PDF_* suite, etc. |
-| Runtime | `.runtime/` present locally; `.env` + `.env.example` present |
+- Do **not** modify `main`, force-push, hard-reset, or rewrite published history.
+- Do **not** create a stable tag without explicit user approval.
+- Process and product commits for this program land on `stabilize/alphastudio-stable-baseline` and/or `ux-ui-redesign` only.
