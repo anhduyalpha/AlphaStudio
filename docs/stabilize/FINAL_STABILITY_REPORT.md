@@ -13,7 +13,7 @@ This report describes the **integrated** branch: verified UX product workflows p
 
 | Ref | SHA |
 |-----|-----|
-| **Stabilize tip (local == remote)** | `c32629f59de529a690535edc815dfde2ddba7bec` |
+| **Stabilize tip (local == remote)** | `08d487164d7b6d9b626e36a341cd59858fb3c5d5` |
 | Merge of verified UX into stabilize | `492bf7f37b1b2c6039dffbd1671c03d55eea25aa` |
 | **Verified UX ancestor (`origin/ux-ui-redesign`)** | `a73f065233fa3d2321274cdd887229aacfe3e4d2` |
 | Pre-integration stabilize tip (historical) | `a96ee366e66302558045fa5c0b5bfe0af31fc193` |
@@ -23,7 +23,7 @@ This report describes the **integrated** branch: verified UX product workflows p
 **Ancestry proof:**
 
 ```text
-git merge-base --is-ancestor a73f065233fa3d2321274cdd887229aacfe3e4d2 c32629f59de529a690535edc815dfde2ddba7bec
+git merge-base --is-ancestor a73f065233fa3d2321274cdd887229aacfe3e4d2 08d487164d7b6d9b626e36a341cd59858fb3c5d5
 # exit 0 → UX is an ancestor of stabilize
 ```
 
@@ -45,7 +45,7 @@ After each approved merge: fetch, re-run gates, prove local HEAD == remote HEAD.
 
 ---
 
-## Environment matrix (integrated tip `c32629f`)
+## Environment matrix (integrated tip `08d4871`)
 
 | Environment | Result | Evidence |
 |-------------|--------|----------|
@@ -78,7 +78,7 @@ After each approved merge: fetch, re-run gates, prove local HEAD == remote HEAD.
 
 1. **UX validated first** at `a73f065` (fixtures/samples, format-json MIME, motion CSS token, Docker bind, honest docs) and pushed to `origin/ux-ui-redesign`.  
 2. **Merged UX into stabilize** (`492bf7f`) with file-by-file conflict resolution (not blind ours/theirs).  
-3. **Post-merge fixes** (`c32629f`): Settings single Motion control (no dead “Subtle animations” toggle); ModularWorkspace OCR gates via capabilities only.  
+3. **Post-merge fixes** (`08d4871`): Settings single Motion control (no dead “Subtle animations” toggle); ModularWorkspace OCR gates via capabilities only.  
 4. **Preserved from stabilize:** path confinement, bearer timing, retry, capability honesty, hygiene, backup, Docker `DB_PATH`, CI workflow, a11y shell contracts.  
 5. **Preserved from UX:** redesigned product UI/workflows, converter board, residual quality surfaces.
 
@@ -94,7 +94,7 @@ After each approved merge: fetch, re-run gates, prove local HEAD == remote HEAD.
 |----|------|
 | CP00–CP04 | Process, hygiene, security, Linux CI parity |
 | CP06 | Pre-integration a11y/backup/Docker/archiver closeout |
-| INTEGRATE + POST-FIX | UX stack under stabilize; tip `c32629f` |
+| INTEGRATE + POST-FIX | UX stack under stabilize; tip `08d4871` |
 
 Handoffs under `docs/stabilize/handoffs/CP*.md` remain historical process records.
 

@@ -10,7 +10,7 @@
 |-----|-----|--------|
 | `origin/main` | `ed460ee…` | Unchanged; do not mutate without approval |
 | `origin/ux-ui-redesign` | `a73f065…` | Verified independently; **ancestor** of stabilize |
-| `origin/stabilize/alphastudio-stable-baseline` | `c32629f…` | Integrated tip; local HEAD must equal remote |
+| `origin/stabilize/alphastudio-stable-baseline` | `08d4871…` | Integrated tip; local HEAD must equal remote |
 
 ## Ancestry
 

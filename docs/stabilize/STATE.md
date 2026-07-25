@@ -5,7 +5,7 @@
 **Status:** INTEGRATED — UX ancestor proven; ready for **stacked** user-approved PRs  
 **Last updated:** 2026-07-25  
 **Base create SHA:** `ed460ee` (main at program start)  
-**Integrated tip (local == remote):** `c32629f59de529a690535edc815dfde2ddba7bec`  
+**Integrated tip (local == remote):** `08d487164d7b6d9b626e36a341cd59858fb3c5d5`  
 **Verified UX ancestor:** `a73f065233fa3d2321274cdd887229aacfe3e4d2`  
 **Merge commit (UX into stabilize):** `492bf7f37b1b2c6039dffbd1671c03d55eea25aa`
 
@@ -23,8 +23,8 @@ It is **not** a divergent “stabilize-only” baseline that still needs UX merg
 |------|--------|
 | `origin/main` | `ed460ee` — **unchanged** until approved merges |
 | `origin/ux-ui-redesign` | `a73f065` — verified, pushed independently first |
-| `origin/stabilize/alphastudio-stable-baseline` | `c32629f` — integrated tip (local HEAD equals remote) |
-| Ancestry | `git merge-base --is-ancestor a73f065 c32629f` → **YES** |
+| `origin/stabilize/alphastudio-stable-baseline` | `08d4871` — integrated tip (local HEAD equals remote) |
+| Ancestry | `git merge-base --is-ancestor a73f065 08d4871` → **YES** |
 | Relationship | stabilize is a **descendant** of verified UX (not the reverse) |
 
 ## Exact next action (stacked PR order only)
@@ -48,7 +48,7 @@ After each approved merge: fetch, rerun required checks, verify local/remote HEA
 | CP0–CP04 | Process, hygiene, security, CI parity | Ancestors of integrated tip |
 | CP06 | A11y, backup/rollback, Docker DB_PATH, archiver@8 | Pre-integration closeout (`ecd69f8` / pins) |
 | INTEGRATE | Merge verified UX `a73f065` into stabilize | Merge `492bf7f` |
-| POST-FIX | Settings motion honesty; OCR capability-only gate | Tip `c32629f` |
+| POST-FIX | Settings motion honesty; OCR capability-only gate | Tip `08d4871` |
 
 ## Test surface (integrated tip)
 
