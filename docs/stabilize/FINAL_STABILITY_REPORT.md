@@ -13,17 +13,19 @@ This report describes the **integrated** branch: verified UX product workflows p
 
 | Ref | SHA |
 |-----|-----|
-| **Stabilize tip (local == remote)** | `08d487164d7b6d9b626e36a341cd59858fb3c5d5` |
-| Merge of verified UX into stabilize | `492bf7f37b1b2c6039dffbd1671c03d55eea25aa` |
-| **Verified UX ancestor (`origin/ux-ui-redesign`)** | `a73f065233fa3d2321274cdd887229aacfe3e4d2` |
-| Pre-integration stabilize tip (historical) | `a96ee366e66302558045fa5c0b5bfe0af31fc193` |
-| Pre-integration CP06 content (historical) | `ecd69f8d48fea0d80f0463d7128cf8cd7d0619b4` |
 | **origin/main (unchanged)** | `ed460ee763663eef3f0aae9080eeb5e15c68fe1c` |
+| **Verified UX ancestor (`origin/ux-ui-redesign`)** | `a73f065233fa3d2321274cdd887229aacfe3e4d2` |
+| Merge of verified UX into stabilize | `492bf7f37b1b2c6039dffbd1671c03d55eea25aa` |
+| Post-merge product content (Settings motion + OCR honesty) | `c32629f59de529a690535edc815dfde2ddba7bec` |
+| Docs topology rewrite family | `08d487164d7b6d9b626e36a341cd59858fb3c5d5` |
+| Pre-integration stabilize tip (historical only) | `a96ee366e66302558045fa5c0b5bfe0af31fc193` |
+| Pre-integration CP06 content (historical only) | `ecd69f8d48fea0d80f0463d7128cf8cd7d0619b4` |
+| **Branch tip (local must equal remote)** | `git rev-parse origin/stabilize/alphastudio-stable-baseline` after fetch |
 
 **Ancestry proof:**
 
 ```text
-git merge-base --is-ancestor a73f065233fa3d2321274cdd887229aacfe3e4d2 08d487164d7b6d9b626e36a341cd59858fb3c5d5
+git merge-base --is-ancestor a73f065233fa3d2321274cdd887229aacfe3e4d2 origin/stabilize/alphastudio-stable-baseline
 # exit 0 → UX is an ancestor of stabilize
 ```
 
@@ -45,7 +47,7 @@ After each approved merge: fetch, re-run gates, prove local HEAD == remote HEAD.
 
 ---
 
-## Environment matrix (integrated tip `08d4871`)
+## Environment matrix (integrated product at/after `c32629f`)
 
 | Environment | Result | Evidence |
 |-------------|--------|----------|
@@ -59,7 +61,7 @@ After each approved merge: fetch, re-run gates, prove local HEAD == remote HEAD.
 
 ---
 
-## Commands and results (integrated tip)
+## Commands and results (integrated product)
 
 | Gate | Command | Result |
 |------|---------|--------|
@@ -78,9 +80,10 @@ After each approved merge: fetch, re-run gates, prove local HEAD == remote HEAD.
 
 1. **UX validated first** at `a73f065` (fixtures/samples, format-json MIME, motion CSS token, Docker bind, honest docs) and pushed to `origin/ux-ui-redesign`.  
 2. **Merged UX into stabilize** (`492bf7f`) with file-by-file conflict resolution (not blind ours/theirs).  
-3. **Post-merge fixes** (`08d4871`): Settings single Motion control (no dead “Subtle animations” toggle); ModularWorkspace OCR gates via capabilities only.  
-4. **Preserved from stabilize:** path confinement, bearer timing, retry, capability honesty, hygiene, backup, Docker `DB_PATH`, CI workflow, a11y shell contracts.  
-5. **Preserved from UX:** redesigned product UI/workflows, converter board, residual quality surfaces.
+3. **Post-merge product fixes** (`c32629f`): Settings single Motion control (no dead “Subtle animations” toggle); ModularWorkspace OCR gates via capabilities only.  
+4. **Docs rewrite** (`08d4871` family): stacked PR order and integrated topology are the only authoritative narrative.  
+5. **Preserved from stabilize:** path confinement, bearer timing, retry, capability honesty, hygiene, backup, Docker `DB_PATH`, CI workflow, a11y shell contracts.  
+6. **Preserved from UX:** redesigned product UI/workflows, converter board, residual quality surfaces.
 
 ### Conflict files resolved (12)
 
@@ -94,7 +97,8 @@ After each approved merge: fetch, re-run gates, prove local HEAD == remote HEAD.
 |----|------|
 | CP00–CP04 | Process, hygiene, security, Linux CI parity |
 | CP06 | Pre-integration a11y/backup/Docker/archiver closeout |
-| INTEGRATE + POST-FIX | UX stack under stabilize; tip `08d4871` |
+| INTEGRATE + POST-FIX | UX stack under stabilize; product at `c32629f` |
+| DOCS | Integrated topology + stacked PR order |
 
 Handoffs under `docs/stabilize/handoffs/CP*.md` remain historical process records.
 
