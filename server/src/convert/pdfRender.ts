@@ -255,11 +255,11 @@ export async function convertPdfToImages(opts: {
   }
 
   // Multi-page → zip (safe entry names — no path traversal)
-  const { default: archiver } = await import('archiver');
+  const { ZipArchive } = await import('archiver');
   const zipName = randomServerName('.zip');
   const zipPath = path.join(opts.outputDir, zipName);
   const output = fs.createWriteStream(zipPath);
-  const archive = archiver('zip', { zlib: { level: 6 } });
+  const archive = new ZipArchive({ zlib: { level: 6 } });
   const done = new Promise<void>((resolve, reject) => {
     output.on('close', () => resolve());
     archive.on('error', reject);

@@ -25,6 +25,7 @@ ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=8787 \
     DATA_DIR=/data \
+    DB_PATH=/data/alphastudio.db \
     SERVE_FRONTEND=1 \
     LOG_LEVEL=info \
     ALLOW_INSECURE_BIND=1

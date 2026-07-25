@@ -6,6 +6,7 @@ data/
 data-test/
 data-test-*/
 data-smoke/
+backups/
 .tools/
 .runtime/
 .env

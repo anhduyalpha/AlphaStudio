@@ -42,6 +42,8 @@ function readStored() {
   }
 }
 
+const MOTION_EVENT = 'alpha-studio-motion';
+
 export default function useMotionPreference() {
   const [stored, setStored] = useState(readStored);
   const [mode, setMode] = useState(() => resolveMode(readStored()));
@@ -60,6 +62,28 @@ export default function useMotionPreference() {
     return () => mql.removeEventListener?.('change', onChange);
   }, [stored]);
 
+  // Keep multiple hook instances (App shell + Settings) in sync.
+  useEffect(() => {
+    const onMotionEvent = (event) => {
+      const next = event?.detail;
+      if (!next || !MOTION_MODES.includes(next)) return;
+      setStored(next);
+      setMode(prefersReducedMotion() ? 'reduced' : next);
+    };
+    const onStorage = (event) => {
+      if (event.key !== STORAGE_KEY) return;
+      const next = event.newValue;
+      setStored(next);
+      setMode(resolveMode(next));
+    };
+    window.addEventListener(MOTION_EVENT, onMotionEvent);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener(MOTION_EVENT, onMotionEvent);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, []);
+
   const chooseMode = useCallback((next) => {
     if (!MOTION_MODES.includes(next)) return;
     try {
@@ -69,7 +93,9 @@ export default function useMotionPreference() {
     }
     setStored(next);
     // OS reduced-motion still wins even over an explicit pick.
-    setMode(prefersReducedMotion() ? 'reduced' : next);
+    const resolved = prefersReducedMotion() ? 'reduced' : next;
+    setMode(resolved);
+    window.dispatchEvent(new CustomEvent(MOTION_EVENT, { detail: next }));
   }, []);
 
   return { mode, setMode: chooseMode };

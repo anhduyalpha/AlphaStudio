@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import type { FastifyInstance } from 'fastify';
-import archiver from 'archiver';
+import { ZipArchive } from 'archiver';
 import { config } from '../config.js';
 import { corsAllowOriginHeader } from '../lib/cors-origin.js';
 import { badRequest, notFound, payloadTooLarge } from '../lib/errors.js';
@@ -242,7 +242,7 @@ export async function workspaceRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const entryNames = uniqueZipEntryNames(files.map((f) => f.name));
-    const archive = archiver('zip', { zlib: { level: 6 } });
+    const archive = new ZipArchive({ zlib: { level: 6 } });
 
     archive.on('error', (err) => {
       req.log?.error?.({ err }, 'ZIP archive error');

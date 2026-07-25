@@ -1,11 +1,26 @@
 import React from 'react';
 import Icon from './Icon';
 
-export default function Topbar({ title, subtitle, theme, onThemeToggle, onMenuOpen, onCommandOpen }) {
+export default function Topbar({
+  title,
+  subtitle,
+  theme,
+  onThemeToggle,
+  onMenuOpen,
+  onCommandOpen,
+  menuExpanded = false,
+}) {
   return (
     <header className="app-topbar">
       <div className="topbar-title-group">
-        <button className="icon-button menu-button" type="button" onClick={onMenuOpen} aria-label="Open navigation">
+        <button
+          className="icon-button menu-button"
+          type="button"
+          onClick={onMenuOpen}
+          aria-label="Open navigation"
+          aria-expanded={menuExpanded}
+          aria-controls="studio-sidebar"
+        >
           <Icon name="menu" />
         </button>
         <div>
@@ -15,7 +30,12 @@ export default function Topbar({ title, subtitle, theme, onThemeToggle, onMenuOp
       </div>
 
       <div className="topbar-controls">
-        <button className="command-search" type="button" onClick={onCommandOpen}>
+        <button
+          className="command-search"
+          type="button"
+          onClick={onCommandOpen}
+          aria-label="Search tools"
+        >
           <Icon name="search" size={18} />
           <span>Search tools</span>
           <kbd>Ctrl K</kbd>
@@ -24,7 +44,9 @@ export default function Topbar({ title, subtitle, theme, onThemeToggle, onMenuOp
         <button className="icon-button" type="button" aria-label="Toggle color theme" onClick={onThemeToggle}>
           <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
         </button>
-        <a className="avatar-button" href="#/profile" aria-label="Open AlphaD profile"><img src="/avatars/alphad-profile.svg" alt="" width="40" height="40" /></a>
+        <a className="avatar-button" href="#/profile" aria-label="Open AlphaD profile">
+          <img src="/avatars/alphad-profile.svg" alt="" width="40" height="40" />
+        </a>
       </div>
     </header>
   );

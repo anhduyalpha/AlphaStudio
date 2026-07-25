@@ -283,12 +283,31 @@ export default function QrView({ notify }) {
         }
       />
 
-      <div className="qr-tabs" role="tablist" aria-label="QR Lab mode">
+      <div
+        className="qr-tabs"
+        role="tablist"
+        aria-label="QR Lab mode"
+        onKeyDown={(event) => {
+          const order = ['generate', 'decode'];
+          const current = Math.max(0, order.indexOf(tab));
+          let next = current;
+          if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (current + 1) % order.length;
+          else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (current - 1 + order.length) % order.length;
+          else if (event.key === 'Home') next = 0;
+          else if (event.key === 'End') next = order.length - 1;
+          else return;
+          event.preventDefault();
+          setTab(order[next]);
+        }}
+      >
         <button
           type="button"
           role="tab"
+          id="qr-tab-generate"
+          aria-controls="qr-panel-generate"
           className={`qr-tab${tab === 'generate' ? ' is-active' : ''}`}
           aria-selected={tab === 'generate'}
+          tabIndex={tab === 'generate' ? 0 : -1}
           onClick={() => setTab('generate')}
         >
           Generate
@@ -296,8 +315,11 @@ export default function QrView({ notify }) {
         <button
           type="button"
           role="tab"
+          id="qr-tab-decode"
+          aria-controls="qr-panel-decode"
           className={`qr-tab${tab === 'decode' ? ' is-active' : ''}`}
           aria-selected={tab === 'decode'}
+          tabIndex={tab === 'decode' ? 0 : -1}
           onClick={() => setTab('decode')}
         >
           Decode
@@ -305,7 +327,12 @@ export default function QrView({ notify }) {
       </div>
 
       {tab === 'generate' ? (
-        <section className="qr-generate-layout">
+        <section
+          className="qr-generate-layout"
+          id="qr-panel-generate"
+          role="tabpanel"
+          aria-labelledby="qr-tab-generate"
+        >
           <div className="qr-generate-settings">
             <article className="surface-card content-card qr-section-card">
               <div className="card-heading">
@@ -482,7 +509,12 @@ export default function QrView({ notify }) {
           </aside>
         </section>
       ) : (
-        <section className="qr-decode-layout">
+        <section
+          className="qr-decode-layout"
+          id="qr-panel-decode"
+          role="tabpanel"
+          aria-labelledby="qr-tab-decode"
+        >
           <article className="surface-card content-card qr-section-card">
             <div className="card-heading">
               <div>

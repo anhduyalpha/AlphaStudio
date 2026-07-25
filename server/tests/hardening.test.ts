@@ -362,8 +362,11 @@ describe('cancel kills tracked external children', () => {
     cancelJob(id);
     await new Promise((r) => setTimeout(r, 300));
     assert.equal(trackedChildCount(id), 0);
-    // child should be dead
-    assert.ok(child.killed || child.exitCode != null || child.signalCode != null || true);
+    // child should be dead (killed flag set, or process already exited)
+    assert.ok(
+      child.killed === true || child.exitCode != null || child.signalCode != null,
+      'expected cancelJob to terminate the registered child process',
+    );
     try {
       child.kill();
     } catch {

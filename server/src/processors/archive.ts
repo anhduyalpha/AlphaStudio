@@ -4,7 +4,7 @@ import { createGzip, createGunzip } from 'node:zlib';
 import { pipeline } from 'node:stream/promises';
 import { Transform } from 'node:stream';
 import { createReadStream, createWriteStream } from 'node:fs';
-import archiver from 'archiver';
+import { ZipArchive } from 'archiver';
 import extractZip from 'extract-zip';
 import * as tar from 'tar';
 import { badRequest, unavailable } from '../lib/errors.js';
@@ -529,7 +529,7 @@ async function zipFiles(
   onProgress?: (pct: number) => void,
 ): Promise<void> {
   const output = createWriteStream(outputPath);
-  const archive = archiver('zip', { zlib: { level: 6 } });
+  const archive = new ZipArchive({ zlib: { level: 6 } });
   const done = new Promise<void>((resolve, reject) => {
     output.on('close', () => resolve());
     archive.on('error', reject);

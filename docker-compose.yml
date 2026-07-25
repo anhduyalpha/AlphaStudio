@@ -13,6 +13,8 @@ services:
       HOST: "0.0.0.0"
       PORT: "8787"
       DATA_DIR: "/data"
+      # Must live under the volume so SQLite survives container recreate.
+      DB_PATH: "/data/alphastudio.db"
       SERVE_FRONTEND: "1"
       ALLOW_INSECURE_BIND: "1"
       # Required for any non-trusted network / LAN multi-device use:

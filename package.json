@@ -40,6 +40,7 @@
     "test:python": "node scripts/maint/python.mjs test",
     "python:models": "node scripts/maint/python.mjs models",
     "db:repair": "node --import tsx scripts/maint/db-repair.mjs",
+    "backup": "node scripts/maint/backup.mjs",
     "deps:check": "node scripts/maint/deps.mjs check",
     "deps:prune": "node scripts/maint/deps.mjs prune",
     "doctor": "node scripts/maint/doctor.mjs",
@@ -59,6 +60,9 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "overrides": {
+    "brace-expansion": "5.0.8"
   },
   "allowScripts": {
     "better-sqlite3@12.11.1": true,

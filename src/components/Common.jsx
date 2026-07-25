@@ -122,14 +122,36 @@ export function ToggleRow({
 }
 
 export function WorkspaceTabs({ tabs, active, onChange }) {
+  const onKeyDown = (event) => {
+    if (!tabs?.length) return;
+    const current = Math.max(0, tabs.indexOf(active));
+    let next = current;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      next = (current + 1) % tabs.length;
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      next = (current - 1 + tabs.length) % tabs.length;
+    } else if (event.key === 'Home') {
+      next = 0;
+    } else if (event.key === 'End') {
+      next = tabs.length - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    onChange(tabs[next]);
+  };
+
   return (
-    <div className="workspace-tabs" role="tablist" aria-label="Workspace modes">
+    <div className="workspace-tabs" role="tablist" aria-label="Workspace modes" onKeyDown={onKeyDown}>
       {tabs.map((tab) => (
         <button
           key={tab}
           type="button"
           role="tab"
+          id={`workspace-tab-${tab}`}
           aria-selected={active === tab}
+          aria-controls={`workspace-panel-${tab}`}
+          tabIndex={active === tab ? 0 : -1}
           className={active === tab ? 'active' : ''}
           onClick={() => onChange(tab)}
         >

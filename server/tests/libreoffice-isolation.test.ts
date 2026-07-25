@@ -10,7 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createWriteStream } from 'node:fs';
-import archiver from 'archiver';
+import { ZipArchive } from 'archiver';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '../..');
@@ -76,7 +76,7 @@ async function writeMinimalDocx(dest: string): Promise<void> {
 
   await new Promise<void>((resolve, reject) => {
     const out = createWriteStream(dest);
-    const archive = archiver('zip', { zlib: { level: 9 } });
+    const archive = new ZipArchive({ zlib: { level: 9 } });
     archive.on('error', reject);
     out.on('error', reject);
     out.on('close', () => resolve());

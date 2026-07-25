@@ -233,7 +233,20 @@ export default function ModularWorkspaceView({ config, notify }) {
             <div><span>Workspace tab</span><strong>{activeTab}</strong></div>
             <div><span>Files</span><strong>{files.length}</strong></div>
             <div><span>Backend engine</span><strong>{unavailable ? 'Unavailable' : 'Local API'}</strong></div>
-            {busy ? <div><span>Progress</span><strong>{progress}%</strong></div> : null}
+            {busy ? (
+              <div>
+                <span>Progress</span>
+                <strong
+                  role="progressbar"
+                  aria-label="Job progress"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={progress || 0}
+                >
+                  {progress}%
+                </strong>
+              </div>
+            ) : null}
             {unavailable && jobSpec.capability ? (
               <div><span>Reason</span><strong>{reason(jobSpec.capability) || 'Not available'}</strong></div>
             ) : null}
