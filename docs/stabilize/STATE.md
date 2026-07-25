@@ -30,7 +30,7 @@ Open P0–P2 register emptied for this threat model (code fixes + formal securit
 | CP02 | Test matrix + full suites multi-run green | YES |
 | CP03 | Security S-01/S-02, job retry, 7z/json, capability honesty, Docker/CI | YES |
 | CP04 | S-04/S-06 + boundary, deps, Linux CI parity | YES (`cb01099` + CI 30118515153; pin `9b9bf43` + CI 30118714453) |
-| CP06 | A11y P1s, backup/rollback drill, Docker DB_PATH, archiver8 audit 0, final report | YES (`ecd69f8`) |
+| CP06 | A11y P1s, backup/rollback drill, Docker DB_PATH, archiver8 audit 0, final report | YES (`c0ade17` + CI 30142010326; content `ecd69f8`) |
 
 ## Test surface (required)
 

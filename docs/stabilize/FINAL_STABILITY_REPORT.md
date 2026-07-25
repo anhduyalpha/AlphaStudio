@@ -16,6 +16,7 @@
 | origin/main (unchanged) | `ed460ee763663eef3f0aae9080eeb5e15c68fe1c` |
 | origin/ux-ui-redesign (preserved) | `d03497f77083a42e6461db34fb24724f8e76854d` |
 | Closeout content tip | `ecd69f8d48fea0d80f0463d7128cf8cd7d0619b4` |
+| Closeout tip (docs pin) | `c0ade1763a999cd6978db5a9805ac345ad794c2d` |
 
 **Topology:** stabilize is **+19 commits from main before this closeout commit**; redesign remains **+37** unmerged. Do **not** auto-merge.
 
@@ -43,7 +44,8 @@
 | Maint | `npm run test:maint` | **36 pass** (includes backup.mjs) |
 | Hygiene | `npm run test:hygiene` | **7 pass** |
 | Audit | `npm audit` | **0 vulnerabilities** (archiver@8) |
-| Remote CI (pre tip) | Actions run 30118714453 | success on `9b9bf43` |
+| Remote CI (closeout tip) | Actions run 30142010326 | success on `c0ade17` |
+| Remote CI (CP04 pin) | Actions run 30118714453 | success on `9b9bf43` |
 | Host RC | cold/start/convert/backup/restore/restart | PASS — `RESTORE_OK`, `persisted_job_status=completed` |
 | Docker RC | compose build/up/restart + volume tar | PASS — health healthy; volume backup 5687 bytes |
 
