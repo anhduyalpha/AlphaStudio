@@ -15,7 +15,7 @@
 | CP04 content | `cb01099a1a1c2a9b3f6beda466c7ed14159174d8` |
 | origin/main (unchanged) | `ed460ee763663eef3f0aae9080eeb5e15c68fe1c` |
 | origin/ux-ui-redesign (preserved) | `d03497f77083a42e6461db34fb24724f8e76854d` |
-| Closeout content tip | *(see STATE.md after push — local HEAD after CP6/backup/archiver commit)* |
+| Closeout content tip | `ecd69f8d48fea0d80f0463d7128cf8cd7d0619b4` |
 
 **Topology:** stabilize is **+19 commits from main before this closeout commit**; redesign remains **+37** unmerged. Do **not** auto-merge.
 
