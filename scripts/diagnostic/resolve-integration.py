@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import subprocess
 from pathlib import Path
 
@@ -28,6 +29,9 @@ run("git", "fetch", "origin", "stabilize/alphastudio-stable-baseline")
 merge = run("git", "merge", "--no-commit", "--no-ff", STABILITY_REF, check=False)
 if merge.returncode not in (0, 1):
     raise SystemExit(merge.returncode)
+
+print("Unmerged paths before resolution:")
+run("git", "diff", "--name-only", "--diff-filter=U")
 
 for path in UI_CONFLICTS:
     run("git", "checkout", "--ours", "--", path)
@@ -93,6 +97,7 @@ unmerged = subprocess.check_output(["git", "diff", "--name-only", "--diff-filter
 if unmerged:
     raise SystemExit(f"Unresolved merge conflicts:\n{unmerged}")
 
+marker = re.compile(r"^(<<<<<<< |=======|>>>>>>> )", re.MULTILINE)
 for path in Path(".").rglob("*"):
     if not path.is_file() or ".git" in path.parts:
         continue
@@ -100,7 +105,7 @@ for path in Path(".").rglob("*"):
         value = path.read_text(encoding="utf-8")
     except (UnicodeDecodeError, OSError):
         continue
-    if "<<<<<<<" in value or ">>>>>>>" in value:
+    if marker.search(value):
         raise SystemExit(f"Conflict marker remains in {path}")
 
 run("git", "status", "--short")
