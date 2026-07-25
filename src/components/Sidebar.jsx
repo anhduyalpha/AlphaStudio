@@ -2,10 +2,12 @@ import React, { useEffect, useRef } from 'react';
 import Icon from './Icon';
 import { BrandMark } from './Brand';
 
-function Sidebar({ navigation, route, onNavigate, mobileOpen, onClose }) {
+function Sidebar({ navigation, route, onNavigate, mobileOpen, onClose, apiOnline = null }) {
   const groups = [...new Set(navigation.map((item) => item.group))];
   const asideRef = useRef(null);
   const previousFocusRef = useRef(null);
+  const healthLabel = apiOnline === true ? 'Local API connected' : apiOnline === false ? 'Local API offline' : 'Local workspace';
+  const healthDetail = apiOnline === true ? 'Health check OK' : apiOnline === false ? 'Start server to process files' : 'Private · localhost';
 
   useEffect(() => {
     if (!mobileOpen) return undefined;
@@ -75,10 +77,11 @@ function Sidebar({ navigation, route, onNavigate, mobileOpen, onClose }) {
       <aside
         id="studio-sidebar"
         ref={asideRef}
-        className={`sidebar ${mobileOpen ? 'mobile-open' : ''}`}
+        className={`sidebar studio-rail ${mobileOpen ? 'mobile-open' : ''}`}
+        data-testid="studio-rail"
       >
         <div className="brand-row">
-          <div className="brand-symbol"><BrandMark size={42} /></div>
+          <div className="brand-symbol"><BrandMark size={40} /></div>
           <div>
             <strong>AlphaStudio</strong>
             <span>Local utility suite</span>
@@ -88,11 +91,11 @@ function Sidebar({ navigation, route, onNavigate, mobileOpen, onClose }) {
           </button>
         </div>
 
-        <div className="local-status">
-          <span className="status-dot" />
+        <div className={`local-status${apiOnline === false ? ' is-offline' : ''}${apiOnline === true ? ' is-online' : ''}`}>
+          <span className="status-dot" aria-hidden="true" />
           <div>
-            <strong>Local workspace</strong>
-            <span>Local API connected</span>
+            <strong>{healthLabel}</strong>
+            <span>{healthDetail}</span>
           </div>
         </div>
 
@@ -110,7 +113,7 @@ function Sidebar({ navigation, route, onNavigate, mobileOpen, onClose }) {
                     aria-current={route === item.id ? 'page' : undefined}
                     onClick={() => onNavigate(item.id)}
                   >
-                    <Icon name={item.icon} size={19} />
+                    <Icon name={item.icon} size={18} />
                     <span>{item.label}</span>
                   </button>
                 ))}
@@ -122,7 +125,7 @@ function Sidebar({ navigation, route, onNavigate, mobileOpen, onClose }) {
           <div className="mini-alpha"><img src="/avatars/alphad-profile.svg" alt="" width="38" height="38" /></div>
           <div>
             <strong>AlphaD Workspace</strong>
-            <span>Private • Localhost</span>
+            <span>Private · Localhost</span>
           </div>
         </div>
       </aside>
@@ -130,7 +133,4 @@ function Sidebar({ navigation, route, onNavigate, mobileOpen, onClose }) {
   );
 }
 
-// Props are stable (navigation is module-level; handlers are useCallback-wrapped),
-// so memo skips re-rendering the full nav list on unrelated shell state changes
-// like toasts appearing/clearing.
 export default React.memo(Sidebar);

@@ -1,6 +1,8 @@
 import { toolIllustrations } from '../assets/registry';
 
 export const archiveConfig = {
+  id: 'archive',
+  family: 'archive',
   jobType: 'archive',
   defaultOperation: 'create',
   defaultFormat: 'zip',
@@ -26,6 +28,8 @@ export const archiveConfig = {
 };
 
 export const textConfig = {
+  id: 'text',
+  family: 'neutral',
   jobType: 'text',
   defaultOperation: 'cleanup',
   capability: 'text.cleanup',
@@ -51,6 +55,8 @@ export const textConfig = {
 };
 
 export const audioConfig = {
+  id: 'audio',
+  family: 'audio',
   jobType: 'audio',
   defaultOperation: 'convert',
   capability: 'audio.convert',
@@ -75,6 +81,8 @@ export const audioConfig = {
 };
 
 export const colorConfig = {
+  id: 'color',
+  family: 'neutral',
   jobType: 'image',
   defaultOperation: 'optimize',
   // Real server ops only: optimize + strip-metadata. Picker/palette/gradient/contrast are explicit stubs.
@@ -152,6 +160,8 @@ export const colorConfig = {
 };
 
 export const securityConfig = {
+  id: 'security',
+  family: 'neutral',
   jobType: 'security',
   defaultOperation: 'hash',
   capability: 'security.hash',

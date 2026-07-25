@@ -439,6 +439,8 @@ describe('package.json script surface', () => {
     }
     assert.match(pkg.scripts.bootstrap, /npm ci/);
     assert.match(pkg.scripts.bootstrap, /runtime:prepare/);
+    // runtime:prepare is an explicit script; bootstrap chains it.
+    assert.equal(pkg.scripts['runtime:prepare'], 'node scripts/maint/tools.mjs install --profile full');
     // Core-mode honesty: app install/build/start must NOT force multi-GiB tool
     // installs. Full runtime is explicit via bootstrap / tools:install only.
     for (const name of ['predev', 'prebuild', 'prestart']) {

@@ -62,7 +62,8 @@ describe('release regressions: hosted API and manual results', () => {
 
   it('clears the converting group by the completed job id', () => {
     const source = read('src/views/ConverterView.jsx');
-    assert.match(source, /jobGroupKeysRef\.current\.set\(job\.id,\s*group\.id\)/);
+    // Converter stores job→group using the resolved groupId local (not group.id literal).
+    assert.match(source, /jobGroupKeysRef\.current\.set\(job\.id,\s*groupId\)/);
     assert.match(source, /jobGroupKeysRef\.current\.get\(terminalJobId\)/);
     assert.match(source, /nextKeys\.delete\(terminalGroupId\)/);
     assert.match(source, /const hasPendingCreateRequest = submitGuard\.current\.size > 0/);

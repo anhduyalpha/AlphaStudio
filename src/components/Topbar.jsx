@@ -9,12 +9,16 @@ export default function Topbar({
   onMenuOpen,
   onCommandOpen,
   menuExpanded = false,
+  apiOnline = null,
 }) {
+  const healthText = apiOnline === true ? 'API online' : apiOnline === false ? 'API offline' : 'Local API';
+  const healthTone = apiOnline === true ? 'is-online' : apiOnline === false ? 'is-offline' : '';
+
   return (
-    <header className="app-topbar">
+    <header className="app-topbar studio-topbar" data-testid="studio-topbar">
       <div className="topbar-title-group">
         <button
-          className="icon-button menu-button"
+          className="icon-button menu-button liquid-press"
           type="button"
           onClick={onMenuOpen}
           aria-label="Open navigation"
@@ -24,14 +28,14 @@ export default function Topbar({
           <Icon name="menu" />
         </button>
         <div>
-          <p>{subtitle}</p>
+          <p className="topbar-context">{subtitle}</p>
           <h1>{title}</h1>
         </div>
       </div>
 
       <div className="topbar-controls">
         <button
-          className="command-search"
+          className="command-search liquid-press"
           type="button"
           onClick={onCommandOpen}
           aria-label="Search tools"
@@ -40,8 +44,11 @@ export default function Topbar({
           <span>Search tools</span>
           <kbd>Ctrl K</kbd>
         </button>
-        <span className="front-end-pill">Local API</span>
-        <button className="icon-button" type="button" aria-label="Toggle color theme" onClick={onThemeToggle}>
+        <span className={`front-end-pill ${healthTone}`.trim()} title={healthText}>
+          <span className="status-dot" aria-hidden="true" />
+          {healthText}
+        </span>
+        <button className="icon-button liquid-press" type="button" aria-label="Toggle color theme" onClick={onThemeToggle}>
           <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
         </button>
         <a className="avatar-button" href="#/profile" aria-label="Open AlphaD profile">

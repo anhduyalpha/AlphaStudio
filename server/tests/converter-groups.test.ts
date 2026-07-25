@@ -6,6 +6,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildConversionGroups,
+  compatibleOutputsForMembers,
   applySettingsToCompatible,
   applyResultVisibility,
   canConvertGroup,
@@ -38,7 +39,13 @@ function pngDetect(overrides: Record<string, unknown> = {}) {
     outputs: [
       { format: 'jpg', available: true, label: 'JPEG' },
       { format: 'webp', available: true, label: 'WebP' },
-      { format: 'pdf', available: false, label: 'PDF' },
+      {
+        format: 'pdf',
+        available: false,
+        label: 'PDF',
+        reason: 'Install the documents profile to enable Office conversion',
+        profile: 'documents',
+      },
     ],
     ...overrides,
   };
@@ -90,6 +97,91 @@ describe('buildConversionGroups', () => {
     assert.equal(result.groups[0].members.length, 2);
     assert.ok(result.groups[0].outputs.some((o: { format: string }) => o.format === 'jpg'));
     assert.equal(result.groups[0].valid, true);
+  });
+
+  it('retains unavailable outputs with reason for the board unavailable panel', () => {
+    const files = [
+      file({
+        id: 'a',
+        originalName: 'scan.pdf',
+        detect: {
+          format: 'pdf',
+          family: 'pdf',
+          unsupported: false,
+          recommendedOutput: 'txt',
+          outputs: [
+            { format: 'txt', available: true, label: 'TXT' },
+            {
+              format: 'png',
+              available: false,
+              label: 'PNG',
+              reason: 'Install pdftoppm, MuPDF, or Ghostscript for PDF image output',
+              profile: 'core',
+            },
+            {
+              format: 'jpeg',
+              available: false,
+              label: 'JPEG',
+              reason: 'Install pdftoppm, MuPDF, or Ghostscript for PDF image output',
+            },
+          ],
+        },
+      }),
+    ];
+    const result = buildConversionGroups(files);
+    assert.equal(result.groups.length, 1);
+    const group = result.groups[0];
+    const unavailable = (group.outputs || []).filter((o: { available: boolean }) => !o.available);
+    assert.ok(unavailable.length >= 1, 'expected unavailable outputs on group.outputs');
+    const png = unavailable.find((o: { format: string }) => o.format === 'png');
+    assert.ok(png, 'pdf→png missing-tool route must appear on group.outputs');
+    assert.equal(png.available, false);
+    assert.match(String(png.reason || ''), /pdftoppm|Ghostscript|MuPDF|rasterizer/i);
+    // Available routes still present so Convert remains usable
+    assert.ok(group.outputs.some((o: { format: string; available: boolean }) => o.format === 'txt' && o.available));
+    // Panel filter used by ConverterView
+    const panel = (group.outputs || []).filter((o: { available: boolean }) => !o.available);
+    assert.ok(panel.length > 0);
+    assert.ok(panel.every((o: { reason?: string }) => Boolean(o.reason)));
+  });
+
+  it('compatibleOutputsForMembers intersects availability and keeps fail-closed reasons', () => {
+    const members = [
+      file({
+        id: '1',
+        detect: pngDetect({
+          outputs: [
+            { format: 'webp', available: true, label: 'WebP' },
+            {
+              format: 'avif',
+              available: false,
+              label: 'AVIF',
+              reason: 'The bundled Sharp build cannot write this format',
+            },
+          ],
+        }),
+      }),
+      file({
+        id: '2',
+        detect: pngDetect({
+          outputs: [
+            { format: 'webp', available: true, label: 'WebP' },
+            {
+              format: 'avif',
+              available: false,
+              label: 'AVIF',
+              reason: 'The bundled Sharp build cannot write this format',
+            },
+          ],
+        }),
+      }),
+    ];
+    const outs = compatibleOutputsForMembers(members);
+    const webp = outs.find((o: { format: string }) => o.format === 'webp');
+    const avif = outs.find((o: { format: string }) => o.format === 'avif');
+    assert.equal(webp?.available, true);
+    assert.equal(avif?.available, false);
+    assert.match(String(avif?.reason || ''), /Sharp|write|format/i);
   });
 
   it('mixed formats → mode mixed, multiple groups', () => {

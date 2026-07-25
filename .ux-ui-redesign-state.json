@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 3,
+  "program": "residual-quality",
+  "repository": "https://github.com/anhduyalpha/AlphaStudio",
+  "baseBranch": "main",
+  "baseCommit": "ed460ee763663eef3f0aae9080eeb5e15c68fe1c",
+  "branch": "ux-ui-redesign",
+  "tipAtProgramStart": "f0e91d1345b9131a7462e72f5b156adb17c19dd0",
+  "currentPhase": "RQ15",
+  "currentStep": "completed",
+  "priorPrograms": {
+    "phases0to9": {
+      "status": "superseded-for-completion-claims",
+      "note": "Marketing-style phase completion and self-scores are untrusted."
+    },
+    "correctiveC0toC9": {
+      "status": "composition-retained",
+      "note": "Purpose-built shells retained; residual functional depth completed under RQ0-RQ15."
+    }
+  },
+  "phaseStatus": {
+    "corrective0": "completed-composition",
+    "corrective1": "completed-composition",
+    "corrective2": "completed-composition",
+    "corrective3": "completed-composition",
+    "corrective4": "completed-composition",
+    "corrective5": "completed-composition",
+    "corrective6": "completed-composition",
+    "corrective7": "completed-composition",
+    "corrective8": "completed-composition",
+    "corrective9": "completed-empty-screenshots-only",
+    "rq0": "completed",
+    "rq1": "completed",
+    "rq2": "completed",
+    "rq3": "completed",
+    "rq4": "completed",
+    "rq5": "completed",
+    "rq6": "completed",
+    "rq7": "completed",
+    "rq8": "completed",
+    "rq9": "completed-partial",
+    "rq10": "completed",
+    "rq11": "completed",
+    "rq12": "completed",
+    "rq13": "completed",
+    "rq14": "completed-partial",
+    "rq15": "completed"
+  },
+  "routeStatus": {
+    "shell": { "composition": "retained", "functional": "shell-complete", "qualityScore": null },
+    "dashboard": { "composition": "retained", "functional": "shell-complete", "qualityScore": null },
+    "converter": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": ["batch-drawer-optional"] },
+    "pdf": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": [] },
+    "image": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": ["live-job-state-screenshots"] },
+    "media": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": ["live-job-state-screenshots"] },
+    "audio": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": ["live-job-state-screenshots"] },
+    "qr": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": [] },
+    "archive": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": [] },
+    "text": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": [] },
+    "color": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": [] },
+    "security": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": [] },
+    "developer": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": [] },
+    "activity": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": [] },
+    "profile": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": [] },
+    "settings": { "composition": "purpose-built", "functional": "functional-partial", "qualityScore": null, "gaps": [] }
+  },
+  "skills": {
+    "ux-ui-pro-max": {
+      "found": true,
+      "canonicalIdentifier": "ui-ux-pro-max",
+      "path": "C:\\Users\\Duy\\.codex\\skills\\ux-ui-pro-max\\SKILL.md"
+    },
+    "taste": {
+      "found": true,
+      "canonicalIdentifier": "design-taste-frontend",
+      "path": "C:\\Users\\Duy\\.codex\\skills\\taste-skills\\SKILL.md"
+    }
+  },
+  "screenshots": {
+    "baselineCorrective": "docs/ux-ui-redesign/screenshots/baseline-corrective",
+    "afterCorrectiveEmptyOnly": "docs/ux-ui-redesign/screenshots/after-corrective",
+    "residualStates": "docs/ux-ui-redesign/screenshots/residual-states",
+    "beforeAfterComposites": "docs/ux-ui-redesign/screenshots/residual-states/INDEX.json#beforeAfter"
+  },
+  "dials": {
+    "DESIGN_VARIANCE": 5,
+    "MOTION_INTENSITY": 4,
+    "VISUAL_DENSITY": 6
+  },
+  "completedSteps": [
+    "rq0-truth-reset",
+    "rq1-typed-results-preview",
+    "rq2-audio-media-encode-trim",
+    "rq3-image-crop-compare",
+    "rq4-color-palette-export",
+    "rq5-archive-tree",
+    "rq6-text-diff-export",
+    "rq7-security-results",
+    "rq8-pdf-density",
+    "rq9-converter-mobile-css",
+    "rq10-manage-audits",
+    "rq11-liquid-fallbacks",
+    "rq12-behavioral-playwright",
+    "rq13-stateful-screenshots",
+    "rq14-maint-script-surface",
+    "rq15-final-report"
+  ],
+  "pendingSteps": [],
+  "blockers": [],
+  "knownIssues": [
+    "OCR remains capability-blocked (no engine bundled)",
+    "Full npm test suite may require tools/fixtures — not claimed wholesale green",
+    "Live job running/failed screenshot states deferred (empty+mode matrix captured)",
+    "Converter batch drawer polish optional"
+  ],
+  "nextAction": "Human review residual-states screenshots; optional PR",
+  "updatedAt": "2026-07-24T04:00:00.000Z"
+}

@@ -20,6 +20,7 @@ import SecurityView from './views/SecurityView';
 import ProfileView from './views/ProfileView';
 import { navigation } from './data/tools';
 import useMotionPreference from './hooks/useMotionPreference';
+import { api } from './api/client';
 
 const AssetGalleryView = import.meta.env.DEV
   ? React.lazy(() => import('./views/AssetGalleryView'))
@@ -56,9 +57,25 @@ export default function App() {
   const [commandOpen, setCommandOpen] = useState(false);
   const [toast, setToast] = useState('');
   const mainRef = React.useRef(null);
+  const [apiOnline, setApiOnline] = useState(null);
   // Resolves + applies html[data-motion]; the inline bootstrap already set it
   // pre-paint, this keeps it in sync with runtime preference changes.
   useMotionPreference();
+
+  useEffect(() => {
+    let cancelled = false;
+    const probe = () => {
+      api.health()
+        .then((h) => { if (!cancelled) setApiOnline(Boolean(h?.ok)); })
+        .catch(() => { if (!cancelled) setApiOnline(false); });
+    };
+    probe();
+    const timer = window.setInterval(probe, 15000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
 
   useEffect(() => {
     const handleHash = () => setRoute(getRoute());
@@ -144,7 +161,7 @@ export default function App() {
       <a className="skip-link" href="#main-content">Skip to main content</a>
       <div className="ambient-light ambient-one" aria-hidden="true" />
       <div className="ambient-light ambient-two" aria-hidden="true" />
-      <Sidebar navigation={navigation} route={route} onNavigate={navigate} mobileOpen={mobileOpen} onClose={closeMobile} />
+      <Sidebar navigation={navigation} route={route} onNavigate={navigate} mobileOpen={mobileOpen} onClose={closeMobile} apiOnline={apiOnline} />
       <div className="main-app-column" inert={mobileOpen ? true : undefined} aria-hidden={mobileOpen || undefined}>
         <Topbar
           title={current.label}
@@ -154,6 +171,7 @@ export default function App() {
           onMenuOpen={openMobile}
           onCommandOpen={openCommand}
           menuExpanded={mobileOpen}
+          apiOnline={apiOnline}
         />
         <main id="main-content" className="app-content" key={route} ref={mainRef} tabIndex={-1}>
           <React.Suspense fallback={<div className="surface-card content-card" role="status">Loading workspace…</div>}>
@@ -161,7 +179,7 @@ export default function App() {
           </React.Suspense>
         </main>
         <footer className="app-footer">
-          <span>AlphaStudio • Local API workspace</span>
+          <span>AlphaStudio · Local API workspace</span>
           {import.meta.env.DEV ? <button type="button" className="text-button" onClick={() => navigate('assets')}>Asset gallery</button> : null}
           <span>React + Vite + Fastify</span>
         </footer>

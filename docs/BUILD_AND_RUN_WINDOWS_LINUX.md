@@ -31,8 +31,10 @@ npm run tools:check
 ```
 
 `dev` / `build` / `start` **không** tự cài multi-GiB tool runtime (clean-clone /
-CI friendly). `tools:check`, `tools:install`, `tools:repair` và `tools:update`
-trong `package.json` luôn gắn `--profile full` khi bạn chạy chúng.
+CI friendly). Missing tools stay honest as unavailable capabilities until you
+run `npm run runtime:prepare` (or `tools:install` / `tools:repair`).
+`tools:check`, `tools:install`, `tools:repair` và `tools:update` trong
+`package.json` luôn gắn `--profile full` khi bạn chạy chúng.
 
 | Profile | Công cụ | Định dạng/chức năng chính | Download / cài đặt ước tính |
 |---|---|---|---|
@@ -69,8 +71,13 @@ npm run tools:install
 npm run tools:check -- --force
 npm run tools:repair
 npm run tools:update
+npm run runtime:verify
 npm run doctor
 ```
+
+`npm run runtime:verify` gộp tools check (profile full) và python check (core).
+Không tải tool. Python data/documents: `npm run python:install -- --profile data`
+hoặc `--profile documents`. Docker/VPS: xem `docs/DEPLOY_DOCKER_VPS.md`.
 
 `tools.mjs` in download và installed-size estimate trước khi thao tác. FFmpeg,
 7-Zip, Pandoc, LibreOffice và Calibre đều được xử lý trong cùng một lượt.
@@ -156,6 +163,7 @@ npm run dev:server
 Gates **hiện có** trên tree (không còn `test:audit` / `audit:backend` — `scripts/audit/` đã gỡ khỏi package scripts vì không tồn tại trong repo):
 
 ```text
+npm run typecheck
 npm run build
 npm run typecheck
 npm test

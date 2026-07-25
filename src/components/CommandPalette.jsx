@@ -6,10 +6,20 @@ export default function CommandPalette({ open, navigation, onClose, onNavigate }
   const [activeIndex, setActiveIndex] = useState(0);
   const dialogRef = useRef(null);
   const inputRef = useRef(null);
+
   const results = useMemo(
-    () => navigation.filter((item) => item.label.toLowerCase().includes(query.toLowerCase())),
+    () => navigation.filter((item) => {
+      const q = query.trim().toLowerCase();
+      if (!q) return true;
+      return item.label.toLowerCase().includes(q) || item.group.toLowerCase().includes(q) || item.id.includes(q);
+    }),
     [navigation, query],
   );
+
+  const go = (id) => {
+    onNavigate(id);
+    onClose();
+  };
 
   useEffect(() => {
     if (!open) {
@@ -55,8 +65,7 @@ export default function CommandPalette({ open, navigation, onClose, onNavigate }
         // Prefer activating highlighted result when focus is in the search input.
         if (document.activeElement === inputRef.current) {
           event.preventDefault();
-          onNavigate?.(results[activeIndex].id);
-          onClose?.();
+          go(results[activeIndex].id);
           return;
         }
       }
@@ -105,7 +114,7 @@ export default function CommandPalette({ open, navigation, onClose, onNavigate }
         onClick={onClose}
         aria-label="Close search"
       />
-      <div className="command-palette">
+      <div className="command-palette" data-testid="command-palette">
         <div className="command-input">
           <Icon name="search" />
           <input
@@ -114,23 +123,22 @@ export default function CommandPalette({ open, navigation, onClose, onNavigate }
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search workspaces and settings…"
             aria-label="Search workspaces and settings"
+            aria-controls="command-palette-results"
+            aria-autocomplete="list"
             autoComplete="off"
           />
           <kbd>Esc</kbd>
         </div>
-        <div className="command-results" role="listbox" aria-label="Matching workspaces">
+        <div className="command-results" id="command-palette-results" role="listbox" aria-label="Matching workspaces">
           {results.map((item, index) => (
             <button
               type="button"
               key={item.id}
               role="option"
               aria-selected={index === activeIndex}
-              className={index === activeIndex ? 'active' : undefined}
-              onClick={() => {
-                onNavigate(item.id);
-                onClose();
-              }}
+              className={index === activeIndex ? 'is-active' : undefined}
               onMouseEnter={() => setActiveIndex(index)}
+              onClick={() => go(item.id)}
             >
               <span>
                 <Icon name={item.icon} />
