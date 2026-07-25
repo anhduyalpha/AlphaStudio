@@ -33,9 +33,44 @@ export function sanitizeFilename(name: string): string {
 }
 
 export function assertInsideRoot(root: string, target: string): void {
-  const normalizedRoot = path.resolve(root) + path.sep;
-  const resolved = path.resolve(target);
-  if (resolved !== path.resolve(root) && !resolved.startsWith(normalizedRoot)) {
+  if (!isPathInside(root, target)) {
     throw badRequest('Path traversal rejected');
   }
+}
+
+/** True when `candidate` resolves to `root` or a path strictly under it. */
+export function isPathInside(root: string, candidate: string): boolean {
+  const relative = path.relative(path.resolve(root), path.resolve(candidate));
+  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
+}
+
+/**
+ * Runtime re-confinement for download/preview streams.
+ * Paths must live under uploads, outputs, or temp (all under DATA_DIR layout).
+ * Rejects poisoned DB paths that escape data roots (S-01).
+ */
+export function assertDownloadablePath(target: string): void {
+  const roots = [config.uploadsDir, config.outputsDir, config.tempDir];
+  if (roots.some((root) => isPathInside(root, target))) return;
+  throw badRequest('Path traversal rejected');
+}
+
+/** Active content that must not be inlined on the app origin (S-02). */
+const ACTIVE_PREVIEW_EXTS = new Set(['.html', '.htm', '.svg', '.xhtml', '.xml']);
+const ACTIVE_PREVIEW_MIMES = new Set([
+  'text/html',
+  'image/svg+xml',
+  'application/xhtml+xml',
+  'text/xml',
+  'application/xml',
+]);
+
+export function isActivePreviewContent(filename: string, mime?: string | null): boolean {
+  const ext = path.extname(filename || '').toLowerCase();
+  if (ACTIVE_PREVIEW_EXTS.has(ext)) return true;
+  const m = String(mime || '')
+    .split(';')[0]
+    .trim()
+    .toLowerCase();
+  return ACTIVE_PREVIEW_MIMES.has(m);
 }

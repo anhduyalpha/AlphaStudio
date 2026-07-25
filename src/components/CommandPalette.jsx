@@ -4,6 +4,7 @@ import Icon from './Icon';
 export default function CommandPalette({ open, navigation, onClose, onNavigate }) {
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
+  const dialogRef = useRef(null);
   const inputRef = useRef(null);
 
   const results = useMemo(
@@ -15,15 +16,88 @@ export default function CommandPalette({ open, navigation, onClose, onNavigate }
     [navigation, query],
   );
 
+  const go = (id) => {
+    onNavigate(id);
+    onClose();
+  };
+
   useEffect(() => {
     if (!open) {
       setQuery('');
       setActiveIndex(0);
       return undefined;
     }
-    const t = window.setTimeout(() => inputRef.current?.focus(), 0);
-    return () => window.clearTimeout(t);
-  }, [open]);
+
+    const root = dialogRef.current;
+    const previous = document.activeElement;
+
+    const getFocusable = () => {
+      if (!root) return [];
+      return Array.from(
+        root.querySelectorAll(
+          'button:not([disabled]):not(.modal-scrim), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => el.offsetParent !== null || el === document.activeElement);
+    };
+
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose?.();
+        return;
+      }
+
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        if (results.length === 0) return;
+        event.preventDefault();
+        setActiveIndex((idx) => {
+          if (event.key === 'ArrowDown') return (idx + 1) % results.length;
+          return (idx - 1 + results.length) % results.length;
+        });
+        return;
+      }
+
+      if (event.key === 'Enter' && results[activeIndex]) {
+        // Prefer activating highlighted result when focus is in the search input.
+        if (document.activeElement === inputRef.current) {
+          event.preventDefault();
+          go(results[activeIndex].id);
+          return;
+        }
+      }
+
+      if (event.key !== 'Tab' || !root) return;
+      const list = getFocusable();
+      if (list.length === 0) return;
+      const first = list[0];
+      const last = list[list.length - 1];
+      if (event.shiftKey) {
+        if (document.activeElement === first || !root.contains(document.activeElement)) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else if (document.activeElement === last || !root.contains(document.activeElement)) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      if (previous && typeof previous.focus === 'function') {
+        try {
+          previous.focus();
+        } catch {
+          /* ignore */
+        }
+      }
+    };
+  }, [open, onClose, onNavigate, results, activeIndex]);
 
   useEffect(() => {
     setActiveIndex(0);
@@ -31,36 +105,15 @@ export default function CommandPalette({ open, navigation, onClose, onNavigate }
 
   if (!open) return null;
 
-  const go = (id) => {
-    onNavigate(id);
-    onClose();
-  };
-
-  const onKeyDown = (event) => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      onClose();
-      return;
-    }
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      setActiveIndex((i) => Math.min(i + 1, Math.max(results.length - 1, 0)));
-      return;
-    }
-    if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      setActiveIndex((i) => Math.max(i - 1, 0));
-      return;
-    }
-    if (event.key === 'Enter' && results[activeIndex]) {
-      event.preventDefault();
-      go(results[activeIndex].id);
-    }
-  };
-
   return (
-    <div className="modal-layer" role="dialog" aria-modal="true" aria-label="Search AlphaStudio" onKeyDown={onKeyDown}>
-      <button className="modal-scrim" type="button" onClick={onClose} aria-label="Close search" />
+    <div className="modal-layer" ref={dialogRef} role="dialog" aria-modal="true" aria-label="Search AlphaStudio">
+      <button
+        className="modal-scrim"
+        type="button"
+        tabIndex={-1}
+        onClick={onClose}
+        aria-label="Close search"
+      />
       <div className="command-palette" data-testid="command-palette">
         <div className="command-input">
           <Icon name="search" />
@@ -69,9 +122,10 @@ export default function CommandPalette({ open, navigation, onClose, onNavigate }
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search workspaces and settings…"
-            aria-label="Search workspaces"
+            aria-label="Search workspaces and settings"
             aria-controls="command-palette-results"
             aria-autocomplete="list"
+            autoComplete="off"
           />
           <kbd>Esc</kbd>
         </div>

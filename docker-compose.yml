@@ -1,0 +1,40 @@
+# Local / home-server style compose. Does NOT mount the Docker socket.
+# NOT multi-user/VPS-ready: HOST=0.0.0.0 + ALLOW_INSECURE_BIND without a token
+# exposes an unauthenticated API on all interfaces. Set API_AUTH_TOKEN before
+# publishing port 8787 beyond a trusted host (see docs/stabilize/SECURITY_BOUNDARY.md).
+services:
+  alphastudio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8787:8787"
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8787"
+      DATA_DIR: "/data"
+      # Must live under the volume so SQLite survives container recreate.
+      DB_PATH: "/data/alphastudio.db"
+      SERVE_FRONTEND: "1"
+      ALLOW_INSECURE_BIND: "1"
+      # Required for any non-trusted network / LAN multi-device use:
+      # API_AUTH_TOKEN: "replace-with-long-random-token"
+      LOG_LEVEL: "info"
+    volumes:
+      - alphastudio-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8787/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+
+volumes:
+  alphastudio-data:

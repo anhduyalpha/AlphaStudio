@@ -415,7 +415,16 @@ describe('family converts (tools present)', () => {
           body: JSON.stringify({ uploadIds: [up.id] }),
         })
       ).json();
-      assert.ok(ins.outputs.every((o: { available: boolean }) => !o.available || true));
+      // Without ffmpeg, no audio/video inspect outputs may claim available.
+      for (const o of ins.outputs as Array<{ available: boolean; format?: string; kind?: string }>) {
+        if (o.available) {
+          const fmt = String(o.format || o.kind || '').toLowerCase();
+          assert.ok(
+            !/mp3|wav|flac|aac|m4a|ogg|opus|webm|mp4|mkv|avi|mov/.test(fmt),
+            `expected audio/video outputs unavailable without ffmpeg, got available=${fmt || JSON.stringify(o)}`,
+          );
+        }
+      }
       return;
     }
     const wav = makeSilentWav(0.25);
@@ -506,11 +515,11 @@ describe('family converts (tools present)', () => {
   });
 
   it('archive zip → tar re-packs extracted members (not zip-as-single-file)', async () => {
-    const archiver = (await import('archiver')).default;
+    const { ZipArchive } = await import('archiver');
     const zipPath = path.join(testData, 'members.zip');
     await new Promise<void>((resolve, reject) => {
       const out = fs.createWriteStream(zipPath);
-      const archive = archiver('zip');
+      const archive = new ZipArchive();
       out.on('close', () => resolve());
       archive.on('error', reject);
       archive.pipe(out);

@@ -1761,7 +1761,14 @@ export default function ConverterView({ notify }) {
                       </span>
                       {row.error ? <span className="error-detail">{row.error}</span> : null}
                       {['queued', 'running'].includes(row.status) ? (
-                        <div className="progress-track" aria-valuenow={row.progress || 0} role="progressbar">
+                        <div
+                          className="progress-track"
+                          role="progressbar"
+                          aria-label="Conversion progress"
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-valuenow={row.progress || 0}
+                        >
                           <div
                             className={`progress-fill${(row.progress || 0) <= 0 ? ' is-indeterminate' : ''}`}
                             style={{ width: `${Math.min(100, row.progress || 0)}%` }}
@@ -1906,8 +1913,11 @@ function FileInputCard({ file, job, onRemove, removeDisabled, compact = false, o
         {(isUploading || isPaused || (isProcessing && pct != null)) ? (
           <div
             className="progress-track"
-            aria-valuenow={pct || 0}
             role="progressbar"
+            aria-label="File progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={pct || 0}
             style={{ marginTop: 6 }}
           >
             <div

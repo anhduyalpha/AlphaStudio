@@ -18,7 +18,7 @@
     "@fastify/static": "^10.1.0",
     "@fastify/websocket": "^11.0.2",
     "@pdf-lib/fontkit": "^1.1.1",
-    "archiver": "^7.0.1",
+    "archiver": "^8.0.0",
     "better-sqlite3": "^12.11.1",
     "dotenv": "^16.4.7",
     "extract-zip": "^2.0.1",

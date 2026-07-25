@@ -63,10 +63,7 @@ export default function ModularWorkspaceView({ config, notify }) {
       notify(`Unavailable: ${reason(jobSpec.capability) || jobSpec.capability || 'loading capabilities…'}`);
       return;
     }
-    if (jobSpec.capability === 'text.ocr' || currentFeature.operation === 'ocr') {
-      notify('OCR is not available: no OCR engine is bundled.');
-      return;
-    }
+    // OCR and other tools gate solely via capabilities (isAvailable/reason); no hardcoded client strings.
     if (currentFeature.requiresFiles !== false && files.length === 0 && !currentFeature.allowEmpty) {
       notify('Add at least one file first');
       return;

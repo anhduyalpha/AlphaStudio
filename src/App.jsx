@@ -56,6 +56,7 @@ export default function App() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [toast, setToast] = useState('');
+  const mainRef = React.useRef(null);
   const [apiOnline, setApiOnline] = useState(null);
   // Resolves + applies html[data-motion]; the inline bootstrap already set it
   // pre-paint, this keeps it in sync with runtime preference changes.
@@ -88,16 +89,34 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
+    const onThemeEvent = (event) => {
+      const next = event?.detail;
+      if (next === 'dark' || next === 'light') setTheme(next);
+    };
+    window.addEventListener('alpha-studio-theme', onThemeEvent);
+    return () => window.removeEventListener('alpha-studio-theme', onThemeEvent);
+  }, []);
+
+  useEffect(() => {
     const handleKey = (event) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         setCommandOpen(true);
+        return;
       }
-      if (event.key === 'Escape') setCommandOpen(false);
+      if (event.key === 'Escape') {
+        // Palette and drawer own their Escape handlers when open; keep a
+        // shell-level fallback so Ctrl+K open always has a close path.
+        if (commandOpen) {
+          setCommandOpen(false);
+          return;
+        }
+        if (mobileOpen) setMobileOpen(false);
+      }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, []);
+  }, [commandOpen, mobileOpen]);
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -113,6 +132,10 @@ export default function App() {
   );
   const ActiveView = viewMap[route] || DashboardView;
 
+  useEffect(() => {
+    document.title = `${current.label} · AlphaStudio`;
+  }, [current.label]);
+
   // Stable handlers so the memoized Sidebar doesn't rerender when unrelated
   // shell state changes (e.g. a toast appearing/clearing every few seconds).
   const navigate = useCallback((nextRoute) => {
@@ -122,6 +145,9 @@ export default function App() {
     // Instant scroll — a smooth scroll would run concurrently with the route
     // entrance animation and cause a paint spike / jank.
     window.scrollTo({ top: 0, behavior: 'auto' });
+    requestAnimationFrame(() => {
+      mainRef.current?.focus({ preventScroll: true });
+    });
   }, []);
 
   const closeMobile = useCallback(() => setMobileOpen(false), []);
@@ -132,14 +158,23 @@ export default function App() {
 
   return (
     <div className="desktop-app-shell">
+      <a className="skip-link" href="#main-content">Skip to main content</a>
       <div className="ambient-light ambient-one" aria-hidden="true" />
       <div className="ambient-light ambient-two" aria-hidden="true" />
-      <a className="skip-link" href="#main-content">Skip to main content</a>
       <Sidebar navigation={navigation} route={route} onNavigate={navigate} mobileOpen={mobileOpen} onClose={closeMobile} apiOnline={apiOnline} />
-      <div className="main-app-column">
-        <Topbar title={current.label} subtitle={current.group} theme={theme} onThemeToggle={toggleTheme} onMenuOpen={openMobile} onCommandOpen={openCommand} apiOnline={apiOnline} />
-        <main className="app-content" id="main-content" key={route} tabIndex={-1}>
-          <React.Suspense fallback={<div className="surface-card content-card">Loading workspace…</div>}>
+      <div className="main-app-column" inert={mobileOpen ? true : undefined} aria-hidden={mobileOpen || undefined}>
+        <Topbar
+          title={current.label}
+          subtitle={current.group}
+          theme={theme}
+          onThemeToggle={toggleTheme}
+          onMenuOpen={openMobile}
+          onCommandOpen={openCommand}
+          menuExpanded={mobileOpen}
+          apiOnline={apiOnline}
+        />
+        <main id="main-content" className="app-content" key={route} ref={mainRef} tabIndex={-1}>
+          <React.Suspense fallback={<div className="surface-card content-card" role="status">Loading workspace…</div>}>
             <ActiveView onNavigate={navigate} notify={setToast} />
           </React.Suspense>
         </main>

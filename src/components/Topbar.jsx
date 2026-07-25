@@ -8,6 +8,7 @@ export default function Topbar({
   onThemeToggle,
   onMenuOpen,
   onCommandOpen,
+  menuExpanded = false,
   apiOnline = null,
 }) {
   const healthText = apiOnline === true ? 'API online' : apiOnline === false ? 'API offline' : 'Local API';
@@ -16,7 +17,14 @@ export default function Topbar({
   return (
     <header className="app-topbar studio-topbar" data-testid="studio-topbar">
       <div className="topbar-title-group">
-        <button className="icon-button menu-button liquid-press" type="button" onClick={onMenuOpen} aria-label="Open navigation">
+        <button
+          className="icon-button menu-button liquid-press"
+          type="button"
+          onClick={onMenuOpen}
+          aria-label="Open navigation"
+          aria-expanded={menuExpanded}
+          aria-controls="studio-sidebar"
+        >
           <Icon name="menu" />
         </button>
         <div>
@@ -26,7 +34,12 @@ export default function Topbar({
       </div>
 
       <div className="topbar-controls">
-        <button className="command-search liquid-press" type="button" onClick={onCommandOpen}>
+        <button
+          className="command-search liquid-press"
+          type="button"
+          onClick={onCommandOpen}
+          aria-label="Search tools"
+        >
           <Icon name="search" size={18} />
           <span>Search tools</span>
           <kbd>Ctrl K</kbd>

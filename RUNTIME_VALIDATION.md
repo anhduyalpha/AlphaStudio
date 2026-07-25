@@ -1,41 +1,43 @@
 # Runtime validation
 
-Release validation for AlphaStudio 3.6.0 on 2026-07-17:
+## Status (stabilization honesty)
 
-- `npm ci --cache <isolated temp cache>` — passed from the root lockfile.
-- `npm run build` — Vite production client and TypeScript server passed.
-- `npm test` — 401/401 passed across 133 suites, including all prior phases.
-- Phase-3 focused regressions — 5/5 passed: simulated network loss, server
-  restart/resume, missing/repeated/conflicting chunks, checksum/range checks,
-  pause/resume, cancel, size limit, and equal-head/tail false-dedup prevention.
-- `npm run test:maint` — 24/24 passed.
-- `npm run test:audit` — 4/4 passed.
-- `npm run audit:backend` — 0 issues across 21 real conversion rows; restart
-  restoration, SQLite quick-check, state hydration, and security checks passed.
-- `npm audit` and `npm audit --omit=dev` — 0 vulnerabilities.
-- Development smoke — Vite returned 200 and proxied `/api/health`; the backend
-  reported healthy and `/api/version` returned 3.6.0.
-- Production smoke — compiled same-origin UI/API passed; four real 80 MiB
-  SHA-256/SHA-512 jobs completed in a one-process worker pool with 80/80 health
-  samples and no failures. Idle p95 was 1.909 ms; loaded p95 was 0.835 ms.
-- Upload/detect benchmark — legacy 64 KiB response 28.356 ms; 12 MiB resumable
-  init 4.844 ms, 12 chunk responses averaged 6.064 ms (max 9.882 ms), finalize
-  plus bounded quick detect 25.111 ms, and background checksum/deep detect
-  reached Ready in 27.799 ms on this host.
-- Exact evidence is in `audit/logs/worker-latency-benchmark-v3.6.0.json` and
-  `audit/logs/upload-detect-benchmark.json`.
-- Production output remains registered in Converted Files and is never
-  automatically downloaded.
-- Packaged-archive verification — extracted `grok-v3.6.0.zip` into a clean
-  directory, then `npm ci`, `npm run build`, and the 5 focused phase-3 tests all
-  passed using only files contained in the archive.
+This file previously listed historical green counts for AlphaStudio 3.6.0
+(2026-07-17), including `npm run test:audit` and `npm run audit:backend`.
 
-The release archive excludes dependencies, user data, databases, caches, local
-tools, audit temporary databases, and secrets. Run `npm ci` after extracting it.
-All project process spawning continues to use argument arrays with `shell: false`
-and the shipped npm scripts support Windows and Linux.
+**Those scripts no longer exist** (`scripts/audit/` is absent; removed from
+`package.json` during the hygiene / clean-clone checkpoint on
+`stabilize/alphastudio-stable-baseline`). Treat any historical “audit green”
+claims below as **unverified narrative**, not current release gates.
 
-No Chromium/Firefox binary is installed on the validation host, so frontend
-coverage uses a real Vite HTTP smoke plus production build and structural tests,
-not browser screenshots. Optional 7-Zip is unavailable on this host and remains
-reported as **Unavailable**; no conversion result is fabricated.
+Canonical current gates:
+
+```text
+npm ci
+npm run typecheck
+npm run build
+npm test
+npm run test:maint
+npm run test:hygiene
+npm run doctor          # environment snapshot; may report missing optional tools
+```
+
+Full external tool install is optional for core mode:
+
+```text
+npm run bootstrap       # or: npm run tools:install
+```
+
+Evidence for the hygiene checkpoint lives under `docs/stabilize/` and process
+scratch logs — not in this file.
+
+## Historical notes (2026-07-17 — not re-proven)
+
+The following was claimed on 2026-07-17 and is retained only as archive context:
+
+- `npm ci` / `npm run build` / `npm test` reported green on that host.
+- Phase-3 resumable upload regressions and maint tests were claimed green.
+- `test:audit` / `audit:backend` claims are **void** (targets missing).
+- Optional Chromium and 7-Zip may be absent; capabilities stay gated.
+
+Do not use this document as proof of stability without fresh command evidence.

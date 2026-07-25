@@ -142,6 +142,42 @@ textarea:focus-visible {
   outline-offset: 2px;
 }
 
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  z-index: 10000;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-strong);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  text-decoration: none;
+  transform: translateY(-160%);
+  transition: transform 120ms var(--ease);
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+.settings-hint {
+  margin: 12px 0 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.app-content:focus {
+  outline: none;
+}
+
+.app-content:focus-visible {
+  outline: 2px solid rgba(73, 219, 232, 0.45);
+  outline-offset: 4px;
+}
+
 /* Resting text must be theme-safe on every control — never rely on hover or
    OS defaults (which can render white-on-white or transparent options). */
 button,

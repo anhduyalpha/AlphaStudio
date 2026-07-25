@@ -24,6 +24,7 @@
     "fixtures:pdf": "node scripts/test/generate-pdf-fixtures.mjs",
     "fixtures:pdf:verify": "node scripts/test/verify-pdf-fixtures.mjs",
     "test:maint": "node --test scripts/maint/tests/*.test.mjs",
+    "test:hygiene": "node --test scripts/maint/tests/package-scripts-hygiene.test.mjs",
     "benchmark:workers": "node scripts/benchmark-worker-latency.mjs",
     "benchmark:upload": "node scripts/benchmark-upload-detect.mjs",
     "clear": "node scripts/maint/clear.mjs",
@@ -40,7 +41,8 @@
     "python:repair": "node scripts/maint/python.mjs repair --profile core",
     "test:python": "node scripts/maint/python.mjs test",
     "python:models": "node scripts/maint/python.mjs models",
-    "db:repair": "node scripts/maint/db-repair.mjs",
+    "db:repair": "node --import tsx scripts/maint/db-repair.mjs",
+    "backup": "node scripts/maint/backup.mjs",
     "deps:check": "node scripts/maint/deps.mjs check",
     "deps:prune": "node scripts/maint/deps.mjs prune",
     "doctor": "node scripts/maint/doctor.mjs",
@@ -61,9 +63,12 @@
   "engines": {
     "node": ">=20"
   },
+  "overrides": {
+    "brace-expansion": "5.0.8"
+  },
   "allowScripts": {
     "better-sqlite3@12.11.1": true,
-    "esbuild@0.21.5": true,
+    "esbuild@0.25.12": true,
     "esbuild@0.28.1": true,
     "sharp@0.35.3": true
   }

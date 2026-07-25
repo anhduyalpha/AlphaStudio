@@ -439,10 +439,20 @@ describe('package.json script surface', () => {
     }
     assert.match(pkg.scripts.bootstrap, /npm ci/);
     assert.match(pkg.scripts.bootstrap, /runtime:prepare/);
-    // runtime:prepare is an explicit script; bootstrap chains it. We intentionally
-    // do not force predev/prebuild/prestart hooks (slow full tool install on every start).
+    // runtime:prepare is an explicit script; bootstrap chains it.
     assert.equal(pkg.scripts['runtime:prepare'], 'node scripts/maint/tools.mjs install --profile full');
+    // Core-mode honesty: app install/build/start must NOT force multi-GiB tool
+    // installs. Full runtime is explicit via bootstrap / tools:install only.
+    for (const name of ['predev', 'prebuild', 'prestart']) {
+      assert.equal(
+        pkg.scripts[name],
+        undefined,
+        `${name} must be absent so clean-clone build/start stays core-mode`,
+      );
+    }
     assert.match(pkg.scripts['setup:tools'], /--full/);
+    assert.equal(pkg.scripts['test:audit'], undefined, 'test:audit removed (scripts/audit absent)');
+    assert.equal(pkg.scripts['audit:backend'], undefined, 'audit:backend removed (scripts/audit absent)');
   });
 
   it('reset reinstalls workspace dependencies and the complete toolset', () => {

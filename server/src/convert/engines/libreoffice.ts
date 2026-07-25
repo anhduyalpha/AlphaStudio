@@ -60,7 +60,8 @@ export const libreOfficeEngine: ConversionEngineAdapter = {
           cost: 'high',
           workerCategory: 'office',
           requiredCompanions: ['libreoffice'],
-          supported: probe.available,
+          // Pair is product-supported; binary install state is availability only.
+          supported: true,
           reason: probe.available
             ? undefined
             : 'LibreOffice is unavailable or incomplete',

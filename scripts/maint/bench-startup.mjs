@@ -187,6 +187,9 @@ function defaultUploadFixture() {
     path.join(projectRoot, 'fixtures', 'samples', 'sample.txt'),
     path.join(projectRoot, 'fixtures', 'converter', 'sample.png'),
     path.join(projectRoot, 'fixtures', 'converter', 'sample.txt'),
+    // legacy local-only path (gitignored audit/); keep as last resort
+    path.join(projectRoot, 'audit', 'fixtures', 'sample.png'),
+    path.join(projectRoot, 'audit', 'fixtures', 'sample.txt'),
   ];
   return candidates.find((p) => fs.existsSync(p)) || null;
 }

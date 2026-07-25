@@ -7,6 +7,7 @@ import multipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
 import websocket from '@fastify/websocket';
 import { config } from './config.js';
+import { bearerTokensEqual } from './lib/bearer.js';
 import { AppError, toErrorBody } from './lib/errors.js';
 import { logger } from './lib/logger.js';
 import { systemRoutes } from './routes/system.js';
@@ -20,6 +21,8 @@ import { inspectRoutes } from './routes/inspect.js';
 import { workspaceRoutes, fileDownloadRoutes } from './routes/workspaces.js';
 import { stopWorkerPool } from './workers/jobs.js';
 import { beginFileFinalizerShutdown, enableFileFinalizers } from './services/workspace.js';
+
+export { bearerTokensEqual } from './lib/bearer.js';
 
 export async function buildApp() {
   enableFileFinalizers();
@@ -59,7 +62,7 @@ export async function buildApp() {
     if (!pathname.startsWith('/api/') || pathname === '/api/health') return;
     const authorization = String(req.headers.authorization || '');
     const supplied = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
-    if (supplied !== config.apiToken) {
+    if (!bearerTokensEqual(supplied, config.apiToken)) {
       return reply
         .code(401)
         .send(toErrorBody(new AppError(401, 'UNAUTHORIZED', 'Valid API bearer token required')));

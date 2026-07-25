@@ -47,11 +47,17 @@ describe('PDF capabilities', () => {
     assert.equal(capabilityIdFor('pdf', { operation: 'repair' }), 'pdf.repair');
   });
 
-  it('searchable OCR is honestly unavailable', () => {
+  it('searchable OCR dual ids share one availability truth', () => {
     const caps = detectCapabilities(true);
-    const tool = caps.tools.find((t) => t.id === 'pdf.ocr.searchable');
-    assert.ok(tool);
-    assert.equal(tool.available, false);
+    const ui = caps.tools.find((t) => t.id === 'pdf.ocr.searchable');
+    const pyop = caps.tools.find((t) => t.id === 'pdf.ocr-searchable');
+    assert.ok(ui, 'pdf.ocr.searchable');
+    assert.ok(pyop, 'pdf.ocr-searchable');
+    assert.equal(ui.available, pyop.available);
+    // Without ocr Python profile this host keeps both false with a real reason.
+    if (!ui.available) {
+      assert.ok(ui.reason && /ocr|profile|python|ocrmypdf|Install/i.test(ui.reason));
+    }
   });
 
   it('publishes authoritative operation descriptors with safe execution contracts', () => {
