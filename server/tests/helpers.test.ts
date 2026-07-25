@@ -28,8 +28,8 @@ import { PROGRESS_MIN_DELTA, PROGRESS_MIN_INTERVAL_MS } from '../src/workers/job
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '../..');
-const samplePng = path.join(root, 'audit', 'fixtures', 'sample.png');
-const sampleTxt = path.join(root, 'audit', 'fixtures', 'sample.txt');
+const samplePng = path.join(root, 'fixtures', 'samples', 'sample.png');
+const sampleTxt = path.join(root, 'fixtures', 'samples', 'sample.txt');
 
 describe('quickFingerprint / fingerprint helpers', () => {
   it('readFileHead returns only N bytes and PNG magic', () => {

@@ -216,6 +216,56 @@ function validateConverterOutput(outputPath: string, format: string, outputName:
   }
 }
 
+/**
+ * Engine handler dispatch table — prefer this over growing if/else chains.
+ * Family-specific paths (image/media/archive/pdf) still fall through below
+ * for builtin composite routes that share an engine id.
+ */
+const ENGINE_DISPATCH: Record<
+  string,
+  (args: {
+    ctx: ProcessContext;
+    input: string;
+    name: string;
+    inputFormat: string;
+    out: string;
+    route: EngineRoute;
+  }) => Promise<ProcessResult> | ProcessResult
+> = {
+  pandoc: ({ ctx, input, name, out, route }) =>
+    convertWithPandoc({
+      inputPath: input,
+      outputDir: ctx.outputDir,
+      outputFormat: out,
+      route,
+      originalBaseName: base(name),
+      jobId: ctx.jobId,
+      isCancelled: ctx.isCancelled,
+    }),
+  calibre: ({ ctx, input, name, out }) =>
+    convertWithCalibre({
+      inputPath: input,
+      outputDir: ctx.outputDir,
+      outputFormat: out,
+      originalBaseName: base(name),
+      jobId: ctx.jobId,
+      isCancelled: ctx.isCancelled,
+    }),
+  libreoffice: ({ ctx, input, name, inputFormat, out }) =>
+    convertOfficeRoute(ctx, input, name, inputFormat, out),
+  python: ({ ctx, input, name, out, route }) =>
+    convertWithPython({
+      inputPath: input,
+      outputDir: ctx.outputDir,
+      outputFormat: out,
+      operation: String(route.metadata?.operation || 'data.json-transform'),
+      originalBaseName: base(name),
+      jobId: ctx.jobId,
+      isCancelled: ctx.isCancelled,
+      options: { format: out },
+    }),
+};
+
 async function convertOne(
   ctx: ProcessContext,
   family: string,
@@ -228,43 +278,15 @@ async function convertOne(
   const name = ctx.inputNames[0] || 'file';
   const quality = resolveQualityPreset(ctx.options);
 
-  if (selectedRoute.engineId === 'pandoc') {
-    return convertWithPandoc({
-      inputPath: input,
-      outputDir: ctx.outputDir,
-      outputFormat: out,
+  const dispatched = ENGINE_DISPATCH[selectedRoute.engineId];
+  if (dispatched) {
+    return dispatched({
+      ctx,
+      input,
+      name,
+      inputFormat,
+      out,
       route: selectedRoute,
-      originalBaseName: base(name),
-      jobId: ctx.jobId,
-      isCancelled: ctx.isCancelled,
-    });
-  }
-
-  if (selectedRoute.engineId === 'calibre') {
-    return convertWithCalibre({
-      inputPath: input,
-      outputDir: ctx.outputDir,
-      outputFormat: out,
-      originalBaseName: base(name),
-      jobId: ctx.jobId,
-      isCancelled: ctx.isCancelled,
-    });
-  }
-
-  if (selectedRoute.engineId === 'libreoffice') {
-    return convertOfficeRoute(ctx, input, name, inputFormat, out);
-  }
-
-  if (selectedRoute.engineId === 'python') {
-    return convertWithPython({
-      inputPath: input,
-      outputDir: ctx.outputDir,
-      outputFormat: out,
-      operation: String(selectedRoute.metadata?.operation || 'data.json-transform'),
-      originalBaseName: base(name),
-      jobId: ctx.jobId,
-      isCancelled: ctx.isCancelled,
-      options: { format: out },
     });
   }
 

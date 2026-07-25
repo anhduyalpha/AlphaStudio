@@ -37,7 +37,40 @@ export type OutputOption = {
   profile?: ToolProfile;
   engine?: PublicEngineRoute;
   engines?: PublicEngineRoute[];
+  /** Intentional quality loss (re-encode, text extract, etc.). */
+  lossy?: boolean;
+  /** Fixture-tested but quality variable. */
+  experimental?: boolean;
 };
+
+/** Known lossy pairs (input → outputs). Policy honesty for UI labels. */
+const LOSSY_OUTPUTS: Record<string, Set<string>> = {
+  pdf: new Set(['txt', 'png', 'jpeg']),
+  doc: new Set(['txt', 'html']),
+  docx: new Set(['txt', 'html']),
+  odt: new Set(['txt', 'html']),
+  mp4: new Set(['mp3', 'wav', 'aac', 'm4a', 'gif', 'webm', 'mkv', 'mov', 'avi']),
+  mkv: new Set(['mp3', 'wav', 'm4a', 'gif', 'mp4', 'webm']),
+  webm: new Set(['mp3', 'wav', 'ogg', 'gif', 'mp4', 'mkv']),
+  mov: new Set(['mp3', 'wav', 'm4a', 'gif', 'mp4', 'webm', 'mkv']),
+  avi: new Set(['mp3', 'wav', 'gif', 'mp4', 'webm', 'mkv']),
+  flac: new Set(['mp3', 'aac', 'm4a', 'ogg', 'opus']),
+  wav: new Set(['mp3', 'aac', 'm4a', 'ogg', 'opus']),
+};
+
+const EXPERIMENTAL_OUTPUTS: Record<string, Set<string>> = {
+  heic: new Set(['png', 'jpeg', 'webp', 'pdf']),
+  heif: new Set(['png', 'jpeg', 'webp', 'pdf']),
+};
+
+function pairHonesty(input: string, output: string): { lossy?: boolean; experimental?: boolean } {
+  const from = normalizeFormat(input);
+  const to = normalizeFormat(output);
+  return {
+    lossy: LOSSY_OUTPUTS[from]?.has(to) || undefined,
+    experimental: EXPERIMENTAL_OUTPUTS[from]?.has(to) || undefined,
+  };
+}
 
 export type DetectedKind = {
   family: Family;
@@ -170,6 +203,7 @@ export function listOutputsFor(
     const preferred = routes.find((route) => route.available) || routes[0];
     const available = routes.some((route) => route.available);
     const requires = [...new Set(routes.flatMap((route) => route.requiredCompanions || []))];
+    const honesty = pairHonesty(input, format);
     outputs.push({
       format,
       label: formatLabel(format),
@@ -181,6 +215,8 @@ export function listOutputsFor(
       profile: preferred?.profile,
       engine: preferred ? publicEngine(preferred) : undefined,
       engines: routes.map(publicEngine),
+      lossy: honesty.lossy,
+      experimental: honesty.experimental,
     });
   }
   return outputs.sort(

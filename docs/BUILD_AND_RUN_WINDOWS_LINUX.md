@@ -16,12 +16,14 @@ một origin.
 Không chạy `npm install` riêng trong `server/`. Repo dùng npm workspaces và một
 `package-lock.json` ở thư mục gốc.
 
-## 2. Full runtime được cài mặc định
+## 2. Full runtime (optional; only via bootstrap / tools scripts)
 
-Quy trình chuẩn không còn yêu cầu người dùng tự chọn profile. `npm run
-bootstrap`, `dev`, `build` và `start` đều gọi bước chuẩn bị runtime đầy đủ.
-`tools:check`, `tools:install`, `tools:repair` và `tools:update` trong
-`package.json` luôn gắn `--profile full`.
+`npm run bootstrap` = `npm ci` + `runtime:prepare` (full converter tools).
+`dev`, `build`, and `start` do **not** install external tools automatically.
+Missing tools stay honest as unavailable capabilities until you run
+`npm run runtime:prepare` (or `tools:install` / `tools:repair`).
+`tools:check`, `tools:install`, `tools:repair`, and `tools:update` use
+`--profile full`.
 
 | Profile | Công cụ | Định dạng/chức năng chính | Download / cài đặt ước tính |
 |---|---|---|---|
@@ -58,8 +60,13 @@ npm run tools:install
 npm run tools:check -- --force
 npm run tools:repair
 npm run tools:update
+npm run runtime:verify
 npm run doctor
 ```
+
+`npm run runtime:verify` gộp tools check (profile full) và python check (core).
+Không tải tool. Python data/documents: `npm run python:install -- --profile data`
+hoặc `--profile documents`. Docker/VPS: xem `docs/DEPLOY_DOCKER_VPS.md`.
 
 `tools.mjs` in download và installed-size estimate trước khi thao tác. FFmpeg,
 7-Zip, Pandoc, LibreOffice và Calibre đều được xử lý trong cùng một lượt.
@@ -143,17 +150,15 @@ npm run dev:server
 ## 6. Kiểm tra trước khi chạy production
 
 ```text
+npm run typecheck
 npm run build
 npm test
 npm run test:maint
-npm run test:audit
 npm run deps:check
 npm audit
-npm run audit:backend
 ```
 
-Đọc `audit/backend-audit.json`, không chỉ dựa vào exit code của audit. Hai
-benchmark nặng hơn, chạy khi cần đo release:
+Two heavier benchmarks, run when measuring a release:
 
 Main server suite chạy tuần tự theo file để các integration test dùng process
 worker/SQLite/port không tranh chấp tài nguyên và để peak RAM ổn định.

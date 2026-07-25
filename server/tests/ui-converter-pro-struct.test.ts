@@ -40,9 +40,28 @@ describe('Converter Pro + QR paste structural', () => {
 
     it('supports Batch convert or buildConversionGroups', () => {
       assert.ok(
-        /Batch convert|buildConversionGroups/.test(converter),
-        'expected Batch convert label or buildConversionGroups import/use',
+        /Batch convert|buildConversionGroups|Convert all|Convert group/.test(converter),
+        'expected Batch convert label, Convert all/group, or buildConversionGroups import/use',
       );
+    });
+
+    it('wires Convert selected, Convert group, and Convert all to real job helpers', () => {
+      assert.match(converter, /Convert selected/);
+      assert.match(converter, /Convert group/);
+      assert.match(converter, /Convert all/);
+      assert.match(converter, /startSelectedConvert|buildConvertSelectionPlan/);
+      assert.match(converter, /startConvertAll|buildConvertAllPlans/);
+      assert.match(converter, /queueConvertJob|createJob/);
+      assert.match(converter, /aggregateJobProgress|runProgress/);
+    });
+
+    it('renders unavailable panel from group.outputs that are not available', () => {
+      assert.match(converter, /filter\(\(o\)\s*=>\s*!o\.available\)/);
+      assert.match(converter, /converter-unavailable-panel/);
+      assert.match(converter, /Unavailable:/);
+      // Multi-select for Convert selected
+      assert.match(converter, /toggleFileSelection|selectedFileIds/);
+      assert.match(converter, /type="checkbox"/);
     });
 
     it('persists groupSettings via toolSettings.converter', () => {

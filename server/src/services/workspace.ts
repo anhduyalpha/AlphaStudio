@@ -39,13 +39,30 @@ export function scheduleFileFinalize(fileId: string): void {
   });
 }
 
+/** Stale processing rows older than this are failed on resume (avoid restart hang). */
+const STALE_PROCESSING_MS = 30 * 60 * 1000;
+
 /** Re-run durable processing rows after restart so Inspecting is never orphaned. */
 export function resumeProcessingFiles(): number {
   const rows = getDb()
-    .prepare(`SELECT id FROM files WHERE status = 'processing' ORDER BY created_at ASC`)
-    .all() as { id: string }[];
-  for (const row of rows) scheduleFileFinalize(row.id);
-  return rows.length;
+    .prepare(
+      `SELECT id, created_at, updated_at FROM files WHERE status = 'processing' ORDER BY created_at ASC`,
+    )
+    .all() as { id: string; created_at: string; updated_at: string }[];
+  const nowMs = Date.now();
+  let scheduled = 0;
+  for (const row of rows) {
+    const stamp = Date.parse(row.updated_at || row.created_at || '') || 0;
+    // Files stuck in processing across a long downtime can pin the event loop
+    // on deep detect of large/corrupt inputs. Fail closed so /api/health stays live.
+    if (stamp > 0 && nowMs - stamp > STALE_PROCESSING_MS) {
+      markFileTerminal(row.id, 'failed', 'Stale processing after restart; re-upload to retry');
+      continue;
+    }
+    scheduleFileFinalize(row.id);
+    scheduled += 1;
+  }
+  return scheduled;
 }
 
 /**

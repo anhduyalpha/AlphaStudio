@@ -3,9 +3,7 @@ import FilePicker from '../components/FilePicker';
 import JobOutputCard from '../components/JobOutputCard';
 import EmptyState from '../components/EmptyState';
 import {
-  FeatureButton,
-  IllustrationCard,
-  PageIntro,
+  FeatureRail,
   PrimaryButton,
   SecondaryButton,
   SelectField,
@@ -13,7 +11,9 @@ import {
   TextField,
   ToggleRow,
   WorkspaceTabs,
+  Panel,
 } from '../components/Common';
+import { WorkbenchLayout, WorkspaceHeader, ProgressWave, CapabilityBanner } from '../components/Workbench';
 import useJobRunner from '../hooks/useJobRunner';
 import useCapabilities from '../hooks/useCapabilities';
 
@@ -43,9 +43,7 @@ export default function ModularWorkspaceView({ config, notify }) {
   );
 
   const jobSpec = resolveJob(config, activeFeature);
-  // Client-only features: no server job / no capability gate required
   const isClientOnly = Boolean(currentFeature.clientOnly);
-  // Treat unknown capability load as disabled until loaded (no race enable)
   const capOk = isClientOnly
     ? true
     : jobSpec.capability == null
@@ -54,6 +52,7 @@ export default function ModularWorkspaceView({ config, notify }) {
         ? null
         : isAvailable(jobSpec.capability);
   const unavailable = !isClientOnly && (capOk === false || capOk === null);
+  const family = config.family || config.id || 'neutral';
 
   const start = async () => {
     if (isClientOnly) {
@@ -64,7 +63,6 @@ export default function ModularWorkspaceView({ config, notify }) {
       notify(`Unavailable: ${reason(jobSpec.capability) || jobSpec.capability || 'loading capabilities…'}`);
       return;
     }
-    // Never map OCR to cleanup — hard block
     if (jobSpec.capability === 'text.ocr' || currentFeature.operation === 'ocr') {
       notify('OCR is not available: no OCR engine is bundled.');
       return;
@@ -80,11 +78,8 @@ export default function ModularWorkspaceView({ config, notify }) {
         return;
       }
     }
-    // Archive extract: always auto-detect format from magic+extension
     const isExtract = jobSpec.operation === 'extract';
-    const format = isExtract
-      ? 'auto'
-      : currentFeature.format || config.defaultFormat;
+    const format = isExtract ? 'auto' : currentFeature.format || config.defaultFormat;
     try {
       await run(jobSpec.type, {
         files,
@@ -109,151 +104,138 @@ export default function ModularWorkspaceView({ config, notify }) {
   };
 
   return (
-    <div className="view-stack">
-      <PageIntro
-        eyebrow={config.eyebrow}
+    <div className={`view-stack modular-workbench family-${family}`} data-testid="modular-workbench">
+      <WorkspaceHeader
+        meta={config.eyebrow}
         title={config.title}
         description={config.description}
-        actions={
+        family={family}
+        status={(
+          <StatusBadge
+            status={unavailable ? 'unavailable' : busy ? 'converting' : 'completed'}
+            tone={unavailable ? 'neutral' : busy ? 'cyan' : 'green'}
+            live={busy}
+          >
+            {unavailable ? 'Unavailable' : busy ? status || 'Running' : 'Ready'}
+          </StatusBadge>
+        )}
+        actions={(
           <>
             <SecondaryButton icon="refresh" onClick={() => { setFiles([]); notify('Workspace reset.'); }} disabled={busy}>
               Reset
             </SecondaryButton>
-            {busy ? (
-              <SecondaryButton icon="close" onClick={cancel}>Cancel</SecondaryButton>
-            ) : null}
-            <PrimaryButton
-              icon={unavailable ? 'lock' : config.primaryIcon || 'wand'}
-              onClick={start}
-              disabled={busy || unavailable}
-            >
-              {unavailable ? 'Unavailable' : busy ? `${progress}%` : config.primaryAction}
-            </PrimaryButton>
+            {busy ? <SecondaryButton icon="close" onClick={cancel}>Cancel</SecondaryButton> : null}
           </>
-        }
+        )}
       />
 
       <WorkspaceTabs tabs={config.tabs} active={activeTab} onChange={setActiveTab} />
 
-      <section className="module-overview-grid">
-        <IllustrationCard
-          src={config.art}
-          alt={`${config.title} SVG illustration`}
-          eyebrow={`${activeTab} mode`}
-          title={currentFeature.title}
-          description={currentFeature.description}
-        />
-
-        <article className="surface-card content-card module-feature-panel">
-          <div className="card-heading">
-            <div><p className="eyebrow">Feature launcher</p><h3>Choose an operation</h3></div>
-            <StatusBadge tone={config.tone || 'cyan'}>{config.features.length} actions</StatusBadge>
-          </div>
-          <div className="feature-action-grid">
-            {config.features.map((feature) => (
-              <FeatureButton
-                key={feature.title}
-                icon={feature.icon}
-                title={feature.title}
-                description={feature.short}
-                active={feature.title === activeFeature}
-                onClick={() => setActiveFeature(feature.title)}
-              />
-            ))}
-          </div>
-        </article>
-      </section>
-
-      <section className="module-workspace-grid">
-        <article className="surface-card content-card">
-          <div className="card-heading">
-            <div><p className="eyebrow">Input</p><h3>{currentFeature.title}</h3></div>
-          </div>
-          <FilePicker
-            title={currentFeature.dropTitle || 'Drop source files here'}
-            subtitle={currentFeature.dropSubtitle || 'Browse from your computer or drag files into this panel'}
-            accept={currentFeature.accept || config.accept}
-            multiple={currentFeature.multiple !== false}
-            files={files}
-            onChange={setFiles}
-            disabled={busy}
+      {unavailable ? (
+        <>
+          <CapabilityBanner
+            title="Capability unavailable"
+            reason={reason(jobSpec.capability) || 'The required local capability is not available.'}
           />
-          <div className="form-grid compact-form-grid">
-            <SelectField label="Processing preset" value={preset} onChange={(e) => setPreset(e.target.value)}>
-              <option value="balanced">Balanced</option>
-              <option value="max">Maximum quality</option>
-              <option value="small">Smallest output</option>
-            </SelectField>
-            <SelectField label="Output mode" value="local">
-              <option value="local">Local export</option>
-            </SelectField>
-            <TextField label="Output name" placeholder="alphastudio-output" value={outputName} onChange={(e) => setOutputName(e.target.value)} />
-            {jobSpec.operation === 'compare' ? (
-              <TextField
-                label="Expected checksum (hex)"
-                placeholder="e.g. sha256 hex digest"
-                value={expectedDigest}
-                onChange={(e) => setExpectedDigest(e.target.value)}
-              />
-            ) : (
-              <SelectField label="Conflict handling" value="rename">
-                <option value="rename">Rename automatically</option>
-              </SelectField>
-            )}
-          </div>
-          <div className="toggle-stack compact-toggle-stack">
-            <ToggleRow
-              title="Preserve metadata"
-              description="Keep supported source metadata in the output when possible."
-              checked={preserveMeta}
-              onChange={(e) => setPreserveMeta(e.target.checked)}
-            />
-            <ToggleRow
-              title="Keep result in workspace"
-              description="Show the finished file below and download only when you choose."
-              checked
-              disabled
-            />
-          </div>
-        </article>
+          <EmptyState
+            type="toolsMissing"
+            compact
+            description={reason(jobSpec.capability) || 'The required local capability is not available.'}
+          />
+        </>
+      ) : null}
 
-        <aside className="surface-card content-card module-preview-panel">
-          <div className="card-heading">
-            <div><p className="eyebrow">Preview</p><h3>Output summary</h3></div>
-            <StatusBadge status={unavailable ? 'unavailable' : busy ? 'converting' : 'completed'} tone={unavailable ? 'neutral' : busy ? 'cyan' : 'green'} live={busy}>
-              {unavailable ? 'Unavailable' : busy ? status || 'Running' : 'Ready'}
-            </StatusBadge>
-          </div>
-          {unavailable ? (
-            <EmptyState
-              type="toolsMissing"
-              compact
-              description={reason(jobSpec.capability) || 'The required local capability is not available.'}
+      <WorkbenchLayout
+        family={family}
+        stage={(
+          <Panel title={currentFeature.title} actions={<StatusBadge tone={config.tone || 'cyan'}>{files.length} files</StatusBadge>}>
+            <p className="workspace-description" style={{ marginTop: 0 }}>{currentFeature.description}</p>
+            <FilePicker
+              title={currentFeature.dropTitle || 'Drop source files here'}
+              subtitle={currentFeature.dropSubtitle || 'Browse from your computer or drag files into this panel'}
+              accept={currentFeature.accept || config.accept}
+              multiple={currentFeature.multiple !== false}
+              files={files}
+              onChange={setFiles}
+              disabled={busy}
             />
-          ) : (
-            <div className="module-preview-art"><img src={config.art} alt="" width="640" height="400" /></div>
-          )}
-          <div className="preview-info-list">
-            <div><span>Operation</span><strong>{currentFeature.title}</strong></div>
-            <div><span>Workspace tab</span><strong>{activeTab}</strong></div>
-            <div><span>Files</span><strong>{files.length}</strong></div>
-            <div><span>Backend engine</span><strong>{unavailable ? 'Unavailable' : 'Local API'}</strong></div>
-            {busy ? <div><span>Progress</span><strong>{progress}%</strong></div> : null}
-            {unavailable && jobSpec.capability ? (
-              <div><span>Reason</span><strong>{reason(jobSpec.capability) || 'Not available'}</strong></div>
-            ) : null}
-          </div>
-          <div className="button-row full-button-row">
-            <SecondaryButton icon="eye" onClick={() => notify(files.length ? `${files.length} file(s) queued` : 'No files yet')} disabled={busy}>
-              Preview
-            </SecondaryButton>
-            <PrimaryButton icon="download" onClick={start} disabled={busy || unavailable}>
-              {unavailable ? 'Unavailable' : 'Export'}
-            </PrimaryButton>
-          </div>
-        </aside>
-      </section>
-      <JobOutputCard job={job} notify={notify} />
+            {busy ? <ProgressWave value={progress} label="Job progress" /> : null}
+            <JobOutputCard job={job} notify={notify} />
+          </Panel>
+        )}
+        rail={(
+          <>
+            <Panel title="Operations">
+              <FeatureRail
+                label="Operations"
+                active={activeFeature}
+                onChange={(item) => setActiveFeature(item.title)}
+                items={config.features.map((feature) => ({
+                  title: feature.title,
+                  description: feature.short,
+                  icon: feature.icon,
+                }))}
+              />
+            </Panel>
+            <Panel title="Options">
+              <div className="form-grid compact-form-grid">
+                <SelectField label="Processing preset" value={preset} onChange={(e) => setPreset(e.target.value)}>
+                  <option value="balanced">Balanced</option>
+                  <option value="max">Maximum quality</option>
+                  <option value="small">Smallest output</option>
+                </SelectField>
+                <TextField label="Output name" placeholder="alphastudio-output" value={outputName} onChange={(e) => setOutputName(e.target.value)} />
+                {jobSpec.operation === 'compare' ? (
+                  <TextField
+                    label="Expected checksum (hex)"
+                    placeholder="e.g. sha256 hex digest"
+                    value={expectedDigest}
+                    onChange={(e) => setExpectedDigest(e.target.value)}
+                  />
+                ) : null}
+              </div>
+              <div className="toggle-stack compact-toggle-stack" style={{ marginTop: 12 }}>
+                <ToggleRow
+                  title="Preserve metadata"
+                  description="Keep supported source metadata in the output when possible."
+                  checked={preserveMeta}
+                  onChange={(e) => setPreserveMeta(e.target.checked)}
+                />
+              </div>
+            </Panel>
+            <Panel title="Summary">
+              <div className="preview-info-list">
+                <div><span>Operation</span><strong>{currentFeature.title}</strong></div>
+                <div><span>Tab</span><strong>{activeTab}</strong></div>
+                <div><span>Files</span><strong>{files.length}</strong></div>
+                <div><span>Engine</span><strong>{unavailable ? 'Unavailable' : 'Local API'}</strong></div>
+              </div>
+              {files.length === 0 && !unavailable ? (
+                <EmptyState type="noResults" compact title="No files yet" description="Add files to the stage to enable export." />
+              ) : null}
+            </Panel>
+          </>
+        )}
+        runbar={(
+          <>
+            <div className="job-row-main">
+              <strong>{currentFeature.title}</strong>
+              <span>{unavailable ? 'Blocked by capability' : busy ? `${progress}% · ${status || 'running'}` : 'Ready to run'}</span>
+            </div>
+            <div className="hero-button-row">
+              {busy ? <SecondaryButton icon="close" onClick={cancel}>Cancel</SecondaryButton> : null}
+              <PrimaryButton
+                icon={unavailable ? 'lock' : config.primaryIcon || 'wand'}
+                onClick={start}
+                disabled={busy || unavailable}
+                busy={busy}
+              >
+                {unavailable ? 'Unavailable' : config.primaryAction}
+              </PrimaryButton>
+            </div>
+          </>
+        )}
+      />
     </div>
   );
 }

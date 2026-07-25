@@ -3,23 +3,26 @@ import { api } from '../api/client';
 import { SecondaryButton, StatusBadge } from './Common';
 import EmptyState from './EmptyState';
 import { describeJobMeta } from '../lib/pdfJobOptions';
+import JobResultBody from './results/JobResultBody';
+import { classifyJobResult, getJobMime } from '../lib/jobResultKind';
 
-/** Shared manual-download result card. Jobs never force a browser download. */
-export default function JobOutputCard({ job, notify, title, onDeleted }) {
+/** Shared result card with typed body + manual download. Jobs never force download. */
+export default function JobOutputCard({ job, notify, title, onDeleted, showTyped = true }) {
   const [downloading, setDownloading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   if (!job) return null;
 
   const completed = job.status === 'completed' && Boolean(job.downloadUrl);
   const extraBits = describeJobMeta(job);
-  const mime = job.outputMime || job.mime || job.meta?.mime || '';
+  const mime = getJobMime(job);
+  const kind = classifyJobResult(job);
   const kindHint = mime.includes('zip')
     ? 'ZIP archive'
-    : mime.includes('json')
+    : mime.includes('json') || kind === 'json'
       ? 'JSON report'
-      : mime.startsWith('text/') || /\.txt$/i.test(job.outputName || '')
+      : mime.startsWith('text/') || kind === 'text'
         ? 'Text'
-        : mime.startsWith('image/')
+        : mime.startsWith('image/') || kind === 'image'
           ? 'Image'
           : mime.includes('pdf')
             ? 'PDF'
@@ -66,7 +69,7 @@ export default function JobOutputCard({ job, notify, title, onDeleted }) {
   };
 
   return (
-    <article className="surface-card content-card converted-results job-output-card" aria-live="polite">
+    <article className="surface-card content-card converted-results job-output-card" data-testid="job-output-card" aria-live="polite">
       <div className="card-heading compact-heading">
         <div>
           <p className="eyebrow">Result{kindHint ? ` · ${kindHint}` : ''}</p>
@@ -91,31 +94,38 @@ export default function JobOutputCard({ job, notify, title, onDeleted }) {
           description={job.message || 'Job was cancelled. You can start a new operation.'}
         />
       ) : (
-        <div className="converted-row">
-          <div className="file-info">
-            <strong>{job.outputName || job.message || 'Output pending'}</strong>
-            <span>
-              {completed
-                ? 'Ready in AlphaStudio — download when you choose.'
-                : job.error || job.message || job.status}
-            </span>
-            {extraBits.length ? (
-              <span className="helper-note" style={{ display: 'block', marginTop: '0.25rem' }}>
-                {extraBits.join(' · ')}
+        <>
+          <div className="converted-row">
+            <div className="file-info">
+              <strong>{job.outputName || job.message || 'Output pending'}</strong>
+              <span>
+                {completed
+                  ? 'Ready in AlphaStudio — download when you choose.'
+                  : job.error || job.message || job.status}
               </span>
+              {extraBits.length ? (
+                <span className="helper-note" style={{ display: 'block', marginTop: '0.25rem' }}>
+                  {extraBits.join(' · ')}
+                </span>
+              ) : null}
+            </div>
+            {completed ? (
+              <div className="job-output-actions">
+                <SecondaryButton icon="close" onClick={remove} disabled={deleting || downloading}>
+                  {deleting ? 'Deleting…' : 'Delete'}
+                </SecondaryButton>
+                <SecondaryButton icon="download" onClick={download} disabled={downloading || deleting}>
+                  {downloading ? 'Downloading…' : 'Download'}
+                </SecondaryButton>
+              </div>
             ) : null}
           </div>
-          {completed ? (
-            <div className="job-output-actions">
-              <SecondaryButton icon="close" onClick={remove} disabled={deleting || downloading}>
-                {deleting ? 'Deleting…' : 'Delete'}
-              </SecondaryButton>
-              <SecondaryButton icon="download" onClick={download} disabled={downloading || deleting}>
-                {downloading ? 'Downloading…' : 'Download'}
-              </SecondaryButton>
+          {showTyped && completed ? (
+            <div className="job-result-body-wrap" style={{ marginTop: 12 }}>
+              <JobResultBody job={job} notify={notify} />
             </div>
           ) : null}
-        </div>
+        </>
       )}
     </article>
   );

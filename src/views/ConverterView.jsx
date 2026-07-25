@@ -3,27 +3,37 @@ import Icon from '../components/Icon';
 import FilePicker from '../components/FilePicker';
 import EmptyState from '../components/EmptyState';
 import {
-  PageIntro,
   PrimaryButton,
   SecondaryButton,
   SelectField,
   StatusBadge,
   ToggleRow,
+  Panel,
 } from '../components/Common';
+import { WorkspaceHeader, WorkbenchLayout, ProgressWave, ResultPanel } from '../components/Workbench';
+import { FileRow } from '../components/StudioPrimitives';
 import useWorkspace from '../hooks/useWorkspace';
 import useWorkspaceEvents from '../hooks/useWorkspaceEvents';
 import { api } from '../api/client';
 import {
+  aggregateJobProgress,
   applyResultVisibility,
   applySettingsToCompatible,
+  buildConvertAllPlans,
   buildConversionGroups,
+  buildConvertSelectionPlan,
   buildResultRows,
   canConvertGroup,
+  canConvertSelection,
   defaultGroupSettings,
   engineForOutput,
   hasActiveDuplicateJob,
   jobTouchesFileIds,
+  outputsForSelectedFiles,
+  setGroupFileSelection,
+  settingsSchemaForEngine,
   sharedTargetsAcrossGroups,
+  toggleFileSelection,
 } from '../lib/converterGroups';
 import {
   applyWorkspaceEvent,
@@ -76,6 +86,9 @@ export default function ConverterView({ notify }) {
   const [hideCompleted, setHideCompleted] = useState(false);
   const [hiddenResultIds, setHiddenResultIds] = useState(() => []);
   const [zipBusy, setZipBusy] = useState(false);
+  const [selectedGroupId, setSelectedGroupId] = useState(null);
+  /** Multi-select within/across groups for Convert selected */
+  const [selectedFileIds, setSelectedFileIds] = useState(() => new Set());
   const submitGuard = useRef(new Set()); // groupKey|format in-flight
   const jobGroupKeysRef = useRef(new Map()); // jobId -> group id
   const activeJobsRef = useRef(activeJobs);
@@ -281,6 +294,42 @@ export default function ConverterView({ notify }) {
       ),
     [batchStageFiles],
   );
+
+  useEffect(() => {
+    if (!grouping.groups.length) {
+      setSelectedGroupId(null);
+      return;
+    }
+    if (!selectedGroupId || !grouping.groups.some((g) => g.id === selectedGroupId)) {
+      setSelectedGroupId(grouping.groups[0].id);
+    }
+  }, [grouping.groups, selectedGroupId]);
+
+  const selectedGroup = useMemo(
+    () => grouping.groups.find((g) => g.id === selectedGroupId) || grouping.groups[0] || null,
+    [grouping.groups, selectedGroupId],
+  );
+
+  // Drop selection for files that left the batch stage
+  useEffect(() => {
+    const alive = new Set(batchStageFiles.map((f) => String(f.id)));
+    setSelectedFileIds((prev) => {
+      let changed = false;
+      const next = new Set();
+      for (const id of prev) {
+        if (alive.has(String(id))) next.add(String(id));
+        else changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [batchStageFiles]);
+
+  const selectionOutputs = useMemo(
+    () => outputsForSelectedFiles(batchStageFiles, selectedFileIds),
+    [batchStageFiles, selectedFileIds],
+  );
+
+  const runProgress = useMemo(() => aggregateJobProgress(activeJobs), [activeJobs]);
 
   // Ensure each group has settings once detected
   useEffect(() => {
@@ -706,56 +755,65 @@ export default function ConverterView({ notify }) {
     notify('Settings applied to compatible groups');
   };
 
-  const startGroupConvert = async (group) => {
-    const settings = groupSettings[group.id] || defaultGroupSettings(group);
-    if (!canConvertGroup(group, settings)) {
-      notify('Choose a valid output format for this group');
-      return;
-    }
-    const guardKey = `${group.id}|${settings.format}|${group.fileIds.join(',')}`;
+  /**
+   * Queue one converter job for explicit file ids + format.
+   * Shared by Convert group / Convert selected / Convert all.
+   */
+  const queueConvertJob = async ({
+    groupId,
+    fileIds,
+    format,
+    quality = 'balanced',
+    preserveMetadata = true,
+    inputFormat = null,
+    inputFamily = null,
+  }) => {
+    if (!fileIds?.length || !format) return null;
+    const guardKey = `${groupId || 'sel'}|${format}|${[...fileIds].sort().join(',')}`;
     if (submitGuard.current.has(guardKey)) {
       notify('Conversion already in progress for this selection');
-      return;
+      return null;
     }
     const jobs = [...(hydrated?.jobs || []), ...Object.values(activeJobs)];
     if (
       hasActiveDuplicateJob(jobs, {
-        uploadIds: group.fileIds,
-        format: settings.format,
+        uploadIds: fileIds,
+        format,
         type: 'converter',
       })
     ) {
       notify('A matching conversion is already queued or running');
-      return;
+      return null;
     }
 
     submitGuard.current.add(guardKey);
-    setConvertingKeys((prev) => new Set(prev).add(group.id));
+    if (groupId) {
+      setConvertingKeys((prev) => new Set(prev).add(groupId));
+    }
     try {
       const job = await api.createJob({
         type: 'converter',
-        uploadIds: group.fileIds,
+        uploadIds: fileIds,
         workspaceId,
         options: {
           operation: 'batch',
-          format: settings.format,
-          quality: settings.quality || 'balanced',
-          preserveMetadata: settings.preserveMetadata !== false,
-          _uploadIds: group.fileIds,
-          inputFormat: group.format,
-          inputFamily: group.family,
+          format,
+          quality: quality || 'balanced',
+          preserveMetadata: preserveMetadata !== false,
+          _uploadIds: fileIds,
+          inputFormat,
+          inputFamily,
         },
       });
-      jobGroupKeysRef.current.set(job.id, group.id);
+      if (groupId) jobGroupKeysRef.current.set(job.id, groupId);
       setActiveJobs((prev) => {
         const next = { ...prev, [job.id]: job };
         activeJobsRef.current = next;
         return next;
       });
-      // Mark group members as processing immediately
       setServerFiles((prev) => {
         let next = prev;
-        for (const fid of group.fileIds) {
+        for (const fid of fileIds) {
           next = upsertById(next, {
             id: fid,
             uiStatus: 'processing',
@@ -765,20 +823,101 @@ export default function ConverterView({ notify }) {
         }
         return next;
       });
+      return job;
+    } catch (err) {
+      notify(err.message || 'Could not start conversion');
+      if (groupId) {
+        setConvertingKeys((prev) => {
+          const n = new Set(prev);
+          n.delete(groupId);
+          return n;
+        });
+      }
+      return null;
+    } finally {
+      submitGuard.current.delete(guardKey);
+    }
+  };
+
+  const startGroupConvert = async (group) => {
+    const settings = groupSettings[group.id] || defaultGroupSettings(group);
+    if (!canConvertGroup(group, settings)) {
+      notify('Choose a valid output format for this group');
+      return;
+    }
+    const job = await queueConvertJob({
+      groupId: group.id,
+      fileIds: group.fileIds,
+      format: settings.format,
+      quality: settings.quality,
+      preserveMetadata: settings.preserveMetadata,
+      inputFormat: group.format,
+      inputFamily: group.family,
+    });
+    if (job) {
       notify(`Queued conversion → ${String(settings.format).toUpperCase()}`);
       const data = await refresh();
       if (data?.files) {
         setServerFiles((prev) => mergeWorkspaceSnapshot(prev, data.files || []));
       }
-    } catch (err) {
-      notify(err.message || 'Could not start conversion');
-      setConvertingKeys((prev) => {
-        const n = new Set(prev);
-        n.delete(group.id);
-        return n;
-      });
-    } finally {
-      submitGuard.current.delete(guardKey);
+    }
+  };
+
+  const startSelectedConvert = async () => {
+    if (!selectedFileIds.size) {
+      notify('Select one or more files to convert');
+      return;
+    }
+    const settings = selectedGroup
+      ? groupSettings[selectedGroup.id] || defaultGroupSettings(selectedGroup)
+      : { format: selectionOutputs.find((o) => o.available)?.format, quality: 'balanced', preserveMetadata: true };
+    const format = settings.format || selectionOutputs.find((o) => o.available)?.format;
+    const plan = buildConvertSelectionPlan(batchStageFiles, selectedFileIds, format, settings);
+    if (!plan) {
+      notify('Selected files do not share a compatible output format');
+      return;
+    }
+    // Infer group id when all selected belong to one group
+    let groupId = null;
+    if (selectedGroup && plan.fileIds.every((id) => selectedGroup.fileIds.includes(id))) {
+      groupId = selectedGroup.id;
+    }
+    const first = batchStageFiles.find((f) => String(f.id) === String(plan.fileIds[0]));
+    const job = await queueConvertJob({
+      groupId,
+      fileIds: plan.fileIds,
+      format: plan.format,
+      quality: plan.quality,
+      preserveMetadata: plan.preserveMetadata,
+      inputFormat: first?.detect?.format || null,
+      inputFamily: first?.detect?.family || null,
+    });
+    if (job) {
+      notify(`Queued ${plan.fileIds.length} selected file(s) → ${String(plan.format).toUpperCase()}`);
+      const data = await refresh();
+      if (data?.files) {
+        setServerFiles((prev) => mergeWorkspaceSnapshot(prev, data.files || []));
+      }
+    }
+  };
+
+  const startConvertAll = async () => {
+    const plans = buildConvertAllPlans(grouping.groups, groupSettings);
+    if (!plans.length) {
+      notify('No groups have a valid output format');
+      return;
+    }
+    let queued = 0;
+    for (const plan of plans) {
+      const job = await queueConvertJob(plan);
+      if (job) queued += 1;
+    }
+    if (queued) {
+      notify(`Queued ${queued} group conversion(s)`);
+      const data = await refresh();
+      if (data?.files) {
+        setServerFiles((prev) => mergeWorkspaceSnapshot(prev, data.files || []));
+      }
     }
   };
 
@@ -845,6 +984,7 @@ export default function ConverterView({ notify }) {
     activeJobsRef.current = {};
     setActiveJobs({});
     setSelectedResultIds(new Set());
+    setSelectedFileIds(new Set());
     setHideCompleted(false);
     setHiddenResultIds([]);
     notify('Workspace cleared');
@@ -858,6 +998,7 @@ export default function ConverterView({ notify }) {
     activeJobsRef.current = {};
     setActiveJobs({});
     setSelectedResultIds(new Set());
+    setSelectedFileIds(new Set());
     setHideCompleted(false);
     setHiddenResultIds([]);
     notify('New workspace started');
@@ -1074,11 +1215,12 @@ export default function ConverterView({ notify }) {
 
   if (workspaceLoading && !hydratedOnce) {
     return (
-      <div className="view-stack">
-        <PageIntro
-          eyebrow="Tools / Universal Converter"
+      <div className="view-stack conversion-board">
+        <WorkspaceHeader
+          meta="Core tools / Converter"
           title="Restoring workspace…"
           description="Loading files, groups, jobs, and outputs from SQLite."
+          family="converter"
         />
         <article className="surface-card content-card">
           <p className="helper-note">Please wait while we hydrate your session…</p>
@@ -1088,11 +1230,18 @@ export default function ConverterView({ notify }) {
   }
 
   return (
-    <div className="view-stack converter-pro">
-      <PageIntro
-        eyebrow="Tools / Universal Converter"
-        title="Convert almost any common file."
-        description="Auto-detects formats, groups compatible files, and keeps results in SQLite across reloads."
+    <div className="view-stack converter-pro conversion-board family-converter" data-testid="conversion-board">
+      <WorkspaceHeader
+        meta="Core tools / Converter"
+        title="Conversion board"
+        description="Files and detected groups are the primary surface. Targets, engines, and results stay contextual."
+        family="converter"
+        status={(
+          <StatusBadge tone="purple">
+            {displayCount} file{displayCount === 1 ? '' : 's'}
+            {anyBusy ? ' · busy' : ''}
+          </StatusBadge>
+        )}
         actions={
           <>
             <SecondaryButton icon="trash" onClick={onClear} disabled={anyBusy}>
@@ -1112,224 +1261,367 @@ export default function ConverterView({ notify }) {
         }
       />
 
-      <section className="workspace-grid">
-        <div className="workspace-primary">
-          {/* Step 1: Inputs */}
-          <article className="surface-card content-card">
-            <div className="card-heading compact-heading">
-              <div>
-                <p className="eyebrow">Step 01</p>
-                <h3>Input files</h3>
-              </div>
-              <StatusBadge tone="cyan">
-                {displayCount} file{displayCount === 1 ? '' : 's'}
-                {uploadingCount ? ` · ${uploadingCount} uploading` : ''}
-                {saving ? ' · saving' : ''}
-              </StatusBadge>
-            </div>
-
-            {inputStageFiles.length > 0 ? (
-              <div className="file-queue-list" style={{ marginBottom: 12 }}>
-                {inputStageFiles.map((f) => (
-                  <FileInputCard
-                    key={f.id}
-                    file={f}
-                    job={f.jobId ? activeJobs[f.jobId] : null}
-                    onRemove={() => onRemoveServerFile(f.id)}
-                    removeDisabled={anyBusy && !f.localOnly}
-                    onPause={uploadControllersRef.current.has(f.id) ? () => pauseLocalUpload(f.id) : null}
-                    onResume={uploadControllersRef.current.has(f.id) ? () => restartLocalUpload(f.id) : null}
-                    onRetry={uploadControllersRef.current.has(f.id) ? () => restartLocalUpload(f.id) : null}
-                    onCancel={f.localOnly && f.uploadSessionId ? () => cancelLocalUpload(f) : null}
-                  />
-                ))}
-              </div>
-            ) : null}
-
-            <FilePicker
-              files={[]}
-              onChange={(next) => {
-                // files=[] so `next` is only the newly chosen File objects
-                void startUploads(next);
-              }}
-              disabled={false}
-              title={inputStageFiles.length || batchStageFiles.length ? 'Add more files' : 'Drop source files here'}
-            />
-            <input
-              id="converter-add-input"
-              type="file"
-              multiple
-              hidden
-              onChange={(e) => {
-                if (e.target.files?.length) {
-                  void startUploads(Array.from(e.target.files));
-                }
-                e.target.value = '';
-              }}
-            />
-            {grouping.unsupported.length > 0 ? (
-              <div className="converter-unsupported" role="alert">
-                <strong>Unsupported files</strong>
-                <ul>
-                  {grouping.unsupported.map((f) => (
-                    <li key={f.id}>
-                      {f.originalName} — {unsupportedFileMessage(f)}
-                      <button type="button" className="linkish" onClick={() => onRemoveServerFile(f.id)}>
-                        Remove
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-            <p className="helper-note" style={{ marginTop: 8 }}>
-              Workspace {workspaceId ? workspaceId.slice(0, 8) : '…'} · mode: {grouping.mode}
-              {sharedTargets.length > 1 && grouping.mode === 'mixed'
-                ? ` · shared targets: ${sharedTargets
-                    .slice(0, 4)
-                    .map((o) => o.format)
-                    .join(', ')}`
-                : ''}
-            </p>
-          </article>
-
-          {/* Step 2: Groups / batch panels */}
-          {grouping.groups.map((group) => {
-            const settings = groupSettings[group.id] || defaultGroupSettings(group);
-            const busyGroup = convertingKeys.has(group.id);
-            const outputs = (group.outputs || []).filter((o) => o.available);
-            const unavailable = (group.outputs || []).filter((o) => !o.available);
-            const selectedEngine = engineForOutput(group, settings.format);
-            return (
-              <article className="surface-card content-card converter-group-card" key={group.id}>
-                <div className="card-heading compact-heading">
-                  <div>
-                    <p className="eyebrow">
-                      {grouping.mode === 'batch' ? 'Batch convert' : 'Format group'}
-                    </p>
-                    <h3>{group.label}</h3>
-                  </div>
-                  <StatusBadge tone="blue">
-                    {group.fileIds.length} file{group.fileIds.length === 1 ? '' : 's'} · {selectedEngine}
-                  </StatusBadge>
-                </div>
-
+      <WorkbenchLayout
+        family="converter"
+        className="conversion-board-layout"
+        stage={(
+          <>
+            <Panel
+              title="File stage"
+              actions={(
+                <StatusBadge tone="cyan">
+                  {displayCount} file{displayCount === 1 ? '' : 's'}
+                  {uploadingCount ? ` · ${uploadingCount} uploading` : ''}
+                  {saving ? ' · saving' : ''}
+                </StatusBadge>
+              )}
+            >
+              {inputStageFiles.length > 0 ? (
                 <div className="file-queue-list" style={{ marginBottom: 12 }}>
-                  {group.members.map((f) => (
+                  {inputStageFiles.map((f) => (
                     <FileInputCard
                       key={f.id}
                       file={f}
                       job={f.jobId ? activeJobs[f.jobId] : null}
-                      compact
-                      onRemove={null}
+                      onRemove={() => onRemoveServerFile(f.id)}
+                      removeDisabled={anyBusy && !f.localOnly}
+                      onPause={uploadControllersRef.current.has(f.id) ? () => pauseLocalUpload(f.id) : null}
+                      onResume={uploadControllersRef.current.has(f.id) ? () => restartLocalUpload(f.id) : null}
+                      onRetry={uploadControllersRef.current.has(f.id) ? () => restartLocalUpload(f.id) : null}
+                      onCancel={f.localOnly && f.uploadSessionId ? () => cancelLocalUpload(f) : null}
                     />
                   ))}
                 </div>
+              ) : null}
 
-                <div className="form-grid">
-                  <SelectField
-                    label="Output format"
-                    value={settings.format || ''}
-                    onChange={(e) => updateGroupSetting(group.id, { format: e.target.value })}
-                  >
-                    {!outputs.length ? (
-                      <option value="">No compatible outputs</option>
-                    ) : (
-                      outputs.map((o) => (
-                        <option key={o.format} value={o.format}>
-                          {o.label}
-                          {o.format === group.recommendedOutput ? ' (recommended)' : ''}
-                        </option>
-                      ))
-                    )}
-                  </SelectField>
-                  <SelectField
-                    label="Quality"
-                    value={settings.quality || 'balanced'}
-                    onChange={(e) => updateGroupSetting(group.id, { quality: e.target.value })}
-                  >
-                    <option value="fast">Fast</option>
-                    <option value="balanced">Balanced</option>
-                    <option value="high">High quality</option>
-                  </SelectField>
+              <FilePicker
+                files={[]}
+                onChange={(next) => {
+                  void startUploads(next);
+                }}
+                disabled={false}
+                title={inputStageFiles.length || batchStageFiles.length ? 'Add more files' : 'Drop source files here'}
+              />
+              <input
+                id="converter-add-input"
+                type="file"
+                multiple
+                hidden
+                onChange={(e) => {
+                  if (e.target.files?.length) {
+                    void startUploads(Array.from(e.target.files));
+                  }
+                  e.target.value = '';
+                }}
+              />
+              {grouping.unsupported.length > 0 ? (
+                <div className="converter-unsupported" role="alert">
+                  <strong>Unsupported files</strong>
+                  <ul>
+                    {grouping.unsupported.map((f) => (
+                      <li key={f.id}>
+                        {f.originalName} - {unsupportedFileMessage(f)}
+                        <button type="button" className="linkish" onClick={() => onRemoveServerFile(f.id)}>
+                          Remove
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                {unavailable.length > 0 ? (
-                  <p className="helper-note" style={{ marginTop: 8 }}>
-                    Unavailable: {unavailable
-                      .slice(0, 4)
-                      .map((o) => `${o.label}${o.profile ? ` [${o.profile} profile]` : ''}`)
-                      .join(', ')}
-                    {unavailable[0]?.reason ? ` — ${unavailable[0].reason}` : ''}
-                  </p>
-                ) : null}
-                <div className="toggle-stack" style={{ marginTop: 10 }}>
-                  <ToggleRow
-                    title="Preserve metadata"
-                    description="Keep supported EXIF/document fields when the encoder allows."
-                    checked={settings.preserveMetadata !== false}
-                    onChange={(e) =>
-                      updateGroupSetting(group.id, { preserveMetadata: e.target.checked })
-                    }
-                  />
+              ) : null}
+              <p className="helper-note" style={{ marginTop: 8 }}>
+                Workspace {workspaceId ? workspaceId.slice(0, 8) : '…'} · mode: {grouping.mode}
+              </p>
+            </Panel>
+
+            <Panel title="Detected groups" actions={<StatusBadge tone="purple">{grouping.groups.length}</StatusBadge>}>
+              {!grouping.groups.length ? (
+                <EmptyState
+                  type="converted"
+                  compact
+                  title="No convertible groups yet"
+                  description="Upload supported files. Groups appear when detection finishes."
+                />
+              ) : (
+                <div className="converter-group-list" role="listbox" aria-label="Conversion groups">
+                  {grouping.groups.map((group) => {
+                    const settings = groupSettings[group.id] || defaultGroupSettings(group);
+                    const busyGroup = convertingKeys.has(group.id);
+                    const selectedEngine = engineForOutput(group, settings.format);
+                    return (
+                      <FileRow
+                        key={group.id}
+                        name={group.label}
+                        meta={`${group.fileIds.length} file(s) · ${selectedEngine || 'engine'} · ${settings.format || '—'}`}
+                        status={busyGroup ? 'converting' : 'ready'}
+                        selected={selectedGroup?.id === group.id}
+                        onSelect={() => setSelectedGroupId(group.id)}
+                        leading={<Icon name="layers" size={18} />}
+                      />
+                    );
+                  })}
                 </div>
-                <div className="converter-group-actions">
-                  <PrimaryButton
-                    icon="swap"
-                    onClick={() => startGroupConvert(group)}
-                    disabled={busyGroup || !canConvertGroup(group, settings)}
-                  >
-                    {busyGroup ? 'Converting…' : `Convert ${group.fileIds.length > 1 ? 'group' : 'file'}`}
-                  </PrimaryButton>
-                  {busyGroup ? (
-                    <SecondaryButton icon="close" onClick={() => cancelGroupJobs(group)}>
-                      Cancel
+              )}
+              {selectedGroup ? (
+                <div className="file-queue-list converter-member-select" style={{ marginTop: 12 }}>
+                  <div className="converted-actions" style={{ marginBottom: 8 }}>
+                    <SecondaryButton
+                      icon="check"
+                      onClick={() =>
+                        setSelectedFileIds((prev) => setGroupFileSelection(prev, selectedGroup, true))
+                      }
+                    >
+                      Select group files
                     </SecondaryButton>
+                    <SecondaryButton
+                      icon="close"
+                      onClick={() =>
+                        setSelectedFileIds((prev) => setGroupFileSelection(prev, selectedGroup, false))
+                      }
+                    >
+                      Clear selection
+                    </SecondaryButton>
+                    <StatusBadge tone="cyan">
+                      {selectedFileIds.size} selected
+                    </StatusBadge>
+                  </div>
+                  {selectedGroup.members.map((f) => {
+                    const checked = selectedFileIds.has(String(f.id));
+                    return (
+                      <label
+                        key={f.id}
+                        className={`converter-file-select-row${checked ? ' is-selected' : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() =>
+                            setSelectedFileIds((prev) => toggleFileSelection(prev, f.id))
+                          }
+                          aria-label={`Select ${f.originalName || f.id}`}
+                        />
+                        <FileInputCard
+                          file={f}
+                          job={f.jobId ? activeJobs[f.jobId] : null}
+                          compact
+                          onRemove={null}
+                        />
+                      </label>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </Panel>
+
+            {batchStageFiles.some(
+              (f) => f.uiStatus === 'conversion-failed' || f.uiStatus === 'cancelled',
+            ) ? (
+              <Panel title="Needs attention">
+                <div className="file-queue-list">
+                  {batchStageFiles
+                    .filter(
+                      (f) => f.uiStatus === 'conversion-failed' || f.uiStatus === 'cancelled',
+                    )
+                    .map((f) => (
+                      <FileInputCard
+                        key={`batch-fail-${f.id}`}
+                        file={f}
+                        job={f.jobId ? activeJobs[f.jobId] : null}
+                        onRemove={() => onRemoveServerFile(f.id)}
+                        removeDisabled={false}
+                      />
+                    ))}
+                </div>
+              </Panel>
+            ) : null}
+          </>
+        )}
+        rail={(
+          <Panel title={selectedGroup ? `Target · ${selectedGroup.label}` : 'Target settings'}>
+            {!selectedGroup ? (
+              <p className="workspace-description" style={{ margin: 0 }}>Select a detected group to configure output format and engine.</p>
+            ) : (() => {
+              const group = selectedGroup;
+              const settings = groupSettings[group.id] || defaultGroupSettings(group);
+              const outputs = (group.outputs || []).filter((o) => o.available);
+              const unavailable = (group.outputs || []).filter((o) => !o.available);
+              const selectedEngine = engineForOutput(group, settings.format);
+              const optionMeta = (group.outputs || []).find(
+                (o) => o.available && o.format === settings.format,
+              );
+              const schema = settingsSchemaForEngine(selectedEngine, group.family);
+              const showQuality = schema.some((s) => s.id === 'quality');
+              const showMeta = schema.some((s) => s.id === 'preserveMetadata');
+              return (
+                <>
+                  <div className="preview-info-list engine-summary" style={{ marginBottom: 12 }} data-testid="engine-summary">
+                    <div><span>Engine</span><strong>{selectedEngine || '—'}</strong></div>
+                    <div><span>Profile</span><strong>{optionMeta?.engine?.profile || optionMeta?.profile || '—'}</strong></div>
+                    <div><span>Cost</span><strong>{optionMeta?.engine?.cost || '—'}</strong></div>
+                    <div><span>Group files</span><strong>{group.fileIds.length}</strong></div>
+                    <div><span>Selected files</span><strong>{selectedFileIds.size}</strong></div>
+                  </div>
+                  {optionMeta?.engines?.length > 1 ? (
+                    <p className="helper-note" style={{ marginBottom: 8 }}>
+                      Fallbacks: {optionMeta.engines.map((e) => e.name).join(' → ')}
+                    </p>
+                  ) : null}
+                  <div className="form-grid">
+                    <SelectField
+                      label="Output format"
+                      value={settings.format || ''}
+                      onChange={(e) => updateGroupSetting(group.id, { format: e.target.value })}
+                    >
+                      {!outputs.length ? (
+                        <option value="">No compatible outputs</option>
+                      ) : (
+                        outputs.map((o) => (
+                          <option key={o.format} value={o.format}>
+                            {o.label}
+                            {o.format === group.recommendedOutput ? ' (recommended)' : ''}
+                            {o.lossy ? ' (lossy)' : ''}
+                            {o.experimental ? ' (experimental)' : ''}
+                          </option>
+                        ))
+                      )}
+                    </SelectField>
+                    {showQuality ? (
+                      <SelectField
+                        label="Quality"
+                        value={settings.quality || 'balanced'}
+                        onChange={(e) => updateGroupSetting(group.id, { quality: e.target.value })}
+                      >
+                        <option value="fast">Fast</option>
+                        <option value="balanced">Balanced</option>
+                        <option value="high">High quality</option>
+                      </SelectField>
+                    ) : null}
+                  </div>
+                  {unavailable.length > 0 ? (
+                    <div className="converter-unavailable-panel" role="status" style={{ marginTop: 8 }}>
+                      <p className="helper-note">
+                        Unavailable: {unavailable
+                          .slice(0, 4)
+                          .map((o) => `${o.label}${o.profile ? ` [${o.profile} profile]` : ''}`)
+                          .join(', ')}
+                        {unavailable[0]?.reason ? ` - ${unavailable[0].reason}` : ''}
+                      </p>
+                    </div>
+                  ) : null}
+                  {showMeta ? (
+                    <div className="toggle-stack" style={{ marginTop: 10 }}>
+                      <ToggleRow
+                        title="Preserve metadata"
+                        description="Only when the selected encoder supports it."
+                        checked={settings.preserveMetadata !== false}
+                        onChange={(e) =>
+                          updateGroupSetting(group.id, { preserveMetadata: e.target.checked })
+                        }
+                      />
+                    </div>
                   ) : null}
                   {grouping.groups.length > 1 ? (
-                    <SecondaryButton icon="copy" onClick={() => onApplySettings(group.id)}>
-                      Apply settings to compatible
-                    </SecondaryButton>
+                    <div style={{ marginTop: 12 }}>
+                      <SecondaryButton icon="copy" onClick={() => onApplySettings(group.id)}>
+                        Apply settings to compatible
+                      </SecondaryButton>
+                    </div>
                   ) : null}
-                </div>
-              </article>
-            );
-          })}
-
-          {/* Batch: conversion-failed / cancelled (not in convertible groups) */}
-          {batchStageFiles.some(
-            (f) => f.uiStatus === 'conversion-failed' || f.uiStatus === 'cancelled',
-          ) ? (
-            <article className="surface-card content-card">
-              <div className="card-heading compact-heading">
-                <div>
-                  <p className="eyebrow">Batch</p>
-                  <h3>Needs attention</h3>
-                </div>
+                </>
+              );
+            })()}
+            <div className="summary-list" style={{ marginTop: 16 }}>
+              <div><span>Session files</span><strong>{serverFiles.filter((f) => !f.localOnly).length}</strong></div>
+              <div><span>Groups</span><strong>{grouping.groups.length}</strong></div>
+              <div><span>Results</span><strong>{resultRows.length}</strong></div>
+              <div>
+                <span>Active jobs</span>
+                <strong>
+                  {Object.values(activeJobs).filter((j) => ['queued', 'running'].includes(j.status)).length}
+                </strong>
               </div>
-              <div className="file-queue-list">
-                {batchStageFiles
-                  .filter(
-                    (f) => f.uiStatus === 'conversion-failed' || f.uiStatus === 'cancelled',
+            </div>
+          </Panel>
+        )}
+        runbar={(
+          <>
+            <div className="job-row-main">
+              <strong>{selectedGroup ? selectedGroup.label : 'Conversion board'}</strong>
+              <span>
+                {anyBusy
+                  ? runProgress.label
+                  : selectedFileIds.size
+                    ? `${selectedFileIds.size} file(s) selected`
+                    : selectedGroup
+                      ? 'Ready — convert selected files, this group, or all groups'
+                      : 'Add files to begin'}
+              </span>
+              {anyBusy ? (
+                <ProgressWave
+                  value={runProgress.value}
+                  indeterminate={runProgress.indeterminate}
+                  label={runProgress.label}
+                />
+              ) : null}
+            </div>
+            <div className="hero-button-row converter-runbar-actions">
+              {selectedGroup && convertingKeys.has(selectedGroup.id) ? (
+                <SecondaryButton icon="close" onClick={() => cancelGroupJobs(selectedGroup)}>Cancel</SecondaryButton>
+              ) : null}
+              <SecondaryButton
+                icon="swap"
+                onClick={() => void startSelectedConvert()}
+                disabled={
+                  !selectedFileIds.size ||
+                  anyBusy ||
+                  !canConvertSelection(
+                    batchStageFiles,
+                    selectedFileIds,
+                    (selectedGroup
+                      ? groupSettings[selectedGroup.id] || defaultGroupSettings(selectedGroup)
+                      : {}
+                    ).format || selectionOutputs.find((o) => o.available)?.format,
                   )
-                  .map((f) => (
-                    <FileInputCard
-                      key={`batch-fail-${f.id}`}
-                      file={f}
-                      job={f.jobId ? activeJobs[f.jobId] : null}
-                      onRemove={() => onRemoveServerFile(f.id)}
-                      removeDisabled={false}
-                    />
-                  ))}
-              </div>
-            </article>
-          ) : null}
-
-          {/* Step 3: Converted Files */}
-          <article className="surface-card content-card converted-results">
+                }
+              >
+                Convert selected
+              </SecondaryButton>
+              <PrimaryButton
+                icon="layers"
+                onClick={() => selectedGroup && void startGroupConvert(selectedGroup)}
+                disabled={
+                  !selectedGroup ||
+                  convertingKeys.has(selectedGroup.id) ||
+                  !canConvertGroup(
+                    selectedGroup,
+                    groupSettings[selectedGroup.id] || defaultGroupSettings(selectedGroup),
+                  )
+                }
+                busy={selectedGroup ? convertingKeys.has(selectedGroup.id) : false}
+              >
+                Convert group
+              </PrimaryButton>
+              <SecondaryButton
+                icon="play"
+                onClick={() => void startConvertAll()}
+                disabled={
+                  !grouping.groups.length ||
+                  anyBusy ||
+                  !buildConvertAllPlans(grouping.groups, groupSettings).length
+                }
+              >
+                Convert all
+              </SecondaryButton>
+            </div>
+          </>
+        )}
+        footer={(
+          <ResultPanel title="Converted files">
+            <div className="converted-results">
             <div className="card-heading compact-heading">
               <div>
-                <p className="eyebrow">Step 03</p>
-                <h3>Converted files</h3>
+                <p className="eyebrow">Results</p>
+                <h3>Output management</h3>
               </div>
               <StatusBadge tone="neutral">{visibleResults.length} results</StatusBadge>
             </div>
@@ -1535,43 +1827,10 @@ export default function ConverterView({ notify }) {
                 ))}
               </div>
             )}
-          </article>
-        </div>
-
-        <aside className="workspace-sidebar">
-          <article className="surface-card content-card sticky-card">
-            <p className="eyebrow">Session summary</p>
-            <h3>{anyBusy ? 'Working…' : displayCount ? 'Ready' : 'Add files to begin'}</h3>
-            <div className="summary-list">
-              <div>
-                <span>Files</span>
-                <strong>{serverFiles.filter((f) => !f.localOnly).length}</strong>
-              </div>
-              <div>
-                <span>Groups</span>
-                <strong>{grouping.groups.length}</strong>
-              </div>
-              <div>
-                <span>Results</span>
-                <strong>{resultRows.length}</strong>
-              </div>
-              <div>
-                <span>Active jobs</span>
-                <strong>
-                  {Object.values(activeJobs).filter((j) => ['queued', 'running'].includes(j.status)).length}
-                </strong>
-              </div>
             </div>
-            <div className="estimate-box">
-              <Icon name="clock" />
-              <div>
-                <strong>SQLite persistence</strong>
-                <span>Files, settings, jobs & outputs restore after reload</span>
-              </div>
-            </div>
-          </article>
-        </aside>
-      </section>
+          </ResultPanel>
+        )}
+      />
     </div>
   );
 }

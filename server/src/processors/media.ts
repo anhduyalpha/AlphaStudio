@@ -112,20 +112,47 @@ export async function processMedia(ctx: ProcessContext): Promise<ProcessResult> 
     const start = String(ctx.options.start || '0');
     const duration = ctx.options.duration != null ? String(ctx.options.duration) : undefined;
     const end = ctx.options.end != null ? String(ctx.options.end) : undefined;
-    const ext = path.extname(ctx.inputNames[0] || ctx.inputPaths[0]) || '.mp4';
+    const forceReencode = Boolean(ctx.options.reencode || ctx.options.forceReencode);
+    // Default stream-copy preserves container; opt-in re-encode applies format/quality
+    if (!forceReencode) {
+      const ext = path.extname(ctx.inputNames[0] || ctx.inputPaths[0]) || '.mp4';
+      const outName = randomServerName(ext);
+      const outputPath = path.join(ctx.outputDir, outName);
+      const args = safeFfmpegInputArgs();
+      args.push('-ss', start, '-i', ctx.inputPaths[0]);
+      if (duration) args.push('-t', duration);
+      else if (end) args.push('-to', end);
+      args.push('-c', 'copy');
+      pushMetadataArgs(args, ctx.options);
+      args.push(outputPath);
+      await runFfmpeg(ffmpeg, ffprobe, args, outputPath, ctx);
+      ctx.onProgress(100, 'Trimmed');
+      return finishMedia(outputPath, `trimmed${ext}`, ext, { quality: qualityPreset, streamCopy: true });
+    }
+
+    const format = String(
+      ctx.options.format || path.extname(ctx.inputNames[0] || ctx.inputPaths[0] || '').slice(1) || (family === 'audio' ? 'mp3' : 'mp4'),
+    ).toLowerCase();
+    const ext = `.${format}`;
     const outName = randomServerName(ext);
     const outputPath = path.join(ctx.outputDir, outName);
-    // Stream-copy trim — no re-encode
     const args = safeFfmpegInputArgs();
     args.push('-ss', start, '-i', ctx.inputPaths[0]);
     if (duration) args.push('-t', duration);
     else if (end) args.push('-to', end);
-    args.push('-c', 'copy');
+    const audioFmts = ['mp3', 'wav', 'flac', 'aac', 'ogg', 'opus', 'm4a', 'wma'];
+    const isAudioOut = audioFmts.includes(format) || family === 'audio';
+    if (isAudioOut) {
+      pushAudioEncodeArgs(args, format, audioQ);
+      args.push('-vn');
+    } else {
+      pushVideoEncodeArgs(args, format, videoQ, audioQ, qualityPreset);
+    }
     pushMetadataArgs(args, ctx.options);
     args.push(outputPath);
     await runFfmpeg(ffmpeg, ffprobe, args, outputPath, ctx);
-    ctx.onProgress(100, 'Trimmed');
-    return finishMedia(outputPath, `trimmed${ext}`, ext, { quality: qualityPreset, streamCopy: true });
+    ctx.onProgress(100, 'Trimmed (re-encoded)');
+    return finishMedia(outputPath, `trimmed${ext}`, ext, { quality: qualityPreset, streamCopy: false });
   }
 
   if (op === 'transcode' || op === 'convert') {
