@@ -7,30 +7,35 @@
 
 ---
 
-## Exact SHAs (at report authoring; re-verify after push)
+## Exact SHAs
 
 | Ref | SHA |
 |-----|-----|
-| Pre-closeout tip (CP04 pin) | `9b9bf43ef5a7dc6876cb4c79d298da7854e27005` |
+| **Stabilize tip (verified local == remote)** | `c49d40c94feff5782f23de675116414e8ba9e902` |
+| Closeout product content (CP6/a11y/backup/archiver8) | `ecd69f8d48fea0d80f0463d7128cf8cd7d0619b4` |
+| Pre-closeout CP04 pin | `9b9bf43ef5a7dc6876cb4c79d298da7854e27005` |
 | CP04 content | `cb01099a1a1c2a9b3f6beda466c7ed14159174d8` |
 | origin/main (unchanged) | `ed460ee763663eef3f0aae9080eeb5e15c68fe1c` |
 | origin/ux-ui-redesign (preserved) | `d03497f77083a42e6461db34fb24724f8e76854d` |
-| Closeout content tip | `ecd69f8d48fea0d80f0463d7128cf8cd7d0619b4` |
-| Closeout tip (docs pin) | `c0ade1763a999cd6978db5a9805ac345ad794c2d` |
 
-**Topology:** stabilize is **+19 commits from main before this closeout commit**; redesign remains **+37** unmerged. Do **not** auto-merge.
+**Remote CI on tip `c49d40c`:** success — [run 30142071549](https://github.com/anhduyalpha/AlphaStudio/actions/runs/30142071549) (`CI / core-ubuntu`).
+
+**Topology:** stabilize tip is ahead of main (closeout family); redesign remains **+37** unmerged. Do **not** auto-merge.
+
+*If a later docs-only pin advances the tip after this file is committed, re-verify with `git rev-parse HEAD` / `@{u}` and the latest Actions run on that SHA. Product content remains `ecd69f8`.*
 
 ---
 
-## Environment matrix
+## Environment matrix (tip `c49d40c` / content `ecd69f8`)
 
 | Environment | Result | Evidence |
 |-------------|--------|----------|
-| Windows host Node ≥20 | typecheck / build / `npm test` 613/613 | `{SCRATCH}/gates/*-final.txt` |
-| Linux GitHub Actions `CI / core-ubuntu` | green on `9b9bf43` (pre-closeout tip) | run `30118714453` |
-| Clean-clone (post-push re-proof recommended) | prior CP01 + this branch hygiene tests green | hygiene + maint |
-| Docker compose (project `alphastudio-rc`) | build/up/health/restart; `DB_PATH=/data/alphastudio.db` | `{SCRATCH}/rc-docker/*` |
-| Host RC (port 8797, isolated DATA_DIR) | cold start, text hash job completed, backup, restore mutation absent, job persisted, second restart healthy | `{SCRATCH}/rc-final/*` |
+| Windows host Node ≥20 | typecheck / build / `npm test` **613/613** | `{SCRATCH}/gates/npm-test-final.txt`, `typecheck-final.txt`, `build-archiver8.txt` |
+| Linux GitHub Actions `CI / core-ubuntu` | **green on tip `c49d40c`** | run **30142071549** |
+| Clean-clone at tip `c49d40c` | **PROVEN:** clone SHA match, `archiver@^8.0.0` → resolved **8.0.0**, `npm ci` + typecheck + build PASS | `{SCRATCH}/gates/clean-clone-{git,sha,ci,typecheck,build}.txt` under `clean-clone-c49d40c/` |
+| Docker compose (`alphastudio-rc`) | build/up/health/restart; `DATA_DIR=/data` + **`DB_PATH=/data/alphastudio.db`** | `{SCRATCH}/rc-docker/*` |
+| Host RC (primary) | cold start, text hash completed, backup, restart, job persisted | `{SCRATCH}/rc-final/*` |
+| Host RC mutation drill | **mutate after backup → restore → mutation ABSENT (`MUTATION_ABSENT_ASSERT=PASS`)**; job still `completed` | `{SCRATCH}/rc-mutation-drill/{04-mutation,05-restore,06-restart}.txt` |
 
 ---
 
@@ -41,13 +46,13 @@
 | Typecheck | `npm run typecheck` | PASS |
 | Build | `npm run build` | PASS |
 | Unit/integration | `npm test` | **613 pass / 0 fail / 0 skip** |
-| Maint | `npm run test:maint` | **36 pass** (includes backup.mjs) |
+| Maint | `npm run test:maint` | **36 pass** (includes `backup.mjs`) |
 | Hygiene | `npm run test:hygiene` | **7 pass** |
 | Audit | `npm audit` | **0 vulnerabilities** (archiver@8) |
-| Remote CI (closeout tip) | Actions run 30142010326 | success on `c0ade17` |
-| Remote CI (CP04 pin) | Actions run 30118714453 | success on `9b9bf43` |
-| Host RC | cold/start/convert/backup/restore/restart | PASS — `RESTORE_OK`, `persisted_job_status=completed` |
-| Docker RC | compose build/up/restart + volume tar | PASS — health healthy; volume backup 5687 bytes |
+| Remote CI (tip) | Actions | **success** run **30142071549** on `c49d40c` |
+| Clean-clone (tip) | `git clone` tip → `npm ci` → typecheck → build | PASS; archiver **8.0.0** |
+| Host mutation restore drill | backup → write marker → restore → assert marker gone → restart | **PASS** (`MUTATION_ABSENT_ASSERT=PASS`) |
+| Docker RC | compose build/up/restart + volume tar | PASS — health healthy; volume backup size 5687 |
 
 ---
 
@@ -61,28 +66,29 @@
 | CP02 | `deb2f2b` | YES |
 | CP03 | `f67e012` | YES |
 | CP04 | `cb01099` / pin `9b9bf43` | YES |
-| CP6 + ops closeout | this commit family | current tip |
+| CP06 content | `ecd69f8` | YES |
+| CP06 tip (docs + CI record) | `c49d40c` | YES (HEAD == remote at verification) |
 
-Handoffs under `docs/stabilize/handoffs/CP*.md`. Working tree was clean at preflight; local HEAD equalled remote for tip `9b9bf43` before closeout edits.
+Handoffs under `docs/stabilize/handoffs/CP*.md`.
 
 ---
 
-## Independent final reviews (current HEAD work)
+## Independent final reviews (against closeout work, not old audits alone)
 
 | Domain | Blocking? | Notes |
 |--------|-----------|-------|
 | (a) Git / architecture | No | Linear history; main frozen; redesign preserved |
-| (b) Tests / evidence | Fixed | Removed vacuous `\|\| true` asserts; full suite re-captured 613/0 |
+| (b) Tests / evidence | Fixed | Removed vacuous `\|\| true` asserts; full suite 613/0; clean-clone re-proven at tip |
 | (c) Security / deps | No | Local P0–P2 security register empty; formal boundaries retained |
 | (d) Deploy / migration / data | Fixed | Docker `DB_PATH` on volume |
 | (e) UX / a11y workflows | P1s fixed | Shell F1–F4 + nav P2s addressed |
-| (f) Backup / restore / rollback | Fixed + rehearsed | `npm run backup` + runbook + host restore drill |
+| (f) Backup / restore / rollback | Fixed + rehearsed | Script + runbook + **mutation-absent** restore drill |
 
 Review notes: `{SCRATCH}/reviews/01-*.md` … `06-*.md`.
 
 ---
 
-## Closeout repairs (this tip)
+## Closeout repairs (content `ecd69f8`)
 
 1. **CP6 a11y P1s:** command palette focus trap/restore; topbar `aria-label`; drawer Escape/trap/`aria-expanded`; Settings motion wired to `useMotionPreference`; skip link; route title; main focus; tabs keyboard; progressbar bounds; QR tabpanels.  
 2. **Backup/restore:** `scripts/maint/backup.mjs`, `npm run backup`, `docs/stabilize/backup-rollback.md`, unit test.  
@@ -134,9 +140,19 @@ See `docs/stabilize/backup-rollback.md`.
 
 | Drill | Result |
 |-------|--------|
-| Host backup + restore | `RESTORE_OK`; job still `completed` after restore restart |
+| Host backup + restore (primary RC) | Job still `completed` after restore restart (`rc-final`) |
+| Host **mutation-absent** drill | After backup, wrote `mutation-marker-AFTER-BACKUP.txt`; after restore **file absent** (`MUTATION_ABSENT_ASSERT=PASS`); restart health ok; same job `completed` (`rc-mutation-drill`) |
 | Docker volume tar | `alphastudio-rc_alphastudio-data` → tgz size 5687 |
-| Code rollback | git tip / rebuild; no stable tag created |
+| Code rollback | git tip / rebuild; **no stable tag created** |
+
+### Mutation drill sequence (recorded)
+
+1. Cold start + text hash job → `completed`  
+2. Stop server → `npm run backup` (DATA_DIR snapshot)  
+3. **Mutate:** create `mutation-marker-AFTER-BACKUP.txt` with unique token  
+4. Restore: replace DATA_DIR from backup  
+5. Assert: `mutation_exists_after_restore=False` → **PASS**  
+6. Restart → health healthy; pre-backup job still `completed`; mutation still absent  
 
 ---
 
