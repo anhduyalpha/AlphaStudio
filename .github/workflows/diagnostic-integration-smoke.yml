@@ -1,3 +1,4 @@
+# Temporary diagnostic workflow. Do not merge this branch.
 name: Diagnostic UX and stability integration
 
 on:
