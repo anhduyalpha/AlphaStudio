@@ -22,7 +22,7 @@ and the visual-judge subagent. Nothing waits on human review during the run.)
 | 5 | B2 | protocol/store.ts | blocked | unit-5-b2-protocol-store | — | 1,2 | spec-reviewer (step 7) stopped by user before reporting — gates 1-3 green on ac65603, branch pushed, nothing merged; evidence/unit-5.md; resume needs the spec review re-run or an explicit decision to skip it |
 | 6 | B3 | protocol/events.ts | todo | — | — | 2,5 | flagged: own detailed plan first (pairs with B2) |
 | 7 | B4 | protocol/uploads.ts | todo | — | — | 5 | |
-| 8 | C1 | Tokens and base styles | todo | — | — | — | |
+| 8 | C1 | Tokens and base styles | in-progress | unit-8-c1-tokens-base | — | — | |
 | 9 | C2 | Primitives I: controls and status | todo | — | — | 1,8 | state matrix auto-verified via gallery captures once D2 lands; until then judge verdicts run on this unit's own renders |
 | 10 | C3 | Primitives II: file and flow | todo | — | — | 9 | |
 | 11 | C4 | Primitives III: overlay and chrome | todo | — | — | 9 | |
