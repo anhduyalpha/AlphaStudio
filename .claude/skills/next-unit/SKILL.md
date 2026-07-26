@@ -1,6 +1,6 @@
 ---
 name: next-unit
-description: Execute exactly ONE work unit from PLAN.md end to end (select, scope, branch, implement, verify, review, PR, record), then stop. Driven headlessly by run-plan.cmd; all state lives in PROGRESS.md and git, never in session memory.
+description: Execute exactly ONE work unit from PLAN.md end to end (select, scope, branch, implement, verify with deterministic + visual gates, merge into rebuild), then stop. Driven headlessly by run-plan.cmd; all state lives in PROGRESS.md and git, never in session memory.
 disable-model-invocation: true
 ---
 
@@ -10,12 +10,17 @@ You are running headlessly (`claude -p`). Nobody can answer questions. Every
 decision you cannot make alone is a BLOCKED outcome, not a question. You do
 exactly one unit per invocation.
 
+**Branch model:** `main` is FROZEN (last known-good; hook-enforced). All work
+integrates into the `rebuild` branch. Unit branches fork from `rebuild` and
+merge back into `rebuild`. Only the final human-approved PR ever lands on main.
+
 ## Sentinel contract (run-plan.cmd parses your FINAL message)
 
 Your final message MUST end with exactly one sentinel on its own last line:
 
-- `DONE <n>` — unit n finished, PR open, PROGRESS.md updated and pushed.
-- `ALL-DONE` — no todo units remain.
+- `DONE <n>` — unit n merged into rebuild, PROGRESS.md updated and pushed.
+- `ALL-DONE` — no todo units remain (only printed AFTER the rebuild→main PR
+  of the "Finish" section is open).
 - `BLOCKED <n>: <one-line reason>` — unit n cannot proceed (also for a
   STALLED selection, using the lowest waiting unit's number).
 - `SPLIT <n>` — unit n is too large; a proposed breakdown precedes the sentinel.
@@ -26,118 +31,150 @@ message. One sentinel, last line, nothing after it.
 ## Protocol
 
 ### 0. Preflight
-- `git status --porcelain` must be clean and HEAD on `main`. A dirty tree or
-  detached/branch HEAD means a previous run died mid-flight: if the dirt is
-  only PROGRESS.md/.claude/allowed-paths.txt, commit it as
-  `progress: recover bookkeeping`; anything else → do not guess, print
-  `BLOCKED <n>: dirty working tree from interrupted run — run /plan-status` (use
-  the in-progress unit's number, or 0 if none) and stop.
-- `git pull --ff-only origin main` (tolerate offline failure; continue).
+- `git fetch origin` (tolerate offline). If branch `rebuild` does not exist:
+  `git checkout -b rebuild main` and `git push -u origin rebuild` (create it
+  BEFORE any other git work; never commit while on main — the hook denies it).
+- `git checkout rebuild`; `git status --porcelain` must be clean. If the dirt
+  is only PROGRESS.md / .claude/allowed-paths.txt / evidence/, commit it as
+  `progress: recover bookkeeping`; anything else → print
+  `BLOCKED <n>: dirty working tree from interrupted run — run /plan-status`
+  (use the in-progress unit's number, or 0 if none) and stop.
+- `git pull --ff-only origin rebuild` (tolerate offline failure; continue).
 
 ### 1. Select
 Run `node .claude/harness/select-unit.mjs`.
-- `ALL-DONE` → print `ALL-DONE` and stop.
+- `ALL-DONE` → go to the **Finish** section below.
 - `STALLED …` → print `BLOCKED <lowest-waiting-n>: <the stalled reason>` and stop.
-- `NEXT <n> <unit> <name>` → that is your unit. Also re-read its PROGRESS.md row
-  yourself and sanity-check status is `todo` and deps are `done`; trust the file
-  over the script if they disagree (then fix the script in a later, separate task — not now).
-
-If the selected row's status is `in-progress` (script/file mismatch), stop with
-`BLOCKED <n>: PROGRESS.md inconsistent — run /plan-status`.
+- `NEXT <n> <unit> <name>` → that is your unit. Re-read its PROGRESS.md row and
+  sanity-check status `todo` and deps `done`; the file wins over the script.
+  If they disagree → `BLOCKED <n>: PROGRESS.md inconsistent — run /plan-status`.
 
 ### 2. Mark in-progress
-Set the unit's row: status `in-progress`, branch `unit-<n>-<slug>` where
-`<slug>` = unit id lowercased + short kebab name (e.g. `unit-1-a1-client-test-harness`).
-Commit **that change alone** on `main`: `progress: start unit <n> (<id>)`.
-(Bookkeeping-only commits to PROGRESS.md / allowed-paths.txt are the one
-sanctioned direct-to-main exception; unit work itself never lands on main.)
+Set the unit's row: status `in-progress`, branch `unit-<n>-<slug>` (`<slug>` =
+unit id lowercased + short kebab name). Commit **that change alone** on
+`rebuild`: `progress: start unit <n> (<id>)`.
 
 ### 3. Scope
 Read the unit's **Files:** list in its PLAN.md section. Overwrite
 `.claude/allowed-paths.txt` with:
-- each declared file/dir from PLAN.md (one per line, repo-relative, `/` separators);
-- the unit's test locations per PLAN's standing allowance ("every unit may also
-  touch its own test files"): the client-test dirs A1 established for client
-  units, `server/tests/` for server units, `e2e/` for F2/F1 — as narrowly as sensible;
+- each declared file/dir from PLAN.md (repo-relative, `/` separators);
+- the unit's test locations per PLAN's standing allowance (client-test dirs
+  from A1, `server/tests/` for server units, `e2e/` for F2/F1 — narrowly);
 - `docs/plans/UNIT-<id>.md` if the unit is flagged for its own detailed plan
   (units 5, 6, 15, 17, 28);
-- `PROGRESS.md` (always-allowed anyway; listed for the human reader).
-Commit that change alone on `main`: `progress: scope unit <n>`.
-The scope-guard hook enforces this list on every Write/Edit; it also blocks
-modifying ANY existing test file, everywhere, unconditionally.
+- `PROGRESS.md` and `evidence/` (always-allowed anyway; listed for the reader).
+NEVER list `visual/baselines/`, `scripts/visual/config.mjs`, or `main` — the
+hooks deny them regardless. Commit on `rebuild`: `progress: scope unit <n>`.
 
 ### 4. Branch
-`git checkout -b unit-<n>-<slug>` from main.
+`git checkout -b unit-<n>-<slug>` from rebuild.
 
 ### 5. Implement
 - Read the unit's full PLAN.md section AND every SPEC.md section it cites.
-  PLAN cites, SPEC decides — on any wording difference SPEC.md wins.
-- If the unit is flagged for its own detailed plan (B2/B3, E1, E3, F1): first
-  write `docs/plans/UNIT-<id>.md` (goal, ordered steps, risk list, test plan),
-  then follow it.
+  SPEC.md wins on any wording difference.
+- Flagged units (B2/B3, E1, E3, F1): first write `docs/plans/UNIT-<id>.md`
+  (goal, ordered steps, risk list, test plan), then follow it.
 - Touch nothing outside the declared paths. Never modify or delete a test
-  file — write NEW test files where a unit's acceptance requires tests.
+  file — write NEW test files where acceptance requires them.
 - Where PLAN says "characterization/test first", write the failing test before
   the production change.
+- UI units must satisfy the capture contract in `scripts/visual/manifest.mjs`
+  (`html[data-shell="next"]` on the new shell; `data-vis="component/variant/state"`
+  instances inside `[data-vis-gallery]` in the Asset Gallery) — the visual
+  gates below read the app through that contract.
 
-### 6. Verify
-Run the unit's **Completion** commands from PLAN.md exactly (e.g.
-`npm run test:client`, `npm test`, `npm run typecheck`, `npm run build`).
-Iterate until they pass. **Paste real command output (the tail with the
-pass/fail summary) into your worklog and the PR body — never assert success
-without pasted evidence.** If a manual check is listed (visual matrix, parity
-walkthrough), note it in the PR body as "MANUAL FOLLOW-UP" — do not claim it done.
+### 6. Verify — ALL FOUR GATES, in this order, all must pass
+Start `evidence/unit-<n>.md` (unit, date, branch) and append the tail of every
+command's real output as you go. **Never assert success without pasted output.**
 
-Attempt budget: after ~5 distinct fix attempts on the same failing
-verification, stop and take the BLOCKED path below.
+1. **Unit completion commands** from PLAN.md (e.g. `npm run test:client`,
+   `npm test`, `npm run typecheck`, `npm run build`). Iterate until green.
+2. **Deterministic visual checks:** `npm run visual:checks` — must exit 0.
+   PENDING lines are acceptable only for targets later units build; a PENDING
+   for something THIS unit was supposed to build means the unit is incomplete.
+3. **Screenshot capture + diff:** `npm run visual:capture` then
+   `npm run visual:diff` — must exit 0. For surfaces this unit introduced:
+   review each new capture yourself against SPEC §4 first, then
+   `npm run visual:accept -- <id> ...` (append-only), re-run `visual:diff` to
+   green, and commit the new baselines with the unit. Baselines for surfaces
+   the unit did NOT build are not yours to add.
+4. **Visual judge:** launch the `visual-judge` subagent
+   (`.claude/agents/visual-judge.md`). Give it ONLY: (a) the capture file
+   paths relevant to this unit, (b) verbatim SPEC.md criteria for those
+   surfaces (the §4.4 row, §4.2 color roles, §2.4 state requirements — the
+   text, not your summary). NEVER include implementation details, diffs, the
+   plan, or any reasoning about how the UI was built — it judges the
+   artifact, not the intent. Append every verdict + observation verbatim to
+   `evidence/unit-<n>.md`.
+
+**Judge failure policy:** if gates 1–3 pass and only the judge fails, you get
+**2 fix attempts** (fix → re-run gates 2–4 → judge again). Still failing after
+2 attempts → BLOCKED, quoting the judge's observations in the reason and in
+PROGRESS.md notes. `NOT-ASSESSABLE` judge failures: record the `REWORD:` lines
+in evidence and PROGRESS notes — they are SPEC wording work for the human, and
+they still block.
+
+**Forbidden forever:** lowering any threshold, editing/deleting a check,
+overwriting or deleting a baseline, editing `scripts/visual/config.mjs`,
+weakening a test. Hooks deny these; attempting them is itself a BLOCKED-worthy
+signal. Attempt budget for gate 1: ~5 distinct fixes, then BLOCKED.
 
 ### 7. Spec review
-Launch the `spec-reviewer` subagent (defined in `.claude/agents/spec-reviewer.md`)
-with: the unit number/id, its PLAN.md section text, the SPEC.md sections it
-cites, and the diff range `main...HEAD`. Fix findings that affect correctness
-or stated requirements; explicitly ignore style-only findings. Re-run step 6
-verification after any fix.
+Launch the `spec-reviewer` subagent with: the unit number/id, its PLAN.md
+section text, the SPEC.md sections it cites, and the diff range
+`rebuild...HEAD`. Fix findings affecting correctness or stated requirements;
+ignore style-only findings. Re-run step 6 gates after any fix.
 
-### 8. Publish
-Commit the work (conventional message, e.g. `feat(unit-<n>): <summary>`, ending
-with the Claude Code co-author trailer). Then:
-- `git push -u origin unit-<n>-<slug>`
-- `gh pr create --base main --title "unit <n> (<id>): <name>" --body <…>` —
-  body: what/why, acceptance citations into SPEC.md, pasted verification
-  evidence, any MANUAL FOLLOW-UP items, the standard PR footer.
-Never push to `main` (bookkeeping commits from steps 2/3/9 excepted).
+### 8. Integrate into rebuild — only path to done
+1. `git fetch origin && git rebase rebuild` (pick up anything that landed
+   since step 4). A conflict you cannot resolve trivially and safely →
+   `git rebase --abort` → `BLOCKED <n>: rebase conflict with rebuild — <files>`.
+2. Re-run the FULL gate suite (step 6, all four gates) post-rebase. Red →
+   fix or BLOCKED. Never merge red.
+3. `git checkout rebuild && git merge --no-ff unit-<n>-<slug>` then
+   `git push origin rebuild` (and `git push -u origin unit-<n>-<slug>` for the
+   record). Push failure → leave status in-progress, print
+   `BLOCKED <n>: push failed — <reason>`, stop. Never mark done on a failed push.
 
-### 9. Record — only after push AND PR creation succeeded
-`git checkout main`, update the unit's row: status `done`, commit = branch head
-sha, PR link appended to notes. Commit `progress: unit <n> done (<id>)` and
-`git push origin main`.
-If the push in step 8 failed: leave status `in-progress`, report why, and stop
-with `BLOCKED <n>: push failed — <reason>`. Half-done must read as in-progress
-on disk so a resume retries it. Never mark done on a failed push.
+### 9. Record
+On `rebuild`: update the unit's row — status `done`, commit = the merge sha,
+notes += `evidence/unit-<n>.md`. Commit `progress: unit <n> done (<id>)`,
+push rebuild.
 
 ### 10. Stop
 Print a short summary and the sentinel `DONE <n>`. Do NOT start another unit.
 
+## Finish (selection returned ALL-DONE)
+1. Verify every row is `done` and every `evidence/unit-<n>.md` exists.
+2. Open ONE PR from `rebuild` to `main` with `gh pr create --base main --head
+   rebuild`: body = per-unit summary table (unit, name, merge sha, link to its
+   evidence file), the overall gate status, all outstanding `REWORD:` items,
+   and the standard PR footer. (Creating the PR pushes nothing to main — the
+   human merges it.)
+3. Print the PR URL, then the sentinel `ALL-DONE`.
+
 ## Failure handling
 
-**BLOCKED** — verification unpassable within the attempt budget, SPEC.md wrong
-or self-contradictory, a required existing test is wrong, or the unit needs a
-decision only the user can make:
-1. `git checkout main` (leave the branch with whatever work exists, pushed if possible).
-2. Set the row status `blocked`, put the one-line reason in notes.
-3. Commit `progress: unit <n> blocked` and push main.
-4. Print `BLOCKED <n>: <reason>`. Stop. Never work around a blocked spec, never
-   weaken or edit a test to get green.
+**BLOCKED** — gate unpassable within budget, SPEC.md wrong/self-contradictory,
+a required existing test is wrong, judge still failing after 2 fix attempts,
+rebase conflict, or a decision only the user can make:
+1. `git checkout rebuild` (leave the unit branch with whatever exists; push it
+   if possible).
+2. Row status `blocked`, one-line reason (+ judge observations if relevant) in
+   notes. Commit `progress: unit <n> blocked`, push rebuild.
+3. Print `BLOCKED <n>: <reason>`. Stop. Never work around a blocked spec,
+   never weaken a test, threshold, baseline, or check to get green.
 
-**SPLIT** — mid-implementation the unit proves larger than one unit should be:
-1. Do not push a giant diff. `git checkout main`.
-2. Set the row status back to `todo`, note `needs split — see latest log`.
-3. Commit `progress: unit <n> needs split` and push main.
-4. Print the proposed breakdown (sub-units, files, deps), then `SPLIT <n>`. Stop.
+**SPLIT** — the unit proves larger than one unit should be:
+1. Do not merge a giant diff. `git checkout rebuild`.
+2. Row status back to `todo`, note `needs split — see latest log`. Commit
+   `progress: unit <n> needs split`, push rebuild.
+3. Print the proposed breakdown (sub-units, files, deps), then `SPLIT <n>`. Stop.
 
 ## Standing repo rules (do not relearn these the hard way)
 - npm workspaces, root lockfile only — **never `npm install` inside `server/`**.
 - Server suite is deliberately serial (`--test-concurrency=1`); don't parallelize.
 - `fixtures/pdf/` is sha256-pinned — regenerate via `npm run fixtures:pdf`, never hand-edit.
-- E2E imports `{ test, expect }` from `e2e/support/browser-audit.js`, ports 15173/18787.
+- E2E imports `{ test, expect }` from `e2e/support/browser-audit.js`, ports 15173/18787;
+  the visual pipeline uses its own ports 16173/16787.
 - Security boundary is intentional: no auth walls, no rate limiters, don't weaken tested guards.

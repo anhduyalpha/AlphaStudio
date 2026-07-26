@@ -25,6 +25,8 @@ temp/
 terminals/
 playwright-report/
 test-results/
+visual/captures/
+visual/diffs/
 blob-report/
 playwright/.cache/
 *.db

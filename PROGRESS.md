@@ -7,7 +7,11 @@ cell numeric, deps as comma-separated unit numbers (ranges like `1-27` allowed),
 `—` for empty.
 
 Statuses: `todo` · `in-progress` · `done` · `blocked` · `manual`
-(`manual` = never picked automatically; PLAN.md currently marks no unit MANUAL CHECK, so none are.)
+(`manual` = never picked automatically. **Zero rows use it**: PLAN.md marks no
+unit MANUAL CHECK, and as of the visual-verification harness every formerly
+"manual visuals" acceptance is automated — deterministic checks
+(`npm run visual:checks`), screenshot capture+diff (`visual:capture`/`visual:diff`),
+and the visual-judge subagent. Nothing waits on human review during the run.)
 
 | # | unit | name | status | branch | commit | deps | notes |
 |---|------|------|--------|--------|--------|------|-------|
@@ -19,7 +23,7 @@ Statuses: `todo` · `in-progress` · `done` · `blocked` · `manual`
 | 6 | B3 | protocol/events.ts | todo | — | — | 2,5 | flagged: own detailed plan first (pairs with B2) |
 | 7 | B4 | protocol/uploads.ts | todo | — | — | 5 | |
 | 8 | C1 | Tokens and base styles | todo | — | — | — | |
-| 9 | C2 | Primitives I: controls and status | todo | — | — | 1,8 | visual state matrix is a manual check (needs D2's Asset Gallery) |
+| 9 | C2 | Primitives I: controls and status | todo | — | — | 1,8 | state matrix auto-verified via gallery captures once D2 lands; until then judge verdicts run on this unit's own renders |
 | 10 | C3 | Primitives II: file and flow | todo | — | — | 9 | |
 | 11 | C4 | Primitives III: overlay and chrome | todo | — | — | 9 | |
 | 12 | D1 | Shell skeleton: entry flag, router, hub registry | todo | — | — | 5,9 | verify index.html heuristic claim before deleting |
@@ -42,7 +46,10 @@ Statuses: `todo` · `in-progress` · `done` · `blocked` · `manual`
 
 Column semantics:
 - **branch** — `unit-<n>-<slug>` once started; `—` before.
-- **commit** — branch head sha recorded only at `done` (after successful push), with PR link in notes.
+- **commit** — the merge sha into `rebuild`, recorded only at `done`, with the
+  unit's `evidence/unit-<n>.md` linked in notes.
 - **deps** — unit numbers that must be `done` before this unit is eligible.
-- A unit is only `done` when its branch is pushed and its PR is open; a failed
-  push leaves it `in-progress` so a resume retries it.
+- A unit is only `done` when its branch is merged into `rebuild` and pushed,
+  all four verification gates green (unit commands, `visual:checks`,
+  `visual:diff`, visual-judge). A failed push leaves it `in-progress` so a
+  resume retries it. `main` is frozen until the final rebuild→main PR.

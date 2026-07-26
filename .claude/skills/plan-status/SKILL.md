@@ -19,22 +19,23 @@ no PROGRESS.md edits. If passed an argument, treat it as the PROGRESS.md path
    read the file yourself for branch/commit/notes columns.
 
 2. **Done units** — for each `done` row, verify the claim: recorded sha exists
-   (`git cat-file -e <sha>`), branch pushed (`git ls-remote --heads origin <branch>`),
-   PR link present in notes. Report any done row that fails verification as
-   SUSPECT.
+   (`git cat-file -e <sha>`), the sha is reachable from `rebuild`
+   (`git merge-base --is-ancestor <sha> rebuild`), the evidence file named in
+   notes exists. Report any done row that fails verification as SUSPECT.
 
 3. **In-progress units** — for each, determine whether work actually landed or
    the unit needs restarting:
    - `git branch --list <branch>` / `git ls-remote --heads origin <branch>` —
      does the branch exist locally/remotely?
-   - `git log main..<branch> --oneline` — any commits beyond main?
-   - `gh pr list --head <branch> --state all` — PR opened?
+   - `git log rebuild..<branch> --oneline` — any commits beyond rebuild?
+   - `git branch --merged rebuild` — already merged?
    Classify:
-   - **landed, bookkeeping missed**: PR exists / branch pushed with commits →
-     only step 9 (mark done) remains; say exactly that.
-   - **partial**: local branch with commits, not pushed → resumable; /next-unit
-     will refuse (row inconsistent), so recommend the human either push+PR
-     manually or reset the row to `todo` after salvaging/deleting the branch.
+   - **landed, bookkeeping missed**: branch merged into rebuild (or pushed
+     with commits and green evidence) → only step 9 (mark done) remains; say
+     exactly that.
+   - **partial**: branch with commits, not merged → resumable; /next-unit
+     will refuse (row inconsistent), so recommend the human either finish the
+     merge manually or reset the row to `todo` after salvaging/deleting the branch.
    - **needs restart**: no branch or empty branch → the run died before real
      work; safe to set the row back to `todo` (recommend it; do not do it).
 
@@ -44,5 +45,11 @@ no PROGRESS.md edits. If passed an argument, treat it as the PROGRESS.md path
 5. **Next** — report what /next-unit would pick (from step 1), or why nothing
    is eligible.
 
-6. Summarize: counts (todo / in-progress / done / blocked / manual), next pick,
-   required human actions (unblock decisions, restart confirmations, splits).
+6. **Visual pipeline state** — count committed baselines
+   (`git ls-files visual/baselines`), and surface any `REWORD:` lines found in
+   `evidence/*.md` (SPEC criteria the visual judge could not assess — human
+   rewording work).
+
+7. Summarize: counts (todo / in-progress / done / blocked / manual), next pick,
+   required human actions (unblock decisions, restart confirmations, splits,
+   REWORD items, the final rebuild→main PR if ALL-DONE).

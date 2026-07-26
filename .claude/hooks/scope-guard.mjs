@@ -55,6 +55,15 @@ if (/(^|\/)fixtures\/pdf\//.test(rel)) {
   deny(`"${rel}" is a sha256-pinned fixture (fixtures/pdf). Change scripts/test/generate-pdf-fixtures.mjs and run "npm run fixtures:pdf" instead.`);
 }
 
+// Rule 2b: visual-verification protected paths — block unconditionally.
+// Baselines are append-only via `npm run visual:accept`; thresholds are frozen.
+if (/(^|\/)visual\/baselines\//.test(rel)) {
+  deny(`"${rel}" is a visual baseline. Baselines are append-only via "npm run visual:accept -- <id>"; existing baselines are never edited or deleted by the agent.`);
+}
+if (rel === 'scripts/visual/config.mjs') {
+  deny('scripts/visual/config.mjs holds the visual thresholds and is frozen for agent runs. A failing threshold is a finding to report, not a knob to turn.');
+}
+
 // Rule 3: existing test files — block unconditionally.
 const isTestFile =
   /(^|\/)server\/tests\//.test(rel) ||
@@ -67,7 +76,7 @@ if (isTestFile && fs.existsSync(abs)) {
 
 // Rule 4: bookkeeping paths the harness itself must always reach.
 const ALWAYS_ALLOW = ['PROGRESS.md', '.claude/allowed-paths.txt'];
-if (ALWAYS_ALLOW.includes(rel) || rel.startsWith('logs/')) process.exit(0);
+if (ALWAYS_ALLOW.includes(rel) || rel.startsWith('logs/') || rel.startsWith('evidence/')) process.exit(0);
 
 // Rule 5: allowed-paths.txt.
 const listPath = path.join(repoRoot, '.claude', 'allowed-paths.txt');
