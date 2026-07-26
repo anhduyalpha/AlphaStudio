@@ -436,6 +436,30 @@ export function detectCapabilities(force = false) {
   return cached;
 }
 
+export type GatedOperation = {
+  id: string;
+  label: string;
+  reason: string;
+  requires?: string[];
+};
+
+/**
+ * S2 (SPEC §3.5): the operation ids that require a tool this machine does not
+ * have, each with the reason the capability layer already computed. Derived
+ * from the same `tools` array the create gate reads through `isToolAvailable`,
+ * so a gated op can never be advertised as runnable — or hidden while runnable.
+ */
+export function gatedOperations(): GatedOperation[] {
+  return detectCapabilities()
+    .tools.filter((tool) => !tool.available)
+    .map((tool) => ({
+      id: tool.id,
+      label: tool.label,
+      reason: tool.reason || `${tool.label} is unavailable on this machine`,
+      requires: tool.requires ? [...tool.requires] : undefined,
+    }));
+}
+
 export function isToolAvailable(toolId: string): { available: boolean; reason?: string } {
   if (BUNDLED_CAPABILITIES.has(toolId)) return { available: true };
   const caps = detectCapabilities();

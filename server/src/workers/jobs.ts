@@ -23,11 +23,16 @@ import {
   type JobRow,
 } from '../db/index.js';
 import { logger } from '../lib/logger.js';
-import { AppError, badRequest, notFound, unavailable } from '../lib/errors.js';
+import { AppError, badRequest, notFound, unavailable, unsupported } from '../lib/errors.js';
 import { deleteTerminalJob, type JobDeletionResult } from '../services/job-deletion.js';
 import { assertJobCapable } from '../processors/index.js';
 import type { ProcessResult } from '../processors/types.js';
-import { formatDefinition } from '../convert/formats.js';
+import {
+  acceptListById,
+  acceptListIdForJob,
+  formatDefinition,
+  isFilenameAccepted,
+} from '../convert/formats.js';
 import { listOutputsFor, normalizeFormatToken, type DetectedKind } from '../convert/matrix.js';
 import { killJobChildren, killProcessTreeByPid } from '../lib/child-registry.js';
 import { emitWorkspaceEvent, nextEventVersion } from '../lib/workspace-events.js';
@@ -285,6 +290,24 @@ export function gateConverterCreate(
   }
 }
 
+/**
+ * S2 (SPEC §3.5): refuse inputs the published accept list for this job
+ * type/mode does not advertise. Same lists `/api/capabilities` publishes, so
+ * the contract cannot drift from create-time enforcement — and the user gets a
+ * 415 now instead of a queued job that fails later.
+ */
+function assertAcceptedInputs(type: string, operation: unknown, filenames: string[]): void {
+  const listId = acceptListIdForJob(type, operation);
+  const list = acceptListById(listId);
+  if (!list) return;
+  const rejected = filenames.filter((name) => !isFilenameAccepted(listId, name));
+  if (rejected.length === 0) return;
+  throw unsupported(
+    `${list.label} required for ${type}${operation ? `:${String(operation)}` : ''} — ` +
+      `${rejected.join(', ')} is not one of ${list.extensions.join(', ')}`,
+  );
+}
+
 export function createJob(input: CreateJobInput): JobRow {
   const type = input.type;
   if (!type) throw badRequest('type required');
@@ -330,6 +353,12 @@ export function createJob(input: CreateJobInput): JobRow {
     if (!fs.existsSync(row.path)) throw badRequest(`Upload missing on disk: ${id}`);
     return row;
   });
+
+  assertAcceptedInputs(
+    type,
+    options.operation,
+    uploads.map((u) => u.original_name || path.basename(u.path)),
+  );
 
   if (type === 'pdf') {
     const operation = String(options.operation || 'merge').toLowerCase().trim();

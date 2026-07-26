@@ -46,6 +46,24 @@ export function resolveQualityPreset(options: unknown): QualityPreset {
   return DEFAULT_QUALITY_PRESET;
 }
 
+/**
+ * S2 (SPEC §3.5): the published quality contract. Alias resolution is the
+ * server's single answer — `max` maps to exactly one preset here and in
+ * `resolveQualityPreset`, so the pre-rebuild client/server disagreement dies by
+ * the client never resolving aliases itself.
+ */
+export function publishedQualityContract(): {
+  presets: QualityPreset[];
+  default: QualityPreset;
+  aliases: Record<string, QualityPreset>;
+} {
+  return {
+    presets: [...QUALITY_PRESETS],
+    default: DEFAULT_QUALITY_PRESET,
+    aliases: { ...PRESET_ALIASES },
+  };
+}
+
 /** True when quality is a named preset (or alias), not a numeric encoder quality. */
 export function isQualityPresetString(value: unknown): boolean {
   if (typeof value !== 'string') return false;
