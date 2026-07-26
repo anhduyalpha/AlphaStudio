@@ -137,3 +137,24 @@ Inert until F1: nothing imports it yet (B3/B4/D-track do).
   batch mean, and no regression across an attempt
 - file→job reverse index via `options._uploadIds`; `file.deleted` removes the
   row instead of resurrecting a ghost
+
+`src/tests/protocol-store-regressions.test.ts` and
+`src/tests/protocol-store-review.test.ts` — one case per defect the two spec
+reviews confirmed. Every one is mutation-verified: re-introducing the defect
+fails a named test. See `evidence/unit-5.md` for the table and the runs.
+
+## Constraints this unit imposes on later units
+
+- **Retry must create a NEW job row.** Terminal immutability (§6.3) makes the
+  store discard the `failed → queued → running → completed` sequence of a
+  *same-row* retry forever, so a successful retry would never surface. That puts
+  `POST /api/jobs/:id/retry` off-limits to the new client. SPEC §6.3 mandates
+  new-row retries and the pre-rebuild client already complies
+  (`ConverterView.jsx` retries by creating a job), but E1/E2 must not "simplify"
+  to the same-row endpoint.
+- **A queued retry composes to 30, not 0.** For an already-uploaded file the
+  §2.2 job band starts at 30, so F2's §7.3 step-7 assertion must be written
+  against 30. §2.2's normative composition wins over the step's prose.
+- **Ownership of a file follows the newest attempt**, not the most "alive"
+  status: all terminal outcomes rank alike and `createdAt` breaks the tie. A hub
+  showing per-file progress gets the newest attempt's value by construction.

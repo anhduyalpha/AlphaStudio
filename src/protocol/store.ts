@@ -419,7 +419,7 @@ function timeOf(value: unknown): number {
  * older is discarded — which is what makes poll and SSE unable to regress each
  * other (the pre-rebuild poll path skipped this entirely).
  */
-function acceptsWrite(prev: RowVersion | undefined, next: WriteToken): boolean {
+function acceptsWrite(prev: RowVersion | undefined, next: WriteToken, strict = false): boolean {
   if (!prev) return true;
   const comparableSeq =
     next.seq !== null &&
@@ -429,7 +429,11 @@ function acceptsWrite(prev: RowVersion | undefined, next: WriteToken): boolean {
     next.epoch === prev.epoch;
   if (comparableSeq && next.seq !== prev.seq) return (next.seq as number) > (prev.seq as number);
   if (next.updatedAt !== prev.updatedAt) return next.updatedAt > prev.updatedAt;
-  return true;
+  // Identical tokens: an idempotent refresh of a live row is harmless, but
+  // resurrecting a REMOVED one is not — §6.3 accepts a write only if it is
+  // newer, and a tie is not newer. An in-flight poll carrying the row exactly
+  // as it was when it died would otherwise put it back on screen.
+  return !strict;
 }
 
 /**
@@ -451,8 +455,11 @@ function priorVersion(
   versions: Map<string, RowVersion>,
   tombstones: Map<string, RowVersion>,
   id: string,
-): RowVersion | undefined {
-  return versions.get(id) ?? tombstones.get(id);
+): { version: RowVersion | undefined; removed: boolean } {
+  const live = versions.get(id);
+  if (live) return { version: live, removed: false };
+  const grave = tombstones.get(id);
+  return { version: grave, removed: grave !== undefined };
 }
 
 function clearOrderingState(): void {
@@ -514,7 +521,8 @@ function mergeJob(raw: Record<string, unknown>, token: WriteToken): boolean {
   const id = typeof raw.id === 'string' ? raw.id : String(raw.id ?? '');
   if (!id) return false;
   const prev = state.jobs.get(id);
-  if (!acceptsWrite(priorVersion(state.jobVersions, state.removedJobs, id), token)) return false;
+  const prior = priorVersion(state.jobVersions, state.removedJobs, id);
+  if (!acceptsWrite(prior.version, token, prior.removed)) return false;
 
   const incomingStatus = typeof raw.status === 'string' ? raw.status : null;
   if (prev && isTerminalStatus(prev.status) && incomingStatus && incomingStatus !== prev.status) {
@@ -567,7 +575,8 @@ function mergeFile(raw: Record<string, unknown>, token: WriteToken): boolean {
   const status = String(raw.status || '');
   if (status === 'deleted' || status === 'missing') return removeFile(id, token);
   const prev = state.files.get(id);
-  if (!acceptsWrite(priorVersion(state.fileVersions, state.removedFiles, id), token)) return false;
+  const prior = priorVersion(state.fileVersions, state.removedFiles, id);
+  if (!acceptsWrite(prior.version, token, prior.removed)) return false;
   state.files.set(id, toFileEntry(raw, prev));
   stampVersion(state.fileVersions, id, token);
   state.removedFiles.delete(id);
@@ -581,7 +590,8 @@ function mergeFile(raw: Record<string, unknown>, token: WriteToken): boolean {
  * cannot bring it back (§6.3); a genuinely newer write may, and clears it.
  */
 function removeFile(id: string, token: WriteToken): boolean {
-  if (!acceptsWrite(priorVersion(state.fileVersions, state.removedFiles, id), token)) return false;
+  // Not strict: a delete that repeats itself is idempotent, not a resurrection.
+  if (!acceptsWrite(priorVersion(state.fileVersions, state.removedFiles, id).version, token)) return false;
   stampVersion(state.removedFiles, id, token);
   if (!state.files.has(id)) return false;
   state.files.delete(id);
@@ -865,6 +875,7 @@ export async function createWorkspace(options: { route?: string } = {}): Promise
   generation += 1;
   const mine = generation;
   hydrateGeneration = mine;
+  let applied = false;
   try {
     const created = await client.createWorkspace({ route: options.route });
     if (!isRecord(created) || typeof created.id !== 'string') {
@@ -883,6 +894,7 @@ export async function createWorkspace(options: { route?: string } = {}): Promise
     state.composed.clear();
     state.sessions.clear();
     applySnapshot(payload);
+    applied = true;
     state.status = 'ready';
     state.error = null;
     state.failedAttempts = 0;
@@ -894,7 +906,13 @@ export async function createWorkspace(options: { route?: string } = {}): Promise
     // block every later resync (§6.4).
     if (hydrateGeneration === mine) {
       hydrateGeneration = null;
-      resyncPending = false;
+      if (resyncPending) {
+        resyncPending = false;
+        // A snapshot did land, so it already carries the new epoch's truth and
+        // the suppressed resync is satisfied. If creation threw, nothing landed
+        // and the epoch change still needs its re-hydrate (§6.5 item 4).
+        if (!applied) void hydrate();
+      }
     }
   }
 }
@@ -923,8 +941,15 @@ export function applyEvent(raw: unknown): void {
     touch();
     requestResync();
   } else if (epoch && !state.epoch) {
+    // §6.4 treats an UNKNOWN epoch exactly like a changed one. Adopting it
+    // silently wedged a cold boot: when the stream reports a post-restart epoch
+    // while the first hydrate is still in flight, that hydrate's older snapshot
+    // lands afterwards and pulls the store back onto the dead epoch, where no
+    // later event ever disagrees and the mirror never recovers (§6.5 item 4).
     state.epoch = epoch;
+    clearOrderingState();
     touch();
+    requestResync();
   }
   if (epoch && epoch === state.epoch && seq !== null && seq > state.seq) {
     state.seq = seq;
@@ -1121,9 +1146,13 @@ export function requestKey(kind: RequestKind, targetId: string): string {
 /**
  * Flag a requested cancel/delete/convert. The client never patches the row's
  * status (§6.2) — it renders "requested" until the server answers, the job
- * reaches a terminal state, or the request times out. A request against an
- * already-terminal job is refused: optimistic state may never overwrite a
- * server-terminal status.
+ * reaches a terminal state, or the request times out.
+ *
+ * Only `cancel` is refused against an already-terminal job, because only cancel
+ * is a statement about a status that §6.2 freezes. `delete` and `convert` are
+ * the two actions a finished row actually offers (§2.2 step 5); refusing their
+ * flags left the button with no busy state, so a second click started a second
+ * attempt the server could not dedupe.
  */
 export function optimisticRequest(
   kind: RequestKind,
@@ -1132,7 +1161,7 @@ export function optimisticRequest(
 ): string {
   const key = requestKey(kind, targetId);
   const job = state.jobs.get(targetId);
-  if (job && isTerminalStatus(job.status)) return key;
+  if (kind === 'cancel' && job && isTerminalStatus(job.status)) return key;
   if (state.requests.has(key)) return key;
 
   state.requests.set(key, {
@@ -1210,6 +1239,10 @@ export function resolveActiveJob(
 ): JobEntry | null {
   const jobId = readActiveJobId(hubId, modeId);
   if (!jobId) return null;
+  // An empty mirror means "not hydrated yet", not "the server dropped it".
+  // Forgetting here erased the pointer for a job the server was still running,
+  // so the reload never re-attached and the hub showed a fresh 0 (§6.5 item 2).
+  if (state.hydratedAt === null) return null;
   const job = state.jobs.get(jobId);
   if (!job || (expectedJobType && job.type !== expectedJobType)) {
     forgetActiveJob(hubId, modeId);

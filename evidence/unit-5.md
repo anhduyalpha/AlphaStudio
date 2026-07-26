@@ -137,3 +137,90 @@ Not applicable: zero captures belong to this unit. B2 is a protocol module plus
 a headless `useSyncExternalStore` binding — it renders nothing, so there is no
 artifact to judge and no SPEC §4 criterion that references one. Nothing was
 given to the judge; nothing that exists was skipped.
+
+---
+
+# Step 7 — spec review (two rounds)
+
+The first review was interrupted before reporting; it was later completed and
+returned **4 confirmed defects**, each re-verified against the source by hand
+before any fix (one finding its own adversarial pass had *rejected* was real,
+so the verdicts were not taken at face value). A second review, run against the
+fixed diff, confirmed all four fixes and raised **5 further findings**. All nine
+are fixed and pinned by named tests.
+
+## Round 1 — four defects (commit 1bf924a, tests 20520cf)
+
+| # | Defect | SPEC | Fix |
+|---|---|---|---|
+| 1 | `jobRank` ranked `completed` (1) below `failed`/`cancelled` (2), so a successful retry handed its file back to the dead attempt: composed value fell 99 → 30 and could never reach 100 | §6.5 item 3, §2.2 | All terminal outcomes rank alike; the existing `createdAt` tie-break picks the newest attempt — which is what the doc comment always claimed |
+| 2 | `hydrateInFlight` was cleared only by the generation-owning hydrate, but `createWorkspace()` bumps `generation` — the flag could strand at `true` and `requestResync()` then swallowed every epoch change for the life of the page | §6.4 | Generation-keyed `hydrateGeneration`, released in `finally` by both `hydrate()` and `createWorkspace()`, plus `resyncPending` to replay a suppressed resync |
+| 3 | `removeFile` deleted the row's version with the row, and `mergeFile` gated only `if (prev)`, so any later write — including a provably older one — resurrected it | §6.3 | `removedFiles`/`removedJobs` tombstones consulted by both merges; snapshot pruning stamps one carrying the snapshot's stream position **and** the row's last-applied time |
+| 4 | `applySnapshot` reassigned `state.epoch` before testing `epoch === state.epoch`, so the reset branch was unreachable and the old epoch's `seq` carried forward | §6.4 | `epochChanged` captured before adoption |
+
+## Round 2 — five findings on the fixed diff
+
+| # | Finding | SPEC | Fix |
+|---|---|---|---|
+| 5 | `applyEvent` adopted a **first-seen** epoch silently — no ordering-state drop, no re-hydrate. A cold boot whose hydrate raced a server restart then had its stale pre-restart snapshot pull the store back onto the dead epoch, where on an idle workspace no later event ever disagreed | §6.4 ("**unknown**/changed epoch"), §6.5 item 4 | The unknown-epoch branch now drops ordering state and requests a resync, exactly like the changed-epoch branch |
+| 6 | `acceptsWrite` returns `true` on identical tokens (idempotent refresh) — correct for a live row, wrong for a tombstone, since §6.3 accepts a write only *iff it is newer* and a tie is not newer. An in-flight unversioned poll carrying the row exactly as it died resurrected it | §6.3 | `acceptsWrite(prev, next, strict)`; `priorVersion` reports whether the prior came from a tombstone, and a tie loses in that case |
+| 7 | `createWorkspace`'s `finally` **discarded** a suppressed resync, re-opening the same wedge on the failure path | §6.4, §6.5 item 4 | Replayed when creation threw (nothing landed); treated as satisfied when it succeeded (the fresh snapshot already carries server truth) |
+| 8 | `resolveActiveJob` forgot the resume pointer when the mirror was empty — but an empty mirror means "not hydrated yet", not "the server dropped it". A mount-effect read erased the pointer for a job the server was still running | §6.5 item 2 | Returns `null` without forgetting while `state.hydratedAt === null` |
+| 9 | `optimisticRequest` refused **every** flag on a terminal job, but §6.2 permits `delete`/`convert` flags and a finished row is exactly where those two buttons live — the button showed no busy state, so a second click started a second attempt | §6.2 | Refusal scoped to `cancel`, the one flag that contradicts a frozen status |
+
+The round-2 reviewer's remaining notes were recorded rather than actioned:
+`POST /api/jobs/:id/retry` (same-row retry) is unusable by the new client
+because terminal immutability discards it — documented in
+`docs/plans/UNIT-B2.md` as a constraint on E1/E2; F2's step-7 assertion must be
+written against a composed 30, not 0 (§2.2's job band wins over the step prose);
+and the tombstone maps grow with deletes over a long session (memory only).
+
+## Mutation verification of all nine fixes
+
+Each defect was re-introduced one at a time and the suite re-run, then
+`store.ts` restored byte-for-byte (verified). Every mutation is caught by a
+named test — the tests pin the fixes rather than merely passing beside them:
+
+```
+CAUGHT  M1 jobRank: rank completed below failed/cancelled
+         ↳ reaches 100 rather than falling back to the failed attempt
+CAUGHT  M2 tombstone: gate files on the live row only
+         ↳ refuses to resurrect a deleted file from an older write
+CAUGHT  M3 load flag: key release on generation, drop createWorkspace claim
+         ↳ releases it when createWorkspace overtakes an in-flight hydrate
+CAUGHT  M4 epoch: compare after adopting, so the reset branch is dead
+         ↳ takes the new epoch position instead of carrying the old one forward
+CAUGHT  N1 applyEvent: adopt a first-seen epoch silently
+         ↳ requests a re-hydrate for a first-seen epoch instead of adopting it silently
+CAUGHT  N2 acceptsWrite: let a tie beat a tombstone
+         ↳ refuses an unversioned poll carrying the row exactly as it died
+CAUGHT  N3 createWorkspace: discard a suppressed resync
+         ↳ replays it when creation throws
+CAUGHT  N4 resolveActiveJob: forget the pointer before hydrate
+         ↳ does not forget a pointer just because the mirror is still empty
+CAUGHT  N5 optimisticRequest: refuse every flag on a terminal job
+         ↳ records delete and convert, the two actions a finished row offers
+
+store.ts restored: true
+every defect caught: true
+```
+
+# Post-fix gate re-run (all four, in order)
+
+```
+npm run test:client      Test Files 7 passed (7) · Tests 110 passed (110)   EXIT=0
+npm run typecheck        tsc server/tsconfig.json && tsc tsconfig.client.json  EXIT=0
+
+npm run visual:checks
+PASS    token-purity (§4.6) [1 file(s)]
+PENDING motion-purity (§5.2/§5.3) — no CSS yet under src\styles (built by units C1+/F0)
+PENDING contrast (WCAG AA on §4.1 tokens) — src/styles/tokens.css not built yet (unit C1)
+                                                                  EXIT=0
+
+npm run visual:capture   captured=1 missing=268 → visual\captures   EXIT=0
+npm run visual:diff      PASS — 0 baseline(s) verified, 1 capture(s) accounted for.  EXIT=0
+```
+
+Both PENDING lines name `src/styles/`, which unit C1 builds; B2 builds no CSS,
+so neither is this unit's target. Gate 4 remains not applicable — B2 still
+renders nothing, and no baseline was accepted.
