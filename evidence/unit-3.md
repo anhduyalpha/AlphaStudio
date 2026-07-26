@@ -150,6 +150,21 @@ server-only, introduced no capture, and the single existing capture
 (`smoke--home`) is the pre-flip client, which SPEC §4 does not describe. No
 verdict was fabricated.
 
+## Step 8 — post-rebase gate re-run (before merge)
+
+`git rebase rebuild` was a no-op (nothing landed since the branch point). Full
+suite re-run anyway on the exact tree that merged:
+
+```
+npm run typecheck                                            EXIT=0
+npm test        tests 733 / pass 732 / fail 0 / skipped 1    EXIT=0
+npm run visual:checks                                        EXIT=0
+npm run visual:capture  captured=1 missing=268               EXIT=0
+npm run visual:diff     PASS — 0 baseline(s) verified        EXIT=0
+```
+
+Merged into `rebuild` as **f26df70**; branch pushed to origin for the record.
+
 ## Step 7 — spec review, and the four fixes it forced
 
 `spec-reviewer` verdict: **FIX-THEN-SHIP**. Derivation, publication and gate
