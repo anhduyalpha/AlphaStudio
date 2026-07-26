@@ -199,6 +199,14 @@ type InternalState = {
   fileVersions: Map<string, RowVersion>;
   jobs: Map<string, JobEntry>;
   jobVersions: Map<string, RowVersion>;
+  /**
+   * Versions of rows that have been REMOVED (§6.3). Deleting the row's version
+   * along with the row would leave the id with no recorded position, so the
+   * `if (prev)` gate in the merges would wave through any later-arriving
+   * write — including a provably older one — and resurrect the row.
+   */
+  removedFiles: Map<string, RowVersion>;
+  removedJobs: Map<string, RowVersion>;
   outputs: OutputEntry[];
   sessions: Map<string, UploadSessionEntry>;
   overlay: Map<string, OverlayFile>;
@@ -223,6 +231,8 @@ function createState(): InternalState {
     fileVersions: new Map(),
     jobs: new Map(),
     jobVersions: new Map(),
+    removedFiles: new Map(),
+    removedJobs: new Map(),
     outputs: [],
     sessions: new Map(),
     overlay: new Map(),
@@ -240,7 +250,17 @@ const listeners = new Set<() => void>();
 
 /** Bumped per hydrate and on reset so a stale response can never land. */
 let generation = 0;
-let hydrateInFlight = false;
+/**
+ * Generation of the wholesale load in flight (hydrate or createWorkspace), or
+ * null when none is. Keyed by generation rather than a boolean because
+ * `createWorkspace()` bumps `generation` without owning the load: a plain flag
+ * cleared only by the generation-owning hydrate could strand at `true`, and
+ * `requestResync()`'s early return then swallowed every epoch change for the
+ * life of the page (§6.4).
+ */
+let hydrateGeneration: number | null = null;
+/** An epoch resync suppressed during a load, replayed once that load settles. */
+let resyncPending = false;
 let retryTimer: ReturnType<typeof setTimeout> | null = null;
 const requestTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -370,7 +390,8 @@ export function subscribe(listener: () => void): () => void {
 /** Drop everything — workspace teardown, and test isolation. */
 export function resetStore(): void {
   generation += 1;
-  hydrateInFlight = false;
+  hydrateGeneration = null;
+  resyncPending = false;
   if (retryTimer) clearTimeout(retryTimer);
   retryTimer = null;
   for (const timer of requestTimers.values()) clearTimeout(timer);
@@ -421,12 +442,27 @@ function stampVersion(map: Map<string, RowVersion>, id: string, token: WriteToke
   map.set(id, { epoch: token.epoch, seq: token.seq, updatedAt: token.updatedAt });
 }
 
+/**
+ * The position a write must beat: the live row's version, or — when the id was
+ * removed — its tombstone. Without the tombstone half, a delete would reset the
+ * id's history and let an older write recreate the row (§6.3).
+ */
+function priorVersion(
+  versions: Map<string, RowVersion>,
+  tombstones: Map<string, RowVersion>,
+  id: string,
+): RowVersion | undefined {
+  return versions.get(id) ?? tombstones.get(id);
+}
+
 function clearOrderingState(): void {
-  for (const [id, version] of state.fileVersions) {
-    state.fileVersions.set(id, { ...version, epoch: null, seq: null });
-  }
-  for (const [id, version] of state.jobVersions) {
-    state.jobVersions.set(id, { ...version, epoch: null, seq: null });
+  // `seq` only means something within one epoch, so it is dropped everywhere —
+  // but `updatedAt` still orders writes, and tombstones keep theirs so a delete
+  // survives the epoch change that follows it.
+  for (const map of [state.fileVersions, state.jobVersions, state.removedFiles, state.removedJobs]) {
+    for (const [id, version] of map) {
+      map.set(id, { ...version, epoch: null, seq: null });
+    }
   }
 }
 
@@ -478,7 +514,7 @@ function mergeJob(raw: Record<string, unknown>, token: WriteToken): boolean {
   const id = typeof raw.id === 'string' ? raw.id : String(raw.id ?? '');
   if (!id) return false;
   const prev = state.jobs.get(id);
-  if (prev && !acceptsWrite(state.jobVersions.get(id), token)) return false;
+  if (!acceptsWrite(priorVersion(state.jobVersions, state.removedJobs, id), token)) return false;
 
   const incomingStatus = typeof raw.status === 'string' ? raw.status : null;
   if (prev && isTerminalStatus(prev.status) && incomingStatus && incomingStatus !== prev.status) {
@@ -498,6 +534,7 @@ function mergeJob(raw: Record<string, unknown>, token: WriteToken): boolean {
 
   state.jobs.set(id, next);
   stampVersion(state.jobVersions, id, token);
+  state.removedJobs.delete(id);
   if (isTerminalStatus(next.status)) resolveRequestsFor(id);
   touch();
   return true;
@@ -530,17 +567,23 @@ function mergeFile(raw: Record<string, unknown>, token: WriteToken): boolean {
   const status = String(raw.status || '');
   if (status === 'deleted' || status === 'missing') return removeFile(id, token);
   const prev = state.files.get(id);
-  if (prev && !acceptsWrite(state.fileVersions.get(id), token)) return false;
+  if (!acceptsWrite(priorVersion(state.fileVersions, state.removedFiles, id), token)) return false;
   state.files.set(id, toFileEntry(raw, prev));
   stampVersion(state.fileVersions, id, token);
+  state.removedFiles.delete(id);
   touch();
   return true;
 }
 
-/** Deletion drops the id. Never upsert a "deleted" ghost row back into the list. */
+/**
+ * Deletion drops the id. Never upsert a "deleted" ghost row back into the list.
+ * The row's version is kept as a tombstone so a write that predates the delete
+ * cannot bring it back (§6.3); a genuinely newer write may, and clears it.
+ */
 function removeFile(id: string, token: WriteToken): boolean {
+  if (!acceptsWrite(priorVersion(state.fileVersions, state.removedFiles, id), token)) return false;
+  stampVersion(state.removedFiles, id, token);
   if (!state.files.has(id)) return false;
-  if (!acceptsWrite(state.fileVersions.get(id), token)) return false;
   state.files.delete(id);
   state.fileVersions.delete(id);
   state.composed.delete(id);
@@ -559,11 +602,18 @@ function uploadIdsOf(job: JobEntry): string[] {
   return raw.map((entry) => String(entry)).filter(Boolean);
 }
 
-/** Active attempts outrank finished ones; among equals, the newest wins. */
+/**
+ * Active attempts outrank finished ones; among equals, the newest wins.
+ *
+ * Every terminal outcome ranks alike so the `createdAt` tie-break in
+ * `recomputeLinks` picks the NEWEST attempt. Ranking `completed` below
+ * `failed`/`cancelled` handed a file back to the dead attempt the instant its
+ * retry succeeded: the §2.2 composed value fell off 99 to the failed attempt's
+ * number and could never reach 100, which §6.5 item 3 forbids.
+ */
 function jobRank(job: JobEntry): number {
-  if (job.status === 'running') return 4;
-  if (job.status === 'queued') return 3;
-  if (job.status === 'failed' || job.status === 'cancelled') return 2;
+  if (job.status === 'running') return 3;
+  if (job.status === 'queued') return 2;
   return 1;
 }
 
@@ -649,11 +699,16 @@ function applySnapshot(payload: unknown): void {
   }
   const epoch = typeof payload.epoch === 'string' ? payload.epoch : null;
   const seq = numberOr(payload.seq, 0);
-  if (epoch && epoch !== state.epoch) {
+  // Capture the change BEFORE adopting it: testing `epoch === state.epoch`
+  // after the assignment is always true, which left the store carrying the old
+  // epoch's `seq` into the new one instead of adopting the snapshot's (§6.4:
+  // "unknown/changed epoch → drop ordering state, re-hydrate, adopt new epoch").
+  const epochChanged = Boolean(epoch) && epoch !== state.epoch;
+  if (epochChanged) {
     state.epoch = epoch;
     clearOrderingState();
   }
-  state.seq = Math.max(epoch === state.epoch ? state.seq : 0, seq);
+  state.seq = epochChanged ? seq : Math.max(state.seq, seq);
 
   persistWorkspaceId(payload.id);
   state.route = typeof payload.route === 'string' ? payload.route : state.route;
@@ -685,16 +740,30 @@ function applySnapshot(payload: unknown): void {
   const survivesRemoval = (version: RowVersion | undefined): boolean =>
     Boolean(version && version.epoch === epoch && version.seq !== null && version.seq > seq);
 
+  // A row the snapshot omits is gone. Its tombstone carries the snapshot's
+  // stream position (so a same-epoch event from before this snapshot cannot
+  // recreate it) together with the row's own last-applied time (so a poll,
+  // which has no comparable `seq`, is still judged against the row it lost).
+  const tombstone = (existing: RowVersion | undefined): WriteToken => ({
+    epoch,
+    seq,
+    updatedAt: existing?.updatedAt ?? 0,
+  });
+
   for (const id of [...state.jobs.keys()]) {
-    if (jobIds.has(id) || survivesRemoval(state.jobVersions.get(id))) continue;
+    const existing = state.jobVersions.get(id);
+    if (jobIds.has(id) || survivesRemoval(existing)) continue;
     state.jobs.delete(id);
     state.jobVersions.delete(id);
+    stampVersion(state.removedJobs, id, tombstone(existing));
   }
   for (const id of [...state.files.keys()]) {
-    if (fileIds.has(id) || survivesRemoval(state.fileVersions.get(id))) continue;
+    const existing = state.fileVersions.get(id);
+    if (fileIds.has(id) || survivesRemoval(existing)) continue;
     state.files.delete(id);
     state.fileVersions.delete(id);
     state.composed.delete(id);
+    stampVersion(state.removedFiles, id, tombstone(existing));
   }
 
   for (const row of jobRows) mergeJob(row, token(row.updatedAt));
@@ -731,7 +800,7 @@ function describeError(error: unknown): string {
 export async function hydrate(options: { route?: string } = {}): Promise<StoreSnapshot> {
   generation += 1;
   const mine = generation;
-  hydrateInFlight = true;
+  hydrateGeneration = mine;
   if (retryTimer) {
     clearTimeout(retryTimer);
     retryTimer = null;
@@ -763,7 +832,16 @@ export async function hydrate(options: { route?: string } = {}): Promise<StoreSn
     };
     scheduleRetry();
   } finally {
-    if (mine === generation) hydrateInFlight = false;
+    if (hydrateGeneration === mine) {
+      hydrateGeneration = null;
+      if (resyncPending) {
+        // The epoch moved while this load was in flight, so the payload it just
+        // applied may predate the new epoch. Replay the suppressed resync now
+        // that one can actually start (§6.4).
+        resyncPending = false;
+        void hydrate();
+      }
+    }
     touch();
     flush();
   }
@@ -786,25 +864,39 @@ export function retryHydrate(): Promise<StoreSnapshot> {
 export async function createWorkspace(options: { route?: string } = {}): Promise<StoreSnapshot> {
   generation += 1;
   const mine = generation;
-  const created = await client.createWorkspace({ route: options.route });
-  if (!isRecord(created) || typeof created.id !== 'string') {
-    throw new Error('Workspace creation did not return an id');
+  hydrateGeneration = mine;
+  try {
+    const created = await client.createWorkspace({ route: options.route });
+    if (!isRecord(created) || typeof created.id !== 'string') {
+      throw new Error('Workspace creation did not return an id');
+    }
+    const payload = await client.getWorkspace(created.id);
+    if (mine !== generation) return getSnapshot();
+    state.files.clear();
+    state.fileVersions.clear();
+    state.jobs.clear();
+    state.jobVersions.clear();
+    // A new workspace shares no ids with the old one, so its deletion history
+    // must not outlive it and gate rows that are unrelated to it.
+    state.removedFiles.clear();
+    state.removedJobs.clear();
+    state.composed.clear();
+    state.sessions.clear();
+    applySnapshot(payload);
+    state.status = 'ready';
+    state.error = null;
+    state.failedAttempts = 0;
+    touch();
+    flush();
+    return getSnapshot();
+  } finally {
+    // Released even when creation throws — otherwise a failed create would
+    // block every later resync (§6.4).
+    if (hydrateGeneration === mine) {
+      hydrateGeneration = null;
+      resyncPending = false;
+    }
   }
-  const payload = await client.getWorkspace(created.id);
-  if (mine !== generation) return getSnapshot();
-  state.files.clear();
-  state.fileVersions.clear();
-  state.jobs.clear();
-  state.jobVersions.clear();
-  state.composed.clear();
-  state.sessions.clear();
-  applySnapshot(payload);
-  state.status = 'ready';
-  state.error = null;
-  state.failedAttempts = 0;
-  touch();
-  flush();
-  return getSnapshot();
 }
 
 /* ---------------------------------------------------------------- *
@@ -886,7 +978,12 @@ export function applyEvent(raw: unknown): void {
 
 /** One re-hydrate per epoch change, not one per event that reports it. */
 function requestResync(): void {
-  if (hydrateInFlight) return;
+  if (hydrateGeneration !== null) {
+    // Not dropped: the load in flight may have been issued before the epoch
+    // changed, so its snapshot can carry the old epoch (§6.4).
+    resyncPending = true;
+    return;
+  }
   void hydrate();
 }
 
