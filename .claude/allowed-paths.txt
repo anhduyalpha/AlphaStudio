@@ -5,3 +5,13 @@
 # PROGRESS.md, this file, and logs/ are always writable (hardcoded in
 # .claude/hooks/scope-guard.mjs). With no entries below, nothing else
 # inside the repo is writable — the between-units state.
+
+# Unit 1 (A1) — Client test harness (Vitest)
+package.json
+package-lock.json
+vitest.config.js
+tsconfig.client.json
+.github/workflows/ci.yml
+src/tests/
+PROGRESS.md
+evidence/
