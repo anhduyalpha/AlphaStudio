@@ -24,6 +24,16 @@ export type FormatDefinition = {
    * alias) never leaks out as a `.markdown` file filter.
    */
   extensions?: string[];
+  /**
+   * `false` when `POST /api/uploads` refuses this format. The upload path gates
+   * on its own, narrower allowlist (`security/validation.ts`), so the converter
+   * layer has always understood formats it will not let through the door.
+   * Published lists carry both sets — `extensions` (what the format layer
+   * knows) and `uploadable` (what a client may actually offer) — so a file
+   * filter never proposes a file the next request rejects. Pinned against the
+   * real allowlist by `server/tests/accept-lists-uploadable.test.ts`.
+   */
+  uploadable?: boolean;
 };
 
 const DEFINITIONS: FormatDefinition[] = [
@@ -73,7 +83,7 @@ const DEFINITIONS: FormatDefinition[] = [
   { format: 'ods', family: 'spreadsheet', mime: 'application/vnd.oasis.opendocument.spreadsheet' },
   { format: 'csv', family: 'spreadsheet', mime: 'text/csv' },
   { format: 'tsv', family: 'spreadsheet', mime: 'text/tab-separated-values' },
-  { format: 'parquet', family: 'spreadsheet', mime: 'application/vnd.apache.parquet' },
+  { format: 'parquet', family: 'spreadsheet', mime: 'application/vnd.apache.parquet', uploadable: false },
   { format: 'ppt', family: 'presentation', mime: 'application/vnd.ms-powerpoint' },
   {
     format: 'pptx',
@@ -96,14 +106,14 @@ const DEFINITIONS: FormatDefinition[] = [
     aliases: ['markdown', 'mdown', 'mkd', 'gfm', 'commonmark'],
   },
   { format: 'html', family: 'text', mime: 'text/html', aliases: ['htm', 'html5'], extensions: ['.html', '.htm'] },
-  { format: 'rst', family: 'text', mime: 'text/x-rst', aliases: ['rest'] },
-  { format: 'asciidoc', family: 'text', mime: 'text/asciidoc', aliases: ['adoc'], extensions: ['.adoc', '.asciidoc'] },
+  { format: 'rst', family: 'text', mime: 'text/x-rst', aliases: ['rest'], uploadable: false },
+  { format: 'asciidoc', family: 'text', mime: 'text/asciidoc', aliases: ['adoc'], extensions: ['.adoc', '.asciidoc'], uploadable: false },
   { format: 'json', family: 'text', mime: 'application/json' },
   { format: 'epub', family: 'ebook', mime: 'application/epub+zip' },
-  { format: 'mobi', family: 'ebook', mime: 'application/x-mobipocket-ebook' },
-  { format: 'azw3', family: 'ebook', mime: 'application/vnd.amazon.ebook', aliases: ['azw'], extensions: ['.azw', '.azw3'] },
-  { format: 'fb2', family: 'ebook', mime: 'application/x-fictionbook+xml' },
-  { format: 'htmlz', family: 'ebook', mime: 'application/zip' },
+  { format: 'mobi', family: 'ebook', mime: 'application/x-mobipocket-ebook', uploadable: false },
+  { format: 'azw3', family: 'ebook', mime: 'application/vnd.amazon.ebook', aliases: ['azw'], extensions: ['.azw', '.azw3'], uploadable: false },
+  { format: 'fb2', family: 'ebook', mime: 'application/x-fictionbook+xml', uploadable: false },
+  { format: 'htmlz', family: 'ebook', mime: 'application/zip', uploadable: false },
 ];
 
 const BY_TOKEN = new Map<string, FormatDefinition>();
@@ -181,8 +191,14 @@ export type AcceptList = {
   id: string;
   label: string;
   families: Family[];
-  /** Dot-prefixed, lowercase, sorted. */
+  /** Every extension in these families the format layer knows. Sorted. */
   extensions: string[];
+  /**
+   * The subset of `extensions` that `POST /api/uploads` will actually accept.
+   * **Build client file filters from this**, not from `extensions` — the upload
+   * allowlist is narrower than the converter's format knowledge.
+   */
+  uploadable: string[];
   /** Sorted, deduped. */
   mimeTypes: string[];
 };
@@ -198,6 +214,9 @@ const ACCEPT_LIST_FAMILIES: { id: string; label: string; families: Family[] }[] 
   { id: 'audio', label: 'Audio', families: ['audio'] },
   { id: 'video', label: 'Video', families: ['video'] },
   { id: 'media', label: 'Audio and video', families: ['audio', 'video'] },
+  // ffmpeg also ingests still images and animated GIFs, and the shipped client
+  // lets a user drop one on Media Studio — keep that working.
+  { id: 'mediaSource', label: 'Audio, video and images', families: ['audio', 'video', 'image'] },
   { id: 'pdf', label: 'PDF', families: ['pdf'] },
   { id: 'archive', label: 'Archives', families: ['archive'] },
   { id: 'text', label: 'Text and tabular', families: ['text', 'spreadsheet'] },
@@ -216,10 +235,14 @@ const JOB_ACCEPT_RULES: Record<string, JobAcceptRule> = {
   image: { default: 'image', operations: {} },
   qr: { default: 'image', operations: { generate: null } },
   pdf: { default: 'pdf', operations: { 'from-images': 'image' } },
-  media: { default: 'media', operations: {} },
-  audio: { default: 'audio', operations: {} },
-  // `create` packs arbitrary files; only extraction needs a real archive.
-  archive: { default: null, operations: { extract: 'archive' } },
+  // Deliberately wider than "audio+video": ffmpeg takes images too, and the
+  // shipped client's FilePicker does not filter drops, so narrowing here would
+  // silently break a flow that works today (GIF → MP4).
+  media: { default: 'mediaSource', operations: {} },
+  // Audio jobs legitimately read a video container and drop the video stream.
+  audio: { default: 'media', operations: {} },
+  // `create` packs arbitrary files; reading one needs a real archive.
+  archive: { default: null, operations: { extract: 'archive', inspect: 'archive' } },
   // Text ops normally run on an inline string; an uploaded file may be anything.
   text: { default: null, operations: {} },
   // Inspection/hashing is deliberately format-agnostic.
@@ -231,10 +254,14 @@ const JOB_ACCEPT_RULES: Record<string, JobAcceptRule> = {
 
 function buildAcceptList(spec: { id: string; label: string; families: Family[] }): AcceptList {
   const extensions = new Set<string>();
+  const uploadable = new Set<string>();
   const mimeTypes = new Set<string>();
   for (const definition of DEFINITIONS) {
     if (!spec.families.includes(definition.family)) continue;
-    for (const ext of definition.extensions || [`.${definition.format}`]) extensions.add(ext);
+    for (const ext of definition.extensions || [`.${definition.format}`]) {
+      extensions.add(ext);
+      if (definition.uploadable !== false) uploadable.add(ext);
+    }
     mimeTypes.add(definition.mime);
   }
   return {
@@ -242,6 +269,7 @@ function buildAcceptList(spec: { id: string; label: string; families: Family[] }
     label: spec.label,
     families: [...spec.families],
     extensions: [...extensions].sort(),
+    uploadable: [...uploadable].sort(),
     mimeTypes: [...mimeTypes].sort(),
   };
 }
@@ -285,7 +313,13 @@ export function publishedAcceptLists(): {
     lists: Object.fromEntries(
       Object.entries(ACCEPT_LISTS).map(([id, list]) => [
         id,
-        { ...list, families: [...list.families], extensions: [...list.extensions], mimeTypes: [...list.mimeTypes] },
+        {
+          ...list,
+          families: [...list.families],
+          extensions: [...list.extensions],
+          uploadable: [...list.uploadable],
+          mimeTypes: [...list.mimeTypes],
+        },
       ]),
     ),
     jobTypes: Object.fromEntries(

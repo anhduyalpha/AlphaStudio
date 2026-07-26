@@ -150,6 +150,79 @@ server-only, introduced no capture, and the single existing capture
 (`smoke--home`) is the pre-flip client, which SPEC §4 does not describe. No
 verdict was fabricated.
 
+## Step 7 — spec review, and the four fixes it forced
+
+`spec-reviewer` verdict: **FIX-THEN-SHIP**. Derivation, publication and gate
+wiring were confirmed correct and well-tested; four Medium findings were fixed
+before merge. All four are pinned by a new test file,
+`server/tests/accept-lists-uploadable.test.ts` (10 cases), written before the
+fixes.
+
+1. **The published lists over-promised.** `POST /api/uploads` gates on its own,
+   narrower allowlist (`EXT_MIME` ∪ `TEXT_EXTS` in `security/validation.ts`),
+   which excludes `.mobi .azw .azw3 .fb2 .htmlz .rst .adoc .asciidoc .parquet`.
+   A client building a dropzone filter from the `ebook` list would have offered
+   `book.mobi` and eaten a 415 on the very next request — the exact
+   queue-then-fail dishonesty §3.5 exists to remove. **Fix:** the format table
+   now marks those seven definitions `uploadable: false`, and every published
+   list carries both `extensions` (what the format layer knows — still the full
+   set, so AUDIT PR-4's coverage assertion holds) and `uploadable` (what a
+   client may actually offer). The new test pins the marking against the real
+   allowlist **in both directions**, parsed from source: widen
+   `security/validation.ts` and it fails until the table agrees.
+   `security/validation.ts` itself was not touched — it is outside A3's
+   declared Files list, so the gap is now published as data rather than
+   silently patched.
+2. **The gate silently narrowed two working flows.** `FilePicker` does not
+   filter drops against `accept`, so today a user can drop `animation.gif` on
+   Media Studio (ffmpeg makes an MP4) or `clip.mp4` on Audio Lab (`-vn` +
+   libmp3lame). With `media`/`audio` mapped to audio+video only, both became
+   415 — subtractive, against PLAN line 11's "intermediate units ship no
+   user-visible change". **Fix:** new `mediaSource` list (audio+video+image)
+   for `media` jobs, and `audio` jobs map to `media` (audio+video), since
+   reading a video container and dropping the video stream is legitimate. Both
+   flows are now regression-tested by name.
+3. **`JOB_ACCEPT_RULES` was the one hand-maintained table with nothing pinning
+   it**, and was already inconsistent: `archive:extract` was gated but
+   `archive:inspect` — which equally needs a real archive — was not. **Fix:**
+   `inspect` gated too, plus a test asserting every job type in
+   `processorLoaders` has an accept rule, so a new job type cannot silently
+   become unrestricted by omission. Residual limitation, stated plainly: no
+   machine check can catch a *future* operation that needs a different list
+   (e.g. another images-in PDF op) because input kind is not modelled in
+   `operation-contract.ts`, which is out of scope here. `pyop` stays
+   unrestricted on purpose — its operations span every family.
+4. **The drift parser could under-count.** The row regex in
+   `capabilities-contracts.test.ts` matches only single-line `EXT_FAMILY`
+   entries and asserted `rows.length >= 50` — a floor, so a reformatted
+   multi-line entry would be skipped silently. **Fix:** a new test asserts the
+   row parser matches *exactly* the key list, so the drift guarantee cannot be
+   quietly hollowed out. (The existing test file was not edited — test files
+   are write-once here.)
+
+Reviewer's non-findings worth keeping: `retryJob` re-queues with a raw `UPDATE`
+and never re-enters `createJob`, so the gate cannot break an in-flight retry;
+extension-less files are already impossible in `uploads` because
+`validateStoredFileQuick` rejects them first; `POST /api/jobs` is the only
+`createJob` caller, so gating inside `createJob` is the correct placement.
+
+### Gates re-run after the fixes
+```
+npm run typecheck                                            EXIT=0
+npm test        tests 733 / pass 732 / fail 0 / skipped 1    EXIT=0
+npm run visual:checks   (same 3 PENDING for C1/F0)           EXIT=0
+npm run visual:capture  captured=1 missing=268               EXIT=0
+npm run visual:diff     PASS — 0 baseline(s) verified        EXIT=0
+```
+726 → 733 is the 7 additional cases from the new pinning test file (3 of its 10
+replaced nothing; total new tests for A3 = 21).
+
+### One process note
+`accept-lists-uploadable.test.ts` was written, then removed and rewritten from
+scratch a minute later to strip a stray non-ASCII character I had typed into a
+test title. The file was uncommitted and had never been executed at that point.
+Recording it because test files are otherwise write-once in this harness.
+
 ## Deliberately NOT done in this unit
 
 SPEC §3.5 closes with a checkable consequence: "`git grep` over `src/` finds no
