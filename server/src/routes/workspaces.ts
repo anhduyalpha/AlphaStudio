@@ -14,6 +14,8 @@ import {
 } from '../lib/paths.js';
 import { contentDispositionAttachment } from '../pdf/output-names.js';
 import {
+  currentWorkspaceSeq,
+  eventEpoch,
   nextEventVersion,
   onWorkspaceEvent,
 } from '../lib/workspace-events.js';
@@ -33,6 +35,20 @@ import {
   updateFileDetect,
 } from '../services/workspace.js';
 
+/**
+ * Every snapshot carries the same `{ epoch, seq }` pair as the event envelopes
+ * (SPEC §6.4), so a client can position a hydrate against the SSE stream: drop
+ * anything at or below `seq` within `epoch`, and treat a changed `epoch` as
+ * "ordering state is meaningless, re-hydrate".
+ */
+function versionedSnapshot(id: string) {
+  return {
+    ...hydrateWorkspace(id),
+    epoch: eventEpoch,
+    seq: currentWorkspaceSeq(id),
+  };
+}
+
 export async function workspaceRoutes(app: FastifyInstance): Promise<void> {
   /** Create a new workspace */
   app.post('/api/workspaces', async (req, reply) => {
@@ -49,13 +65,13 @@ export async function workspaceRoutes(app: FastifyInstance): Promise<void> {
   app.post('/api/workspaces/recover', async (req) => {
     const body = (req.body || {}) as { id?: string; route?: string };
     const ws = ensureWorkspace(body.id, body.route || 'dashboard');
-    return hydrateWorkspace(ws.id);
+    return versionedSnapshot(ws.id);
   });
 
   /** Full hydrate */
   app.get('/api/workspaces/:id', async (req) => {
     const { id } = req.params as { id: string };
-    return hydrateWorkspace(id);
+    return versionedSnapshot(id);
   });
 
   /** Autosave patch */
@@ -69,14 +85,14 @@ export async function workspaceRoutes(app: FastifyInstance): Promise<void> {
     };
     if (!getWorkspace(id)) throw notFound('Workspace not found');
     patchWorkspace(id, body);
-    return hydrateWorkspace(id);
+    return versionedSnapshot(id);
   });
 
   /** Soft-clear files + settings */
   app.post('/api/workspaces/:id/clear', async (req) => {
     const { id } = req.params as { id: string };
     clearWorkspace(id);
-    return hydrateWorkspace(id);
+    return versionedSnapshot(id);
   });
 
   /** Delete workspace */
@@ -146,7 +162,7 @@ export async function workspaceRoutes(app: FastifyInstance): Promise<void> {
   app.delete('/api/workspaces/:id/files/:fileId', async (req) => {
     const { id, fileId } = req.params as { id: string; fileId: string };
     softDeleteFile(id, fileId);
-    return hydrateWorkspace(id);
+    return versionedSnapshot(id);
   });
 
   /** Attach cached detect result */
@@ -198,6 +214,10 @@ export async function workspaceRoutes(app: FastifyInstance): Promise<void> {
       type: 'connected',
       workspaceId,
       version: nextEventVersion(),
+      // Same pair as every envelope that follows: the client adopts this epoch
+      // and treats `seq` as the position it is resuming from (SPEC §6.4).
+      epoch: eventEpoch,
+      seq: currentWorkspaceSeq(workspaceId),
       updatedAt: new Date().toISOString(),
     });
 
