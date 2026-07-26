@@ -1,0 +1,22 @@
+{
+  // Client-side TypeScript surface (PLAN A1). SPEC §3.1 language rule:
+  // src/protocol/ and src/hubs/ are TypeScript and must typecheck; the rest of
+  // the client stays untyped JSX. src/tests/ is included so the harness's own
+  // TS tests are checked (and so this project always has at least one input).
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src/protocol/**/*", "src/hubs/**/*", "src/tests/**/*"]
+}

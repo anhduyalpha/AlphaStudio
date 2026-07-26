@@ -15,9 +15,10 @@
     "build": "npm run build:client && npm run build:server",
     "build:client": "vite build",
     "build:server": "npm run build -w alphastudio-server",
-    "typecheck": "tsc -p server/tsconfig.json --noEmit",
+    "typecheck": "tsc -p server/tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit",
     "start": "npm run start -w alphastudio-server",
     "test": "npm run test -w alphastudio-server",
+    "test:client": "vitest run",
     "test:pdf": "node --import tsx --test --test-concurrency=1 server/tests/pdf-*.test.ts server/tests/ui-pdf-struct.test.ts",
     "test:e2e": "node scripts/test/run-playwright.mjs",
     "visual:capture": "node scripts/visual/capture.mjs",
@@ -62,7 +63,8 @@
   "devDependencies": {
     "@playwright/test": "^1.61.1",
     "concurrently": "^9.1.2",
-    "vite": "6.4.3"
+    "vite": "6.4.3",
+    "vitest": "^4.1.10"
   },
   "engines": {
     "node": ">=20"
