@@ -119,7 +119,109 @@ No baseline accepted — B1 renders nothing. `consoleErrors: {}`; the new module
 is not imported by the shipped client yet (inert until the flip), so the
 capture is unchanged by design.
 
+### A capture flake, and how it was ruled out
+Two consecutive `visual:capture` runs failed with
+`page.goto: Timeout 30000ms exceeded` navigating to the client. Rather than
+retry until green, the changes were stashed and capture re-run on the committed
+tree — it passed, which pointed at the diff. Restoring the changes and running
+again also passed, and has passed on every run since. So the cause was a slow
+Vite dev-server boot under load from the preceding suites, not the unit: the
+stash run's success was ordering luck, not evidence. Recording it because
+"stash → passed" looked like a real bisect result for one step, and a flake that
+is quietly retried away is a flake nobody fixes. `netstat` showed nothing
+listening on 16173/16787 during the failures, so it was startup latency against
+the 30s `page.goto` budget, not a port conflict.
+
 ## Gate 4 — visual judge
 
 **No applicable input** — third server/protocol-only unit in a row with no
 surface and no capture of its own. No verdict was fabricated.
+
+## Step 7 — spec review, and the six fixes it forced
+
+`spec-reviewer` verdict: **FIX-THEN-SHIP**. It confirmed scope, layering (the
+only import is `api/client.js`; no React/components/store; no cycle), the
+absence of fallback literals, and endorsed the `@ts-expect-error` call as
+"strictly better than `@ts-ignore` … self-cleaning: the day A1's tsconfig gains
+`allowJs`, TS7016 disappears and the directive itself errors as unused". Six
+findings were fixed before merge, all pinned by a new test file
+`src/tests/protocol-contracts-gaps.test.ts` (16 cases) written before the fixes.
+
+1. **High — the accept attribute over-promised.** It concatenated the
+   *uploadable-only* extensions with the list's *unfiltered* `mimeTypes`. The
+   server builds `mimeTypes` per family without regard to uploadability, so the
+   real `ebook` list carries `application/x-mobipocket-ebook` and
+   `application/zip` — and a browser file picker matches on MIME as well as
+   extension. The picker would have offered every `.zip` on disk and every
+   `.mobi` on Linux/macOS, both of which the next request refuses.
+   **Fix:** MIME types are emitted only when `uploadable.length ===
+   extensions.length` (every format in the list is uploadable, so every MIME is
+   safe); on a partly-uploadable list the attribute is extensions-only.
+   Note the constraint this navigated: the obvious fix — drop `mimeTypes`
+   altogether — would have contradicted an already-written, write-once test
+   asserting `'.png,.svg,image/png,image/svg+xml'` for a fully-uploadable list.
+   The rule above satisfies both that test and the ebook case. The tighter fix
+   (the server publishing an uploadable-only MIME subset) needs
+   `server/src/convert/formats.ts` and belongs to a unit that may touch it.
+2. **Medium — no `acceptListById`.** SPEC §3.4 has hub configs name a list via
+   `acceptFrom: '<list id>'`, and nothing exposed that, so D3 would have reached
+   into `getContractState().contract.acceptLists.lists[id]` — where a typo
+   yields `undefined` and reads as "no filter", exactly the
+   unrestricted-vs-unknown collapse this module exists to prevent.
+   **Fix:** `acceptListById()` / `acceptAttributeForList()`, gap-aware.
+3. **Medium — absence reported as knowledge, twice.** (a) `gatedOps` is only the
+   *unavailable* slice, so an unknown capability id answered "not gated, go
+   ahead"; the payload's full `tools` inventory is now parsed, and an id absent
+   from it is a gap. (b) A missing `converter` section produced `{}` — "zero
+   engines" rather than "we do not know"; `engines` is now `null` in that case
+   and the engine selectors report the gap.
+4. **Medium — refresh blacked out a good contract.** `loadContracts({refresh:
+   true})` set `loading` immediately, so for the whole of a server-side tool
+   re-probe (seconds, it spawns real binaries) every hub would flip to its
+   capability-gap state — and a *failed* refresh replaced a valid cached
+   contract with `unavailable` permanently. **Fix:** a refresh keeps serving the
+   cache until the new contract lands, and keeps it on failure with
+   `refreshError` recorded. Responses are generation-checked, so a slow reply
+   can neither overwrite a newer one nor repopulate a cache that was reset
+   underneath it.
+5. **Medium — the parser hard-failed on `families`**, a field no selector reads
+   and no server test pins. A later unit trimming that server-internal metadata
+   would have blacked out every hub with "did not publish a usable contract"
+   while both suites stayed green. **Fix:** `families` is now optional.
+6. **Medium — `jobType` was not normalized** while `operation` was, so `'PDF'`
+   answered "unrestricted" client-side while the server still enforced the `pdf`
+   list. **Fix:** both normalized exactly as `acceptListIdForJob` does.
+
+Also taken from the review's residual-risk note: `loadContracts` now checks
+`typeof client.capabilities === 'function'` and reports a distinct reason, so
+`client.js` losing that method fails loudly instead of degrading the whole app
+to the capability-gap state. And `client.capabilities()` is now invoked
+synchronously rather than a microtask later, so the request is in flight by the
+time `loadContracts` returns.
+
+### Two corrections to this evidence file, from the same review
+- The claim that the mock "proves the module fetches **only** through the client
+  wrapper" was too strong: mocking proves the happy path *goes through* it, not
+  that no other path exists. The new test file now asserts the source contains
+  no `fetch(`, `XMLHttpRequest`, `EventSource`, `WebSocket`, or `/api/` string,
+  which is what makes "only" true.
+- `resetContracts()` previously did not invalidate an in-flight request despite
+  its doc comment; the generation counter now does.
+
+### One process note
+`protocol-contracts-gaps.test.ts` was removed and rewritten once, before it was
+committed, because its first version reached for `await import('../api/client.js')`
+to break the mocked module — which tripped the same TS7016 in `typecheck`. The
+rewrite holds the mocked `api` object by reference instead, so no untyped import
+is needed. Recording it because test files are otherwise write-once here.
+
+### Gates re-run after the fixes
+```
+npm run typecheck                                  EXIT=0
+npm run test:client   Test Files 3 passed, Tests 39 passed   EXIT=0
+server/tests/ui-*-struct.test.ts   137 pass / 0 fail          EXIT=0
+npm run visual:checks                              EXIT=0
+npm run visual:capture  captured=1 missing=268     EXIT=0
+npm run visual:diff     PASS                       EXIT=0
+consoleErrors: {}
+```

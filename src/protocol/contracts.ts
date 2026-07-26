@@ -88,7 +88,17 @@ export type CapabilityContract = {
   acceptLists: AcceptListsContract;
   gatedOps: GatedOperation[];
   quality: QualityContract;
-  engines: EngineStatus[];
+  /**
+   * `null` when the payload published no engine section — "we do not know",
+   * which is not the same answer as "there are no engines".
+   */
+  engines: EngineStatus[] | null;
+  /**
+   * Every capability id the server published, so an id that exists nowhere can
+   * be reported as unknown rather than as "not gated, go ahead". `null` when
+   * the payload carried no inventory.
+   */
+  capabilityIds: string[] | null;
   /** Whole payload, for the sections this module does not model. */
   raw: Record<string, unknown>;
 };
@@ -96,7 +106,13 @@ export type CapabilityContract = {
 export type ContractState =
   | { status: 'idle' }
   | { status: 'loading' }
-  | { status: 'ready'; contract: CapabilityContract; fetchedAt: number }
+  | {
+      status: 'ready';
+      contract: CapabilityContract;
+      fetchedAt: number;
+      /** Set when a later `refresh` failed and this cached contract was kept. */
+      refreshError?: string;
+    }
   | { status: 'unavailable'; reason: string };
 
 /**
@@ -120,11 +136,13 @@ function stringArray(value: unknown): string[] | null {
 
 function parseAcceptList(id: string, value: unknown): AcceptList | null {
   if (!isRecord(value)) return null;
-  const families = stringArray(value.families);
   const extensions = stringArray(value.extensions);
   const uploadable = stringArray(value.uploadable);
   const mimeTypes = stringArray(value.mimeTypes);
-  if (!families || !extensions || !uploadable || !mimeTypes) return null;
+  if (!extensions || !uploadable || !mimeTypes) return null;
+  // `families` is server-internal metadata no selector reads — tolerate its
+  // absence rather than blacking the whole app out over a field we ignore.
+  const families = stringArray(value.families) || [];
   return {
     id,
     label: typeof value.label === 'string' ? value.label : id,
@@ -194,8 +212,9 @@ function parseQuality(value: unknown): QualityContract | null {
   return { presets, default: value.default, aliases };
 }
 
-function parseEngines(value: unknown): EngineStatus[] {
-  if (!isRecord(value) || !Array.isArray(value.engines)) return [];
+/** `null` when no engine section was published — unknown, not empty. */
+function parseEngines(value: unknown): EngineStatus[] | null {
+  if (!isRecord(value) || !Array.isArray(value.engines)) return null;
   const engines: EngineStatus[] = [];
   for (const entry of value.engines) {
     if (!isRecord(entry) || typeof entry.id !== 'string') continue;
@@ -230,8 +249,19 @@ export function parseCapabilities(payload: unknown): CapabilityContract | null {
     gatedOps,
     quality,
     engines: parseEngines(payload.converter),
+    capabilityIds: parseCapabilityIds(payload.tools),
     raw: payload,
   };
+}
+
+/** The full capability inventory (`tools`), or `null` when not published. */
+function parseCapabilityIds(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  const ids: string[] = [];
+  for (const entry of value) {
+    if (isRecord(entry) && typeof entry.id === 'string') ids.push(entry.id);
+  }
+  return ids.length > 0 ? ids : null;
 }
 
 /* ---------------------------------------------------------------- *
@@ -240,6 +270,8 @@ export function parseCapabilities(payload: unknown): CapabilityContract | null {
 
 let state: ContractState = { status: 'idle' };
 let inFlight: Promise<ContractState> | null = null;
+/** Bumped per request and on reset, so a stale response can never win. */
+let generation = 0;
 
 export function getContractState(): ContractState {
   return state;
@@ -247,6 +279,7 @@ export function getContractState(): ContractState {
 
 /** Drop the cache — workspace teardown, and test isolation. */
 export function resetContracts(): void {
+  generation += 1;
   state = { status: 'idle' };
   inFlight = null;
 }
@@ -262,31 +295,54 @@ function failureReason(error: unknown): string {
  * a ready contract is returned as-is unless `refresh` is set. A failed or
  * malformed response resolves to `unavailable` — it never throws at the
  * caller, because the caller's job is to render the gap state, not to catch.
+ *
+ * A refresh keeps serving the cached contract until the new one lands, and
+ * keeps it if the refresh fails (recording `refreshError`). Re-probing tools
+ * server-side can take seconds; blacking every hub out for that window — or
+ * permanently, on a failed re-probe — would be worse than a slightly stale
+ * contract. Responses are generation-checked, so a slow reply can never
+ * overwrite a newer one or repopulate a cache that was reset underneath it.
  */
 export function loadContracts(options: { refresh?: boolean } = {}): Promise<ContractState> {
   const refresh = options.refresh === true;
   if (!refresh && state.status === 'ready') return Promise.resolve(state);
   if (inFlight && !refresh) return inFlight;
 
-  state = { status: 'loading' };
-  const request = Promise.resolve()
-    .then(() => client.capabilities(refresh ? { refresh: true } : undefined))
+  generation += 1;
+  const mine = generation;
+  const cached = state.status === 'ready' ? state : null;
+  if (!cached) state = { status: 'loading' };
+
+  const settle = (next: ContractState): ContractState => {
+    if (mine !== generation) return state;
+    state = next;
+    if (inFlight === request) inFlight = null;
+    return state;
+  };
+
+  // Invoked synchronously, not deferred onto a microtask: the request must be
+  // in flight by the time `loadContracts` returns, so callers (and tests) can
+  // rely on ordering. A synchronous throw is folded into the same failure path.
+  let response: Promise<unknown>;
+  try {
+    if (typeof client.capabilities !== 'function') {
+      throw new Error('api/client.js does not expose capabilities()');
+    }
+    response = Promise.resolve(client.capabilities(refresh ? { refresh: true } : undefined));
+  } catch (error) {
+    response = Promise.reject(error);
+  }
+
+  const request: Promise<ContractState> = response
     .then((payload) => {
       const contract = parseCapabilities(payload);
-      state = contract
-        ? { status: 'ready', contract, fetchedAt: Date.now() }
-        : {
-            status: 'unavailable',
-            reason: '/api/capabilities did not publish a usable contract',
-          };
-      return state;
+      if (contract) return settle({ status: 'ready', contract, fetchedAt: Date.now() });
+      const reason = 'The capabilities endpoint did not publish a usable contract';
+      return settle(cached ? { ...cached, refreshError: reason } : { status: 'unavailable', reason });
     })
     .catch((error: unknown) => {
-      state = { status: 'unavailable', reason: failureReason(error) };
-      return state;
-    })
-    .finally(() => {
-      inFlight = null;
+      const reason = failureReason(error);
+      return settle(cached ? { ...cached, refreshError: reason } : { status: 'unavailable', reason });
     });
 
   inFlight = request;
@@ -303,6 +359,22 @@ function requireContract(): ContractLookup<CapabilityContract> {
   return { available: false, reason: 'Capabilities have not been loaded yet' };
 }
 
+const normalize = (value: string | undefined): string => (value || '').toLowerCase().trim();
+
+/**
+ * A published list by id — how hub configs name one (SPEC §3.4 `acceptFrom`).
+ * An unpublished id is a gap, never a silent "no filter".
+ */
+export function acceptListById(listId: string): ContractLookup<AcceptList> {
+  const found = requireContract();
+  if (!found.available) return found;
+  const list = found.value.acceptLists.lists[listId];
+  if (!list) {
+    return { available: false, reason: `Published list "${listId}" is missing from the contract` };
+  }
+  return { available: true, value: list };
+}
+
 /** The named list a job type/mode accepts. `value: null` = unrestricted. */
 export function acceptListFor(
   jobType: string,
@@ -310,39 +382,72 @@ export function acceptListFor(
 ): ContractLookup<AcceptList | null> {
   const found = requireContract();
   if (!found.available) return found;
-  const { lists, jobTypes } = found.value.acceptLists;
-  const rule = jobTypes[jobType];
+  // Normalized exactly as the server normalizes it in `acceptListIdForJob`,
+  // so the client's answer cannot drift from create-time enforcement.
+  const rule = found.value.acceptLists.jobTypes[normalize(jobType)];
   if (!rule) return { available: true, value: null };
-  const op = (operation || '').toLowerCase().trim();
+  const op = normalize(operation);
   const listId =
     op && Object.prototype.hasOwnProperty.call(rule.operations, op)
       ? rule.operations[op]
       : rule.default;
   if (listId === null || listId === undefined) return { available: true, value: null };
-  const list = lists[listId];
-  if (!list) {
-    return { available: false, reason: `Published list "${listId}" is missing from the contract` };
-  }
-  return { available: true, value: list };
+  return acceptListById(listId);
 }
 
 /**
- * The `accept` attribute for a job type/mode, built from the **uploadable**
- * extensions plus their MIME types. Empty string = unrestricted.
+ * Build a file-input `accept` value from a list.
+ *
+ * Extensions come from `uploadable` only. MIME types are included **only when
+ * every format in the list is uploadable** — the published `mimeTypes` covers
+ * the whole family, so on a partly-uploadable list (ebook: `.epub` uploadable,
+ * `.mobi`/`.htmlz` not) it still carries `application/x-mobipocket-ebook` and
+ * `application/zip`. A browser picker matches on MIME as well as extension, so
+ * emitting those would offer the user a file the very next upload refuses.
+ * Extensions alone are always safe.
+ *
+ * (The tighter fix — the server publishing an uploadable-only MIME subset —
+ * belongs to a unit that may touch `server/src/convert/formats.ts`.)
  */
+function acceptAttribute(list: AcceptList): string {
+  const fullyUploadable = list.uploadable.length === list.extensions.length;
+  const parts = fullyUploadable ? [...list.uploadable, ...list.mimeTypes] : [...list.uploadable];
+  return parts.join(',');
+}
+
+/** The `accept` attribute for a job type/mode. Empty string = unrestricted. */
 export function acceptAttributeFor(jobType: string, operation?: string): ContractLookup<string> {
   const found = acceptListFor(jobType, operation);
   if (!found.available) return found;
   if (!found.value) return { available: true, value: '' };
-  return { available: true, value: [...found.value.uploadable, ...found.value.mimeTypes].join(',') };
+  return { available: true, value: acceptAttribute(found.value) };
 }
 
-/** `value: null` = the capability is not gated on this machine. */
+/** The `accept` attribute for a list named directly by id. */
+export function acceptAttributeForList(listId: string): ContractLookup<string> {
+  const found = acceptListById(listId);
+  return found.available ? { available: true, value: acceptAttribute(found.value) } : found;
+}
+
+/**
+ * `value: null` = the capability is known and not gated on this machine.
+ *
+ * `gatedOps` lists only the UNAVAILABLE capabilities, so membership alone
+ * cannot tell "runnable" from "no such capability". When the payload also
+ * publishes the full inventory (`tools`), an id missing from it is reported as
+ * a gap — otherwise a typo'd or removed capability id would render a mode
+ * enabled and fail at job-create instead of showing the install-hint state.
+ */
 export function gatedOperation(capabilityId: string): ContractLookup<GatedOperation | null> {
   const found = requireContract();
   if (!found.available) return found;
   const gated = found.value.gatedOps.find((entry) => entry.id === capabilityId);
-  return { available: true, value: gated || null };
+  if (gated) return { available: true, value: gated };
+  const inventory = found.value.capabilityIds;
+  if (inventory && !inventory.includes(capabilityId)) {
+    return { available: false, reason: `Unknown capability: ${capabilityId}` };
+  }
+  return { available: true, value: null };
 }
 
 export function isOperationGated(capabilityId: string): ContractLookup<boolean> {
@@ -372,9 +477,13 @@ export function qualityPresets(): ContractLookup<string[]> {
   return found.available ? { available: true, value: [...found.value.quality.presets] } : found;
 }
 
+const ENGINES_UNPUBLISHED = 'Engine availability was not published';
+
 export function engineAvailability(): ContractLookup<Record<string, boolean>> {
   const found = requireContract();
   if (!found.available) return found;
+  // An absent engine section is "we do not know", never "there are none".
+  if (!found.value.engines) return { available: false, reason: ENGINES_UNPUBLISHED };
   const availability: Record<string, boolean> = {};
   for (const engine of found.value.engines) availability[engine.id] = engine.available;
   return { available: true, value: availability };
@@ -383,6 +492,7 @@ export function engineAvailability(): ContractLookup<Record<string, boolean>> {
 export function isEngineAvailable(engineId: string): ContractLookup<boolean> {
   const found = requireContract();
   if (!found.available) return found;
+  if (!found.value.engines) return { available: false, reason: ENGINES_UNPUBLISHED };
   const engine = found.value.engines.find((entry) => entry.id === engineId);
   if (!engine) return { available: false, reason: `Unknown engine: ${engineId}` };
   return { available: true, value: engine.available };
