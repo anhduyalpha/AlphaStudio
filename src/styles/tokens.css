@@ -28,7 +28,9 @@ html[data-theme='dark'] {
   /* Text */
   --text: #f7f8fc;
   --text-2: #a7b0c2;
-  --text-3: #717b90;
+  /* Pinned by contrast (§4.1 note): lightest muted grey clearing AA 4.5:1 on
+     all four dark surfaces. Do not lighten. */
+  --text-3: #798396;
 
   /* Accent — identity and interaction (§4.2 role table) */
   --accent: #9b7cff;
@@ -71,7 +73,9 @@ html[data-theme='light'] {
 
   --text: #111827;
   --text-2: #475569;
-  --text-3: #6b7280;
+  /* Pinned by contrast (§4.1 note): darkest muted grey clearing AA 4.5:1 on
+     all four light surfaces. Do not lighten. */
+  --text-3: #676d7b;
 
   --accent: #5f3fe4;
   --accent-hover: #4f32c9;
