@@ -1,0 +1,185 @@
+/*
+ * AlphaStudio design tokens — SPEC §4.1 (color), §4.5 (non-color), §5.2 (timing).
+ *
+ * This file is the ONLY definition site for design constants. Every other
+ * stylesheet references these custom properties and may not carry color,
+ * duration, easing, radius or type literals — SPEC §4.6, enforced by
+ * `npm run visual:checks` and src/tests/styles-tokens.test.ts.
+ *
+ * The theme is stamped pre-paint on the root element by the inline script in
+ * index.html, which always resolves to a literal light or dark value. Dark is
+ * the default set below; the light set overrides only what differs.
+ *
+ * Not imported by the pre-rebuild client.
+ */
+
+:root,
+html[data-theme='dark'] {
+  /* Surfaces */
+  --bg: #070911;
+  --bg-raised: #0d1020;
+  --surface: #101422;
+  --surface-2: #151a2c;
+
+  /* Hairlines */
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+
+  /* Text */
+  --text: #f7f8fc;
+  --text-2: #a7b0c2;
+  --text-3: #717b90;
+
+  /* Accent — identity and interaction (§4.2 role table) */
+  --accent: #9b7cff;
+  --accent-hover: #ab90ff;
+  --accent-active: #8a68f5;
+  --accent-soft: rgba(155, 124, 255, 0.14);
+  --on-accent: #ffffff;
+
+  /* Liveness — never used for identity or static info (§4.2) */
+  --live: #49dbe8;
+  --live-soft: rgba(73, 219, 232, 0.12);
+
+  /* Outcomes */
+  --success: #43d99b;
+  --warning: #f4bd5e;
+  --danger: #ff7188;
+
+  /* Focus is interaction, so the ring is accent-family, not live */
+  --focus-ring: rgba(155, 124, 255, 0.85);
+
+  /* Glass recipe (§4.3) — only on modal, palette, toast, run bar, drawer */
+  --glass-bg: rgba(13, 17, 29, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.1);
+
+  /* Elevation */
+  --shadow-1: 0 10px 28px rgba(0, 0, 0, 0.18);
+  --shadow-2: 0 18px 48px rgba(0, 0, 0, 0.26);
+}
+
+/* Light set. Overrides only the values that differ; every non-color token
+   below is theme-independent and defined once. */
+html[data-theme='light'] {
+  --bg: #f3f6fb;
+  --bg-raised: #eaf0fa;
+  --surface: #ffffff;
+  --surface-2: #f0f3fa;
+
+  --border: rgba(15, 23, 42, 0.08);
+  --border-strong: rgba(15, 23, 42, 0.14);
+
+  --text: #111827;
+  --text-2: #475569;
+  --text-3: #6b7280;
+
+  --accent: #5f3fe4;
+  --accent-hover: #4f32c9;
+  --accent-active: #462cb4;
+  --accent-soft: rgba(95, 63, 228, 0.1);
+  --on-accent: #ffffff;
+
+  --live: #0891b2;
+  --live-soft: rgba(8, 145, 178, 0.1);
+
+  --success: #0f9d6b;
+  --warning: #b45309;
+  --danger: #dc2626;
+
+  --focus-ring: rgba(95, 63, 228, 0.8);
+
+  --glass-bg: rgba(255, 255, 255, 0.78);
+  --glass-border: rgba(15, 23, 42, 0.1);
+
+  --shadow-1: 0 10px 28px rgba(50, 65, 90, 0.08);
+  --shadow-2: 0 18px 48px rgba(50, 65, 90, 0.12);
+}
+
+:root {
+  /* Identical in both themes (§4.1) */
+  --glass-blur: 18px;
+  --gradient-brand: linear-gradient(135deg, #9b7cff 0%, #5d8dff 100%);
+
+  /* §4.5 Type — Inter stack plus the mono stack, unchanged from pre-rebuild */
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Six type steps, no seventh. Each step publishes its size, line-height and
+     weight separately (what most declarations need) plus a `font` shorthand
+     composed from those same parts — the values live in exactly one place. */
+  --text-display-size: 1.75rem;
+  --text-display-line: 1.2;
+  --text-display-weight: 650;
+  --text-display: var(--text-display-weight) var(--text-display-size) / var(--text-display-line) var(--font-sans);
+
+  --text-title-size: 1.375rem;
+  --text-title-line: 1.25;
+  --text-title-weight: 600;
+  --text-title: var(--text-title-weight) var(--text-title-size) / var(--text-title-line) var(--font-sans);
+
+  --text-section-size: 1.0625rem;
+  --text-section-line: 1.4;
+  --text-section-weight: 600;
+  --text-section: var(--text-section-weight) var(--text-section-size) / var(--text-section-line) var(--font-sans);
+
+  --text-body-size: 0.9375rem;
+  --text-body-line: 1.5;
+  --text-body-weight: 400;
+  --text-body: var(--text-body-weight) var(--text-body-size) / var(--text-body-line) var(--font-sans);
+
+  --text-meta-size: 0.8125rem;
+  --text-meta-line: 1.4;
+  --text-meta-weight: 500;
+  --text-meta: var(--text-meta-weight) var(--text-meta-size) / var(--text-meta-line) var(--font-sans);
+
+  --text-code-size: 0.875rem;
+  --text-code-line: 1.5;
+  --text-code-weight: 400;
+  --text-code: var(--text-code-weight) var(--text-code-size) / var(--text-code-line) var(--font-mono);
+
+  /* §4.5 Spacing — unchanged scale */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+
+  /* §4.5 Radius — the retired 28px and the off-scale 13/14px are gone */
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  /* §4.5 Z-scale */
+  --z-rail: 10;
+  --z-drawer: 30;
+  --z-palette: 40;
+  --z-modal: 50;
+  --z-toast: 60;
+
+  /* §4.5 Shell metrics */
+  --sidebar-width: 248px;
+  --topbar-height: 64px;
+  --rail-width: 320px;
+  --runbar-height: 64px;
+
+  /* §5.2 Timing — the only legal durations. --duration-toast is read from
+     computed style by the Toast timer; it is never hardcoded in JS. */
+  --duration-fast: 150ms;
+  --duration-base: 220ms;
+  --duration-slow: 320ms;
+  --duration-ambient: 2600ms;
+  --duration-toast: 2600ms;
+
+  /* §5.2 Easing — no other curve exists */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
+}
+
+/* §4.5 Breakpoints are 640px, 900px and 1200px. Custom properties are not
+   usable inside a media query, so those three literals are permitted in
+   `@media` conditions and nowhere else. */
