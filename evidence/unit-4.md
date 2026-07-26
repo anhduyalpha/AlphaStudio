@@ -137,6 +137,20 @@ the 30s `page.goto` budget, not a port conflict.
 **No applicable input** — third server/protocol-only unit in a row with no
 surface and no capture of its own. No verdict was fabricated.
 
+## Step 8 — post-rebase gate re-run (before merge)
+
+`git rebase rebuild` was a no-op. Full suite re-run on the exact tree that merged:
+
+```
+npm run typecheck                                       EXIT=0
+npm run test:client   Test Files 3 passed, Tests 39     EXIT=0
+npm run visual:checks                                   EXIT=0
+npm run visual:capture  captured=1 missing=268          EXIT=0
+npm run visual:diff     PASS                            EXIT=0
+```
+
+Merged into `rebuild` as **affaa6c**; branch pushed to origin for the record.
+
 ## Step 7 — spec review, and the six fixes it forced
 
 `spec-reviewer` verdict: **FIX-THEN-SHIP**. It confirmed scope, layering (the
