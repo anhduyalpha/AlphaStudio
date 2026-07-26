@@ -17,7 +17,7 @@ and the visual-judge subagent. Nothing waits on human review during the run.)
 |---|------|------|--------|--------|--------|------|-------|
 | 1 | A1 | Client test harness (Vitest) | done | unit-1-a1-client-test-harness | a73a815 | — | evidence/unit-1.md |
 | 2 | A2 | S1: epoch event versioning | done | unit-2-a2-epoch-events | 86d9384 | — | characterization test first (AUDIT PR-5); evidence/unit-2.md |
-| 3 | A3 | S2: capabilities-published contracts | todo | — | — | — | drift test first (AUDIT PR-4) |
+| 3 | A3 | S2: capabilities-published contracts | in-progress | unit-3-a3-capabilities-contracts | — | — | drift test first (AUDIT PR-4) |
 | 4 | B1 | protocol/contracts.ts | todo | — | — | 1,3 | |
 | 5 | B2 | protocol/store.ts | todo | — | — | 1,2 | flagged: own detailed plan first (pairs with B3); merge tests before merge impl |
 | 6 | B3 | protocol/events.ts | todo | — | — | 2,5 | flagged: own detailed plan first (pairs with B2) |
