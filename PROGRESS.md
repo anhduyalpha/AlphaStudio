@@ -19,7 +19,7 @@ and the visual-judge subagent. Nothing waits on human review during the run.)
 | 2 | A2 | S1: epoch event versioning | done | unit-2-a2-epoch-events | 86d9384 | — | characterization test first (AUDIT PR-5); evidence/unit-2.md |
 | 3 | A3 | S2: capabilities-published contracts | done | unit-3-a3-capabilities-contracts | f26df70 | — | drift test first (AUDIT PR-4); evidence/unit-3.md; published lists carry `uploadable` (upload allowlist is narrower than the format table) — B1/E* must filter on that, not `extensions` |
 | 4 | B1 | protocol/contracts.ts | done | unit-4-b1-protocol-contracts | affaa6c | 1,3 | evidence/unit-4.md; selectors return `ContractLookup` — "unrestricted" and "unknown" never collapse; hubs build file filters from `acceptAttributeFor*`, never from `extensions` |
-| 5 | B2 | protocol/store.ts | in-progress | unit-5-b2-protocol-store | — | 1,2 | flagged: own detailed plan first (pairs with B3); merge tests before merge impl |
+| 5 | B2 | protocol/store.ts | blocked | unit-5-b2-protocol-store | — | 1,2 | spec-reviewer (step 7) stopped by user before reporting — gates 1-3 green on ac65603, branch pushed, nothing merged; evidence/unit-5.md; resume needs the spec review re-run or an explicit decision to skip it |
 | 6 | B3 | protocol/events.ts | todo | — | — | 2,5 | flagged: own detailed plan first (pairs with B2) |
 | 7 | B4 | protocol/uploads.ts | todo | — | — | 5 | |
 | 8 | C1 | Tokens and base styles | todo | — | — | — | |
