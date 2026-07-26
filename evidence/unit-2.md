@@ -138,6 +138,24 @@ and no criterion for the judge to assess, and none was fabricated. The gate's
 input set is empty; the first UI unit (C1) is where it first has something to
 judge.
 
+## Step 8 — post-rebase gate re-run (before merge)
+
+`git rebase rebuild` was a no-op ("Current branch unit-2-a2-epoch-events is up
+to date" — nothing landed on rebuild since the branch point). Full suite re-run
+anyway on the exact tree that merged:
+
+```
+npm run typecheck                        TYPECHECK_EXIT=0
+npm test        tests 712 / pass 711 / fail 0 / skipped 1   TEST_EXIT=0
+                duration_ms 461613.0933
+npm run visual:checks   (same 3 PENDING for C1/F0)          CHECKS_EXIT=0
+npm run visual:capture  captured=1 missing=268              CAPTURE_EXIT=0
+npm run visual:diff     PASS — 0 baseline(s) verified       DIFF_EXIT=0
+```
+
+Merged into `rebuild` as **86d9384** (`merge unit 2 (A2): S1 epoch event
+versioning`); branch pushed to origin for the record.
+
 ## Step 7 — spec review
 
 `spec-reviewer` subagent, given the A2 PLAN section, SPEC §6.4/§6.6, and the
