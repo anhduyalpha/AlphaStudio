@@ -121,6 +121,12 @@ Substantive signal for this unit: `report.json` records
 clean against the changed snapshot payload, i.e. the additive `{epoch, seq}`
 fields break nothing pre-flip.
 
+### Scope caveat on the typecheck line above
+`server/tsconfig.json` excludes `tests/`, so `npm run typecheck` EXIT=0 does not
+type-check `workspace-epoch-restart.test.ts` itself — that file is checked only
+by `tsx` at run time. The EXIT=0 above is true for the production sources; it is
+simply narrower than the bare command line suggests.
+
 ## Gate 4 — visual judge
 
 **No applicable input.** The judge is given "the capture file paths relevant to
@@ -131,3 +137,35 @@ every §4 surface is still `missing` pending D1+. There is therefore no artifact
 and no criterion for the judge to assess, and none was fabricated. The gate's
 input set is empty; the first UI unit (C1) is where it first has something to
 judge.
+
+## Step 7 — spec review
+
+`spec-reviewer` subagent, given the A2 PLAN section, SPEC §6.4/§6.6, and the
+diff range `rebuild...HEAD`. Verdict: **SHIP** — "No correctness or requirement
+gaps found."
+
+Confirmations it made independently:
+- `emitWorkspaceEvent` is the sole construction site for `WorkspaceEvent` in the
+  server, and `hydrateWorkspace` has exactly one call site — so "every envelope"
+  and "every snapshot" are genuinely covered, with nothing hydrate-shaped missed.
+- Ordering coherence holds in the dangerous direction: `versionedSnapshot`
+  evaluates `hydrateWorkspace(id)` before `currentWorkspaceSeq(id)`, every emit
+  fires after its DB commit, and handler bodies + better-sqlite3 are synchronous
+  — so a snapshot's content is never older than its declared `seq`.
+- Pre-flip client is unaffected: `src/lib/liveState.js` reads
+  `raw.version ?? raw.seq`, and `version` is always present, so the new field
+  never activates before the flip.
+- The restart test cannot pass vacuously (real `fork` of `src/index.ts`, IPC
+  shutdown, re-fork on the same DB; asserts seq 0 → 1, strict increase, lane
+  independence, epoch inequality, and file survival).
+
+Carried forward, all outside A2's declared Files scope (no action here):
+- `GET /api/jobs/:id/events` and `/api/jobs/:id/ws` still emit only the legacy
+  process-global `version`, no epoch (`server/src/routes/jobs.ts`). Outside
+  §6.4's named surface; flag in F1's audit if a client ever orders by `version`
+  across a restart.
+- `POST /api/workspaces` returns a creation stub `{id, route, createdAt}` with
+  no `{epoch, seq}` — not a hydrate snapshot; clients hydrate immediately after.
+- Contract note for B2/B3: `connected.seq` is a *position* (the last emitted
+  seq), not a freshly minted one, so it can equal a seq that other subscribers
+  already saw. Worth pinning in the client-side test when B3 lands.
