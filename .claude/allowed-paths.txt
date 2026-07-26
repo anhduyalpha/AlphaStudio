@@ -6,9 +6,15 @@
 # .claude/hooks/scope-guard.mjs). With no entries below, nothing else
 # inside the repo is writable — the between-units state.
 
-# Unit 2 (A2) — S1: epoch event versioning
-server/src/lib/workspace-events.ts
-server/src/routes/workspaces.ts
+# Unit 3 (A3) — S2: capabilities-published contracts
+server/src/routes/system.ts
+server/src/capabilities.ts
+server/src/convert/formats.ts
+server/src/convert/quality.ts
+# create-gate wiring ONLY (job-engine decomposition is out of scope, SPEC §1):
+server/src/routes/jobs.ts
+server/src/workers/jobs.ts
+server/src/processors/index.ts
 server/tests/
 PROGRESS.md
 evidence/
