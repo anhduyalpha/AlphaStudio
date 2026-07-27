@@ -19,7 +19,7 @@
         document.documentElement.dataset.theme = theme;
 
         // Resolve motion mode before first paint to avoid a flash of heavy motion.
-        // OS reduced-motion wins; else stored choice; else device heuristic; else balanced.
+        // OS reduced-motion wins; else stored choice; else balanced.
         const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         const storedMotion = localStorage.getItem('alpha-studio-motion');
         const modes = ['full', 'balanced', 'reduced'];
@@ -28,14 +28,6 @@
           motion = 'reduced';
         } else if (storedMotion && modes.includes(storedMotion)) {
           motion = storedMotion;
-        } else {
-          const conn = navigator.connection;
-          const lite =
-            (conn && conn.saveData === true) ||
-            (typeof navigator.hardwareConcurrency === 'number' && navigator.hardwareConcurrency <= 4) ||
-            (typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4) ||
-            window.matchMedia('(max-width: 900px)').matches;
-          motion = lite ? 'balanced' : 'balanced';
         }
         document.documentElement.dataset.motion = motion;
       })();
