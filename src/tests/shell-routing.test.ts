@@ -103,6 +103,21 @@ describe('D1 hash resolution and legacy redirects', () => {
       redirected: false,
     });
   });
+
+  it.each([
+    ['#/media?mode=', '#/media?mode=video'],
+    ['#/media?foo=bar', '#/media?mode=video'],
+    ['#/text?mode=', '#/text?mode=text'],
+    ['#/text?foo=bar', '#/text?mode=text'],
+    ['#/security?mode=', '#/security?mode=security'],
+    ['#/security?foo=bar', '#/security?mode=security'],
+  ])('canonicalizes %s to an idempotent explicit default', (input, expected) => {
+    const first = resolveHashRoute(input);
+    const second = resolveHashRoute(first.href);
+    expect(first.href).toBe(expected);
+    expect(second.href).toBe(expected);
+    expect(second.redirected).toBe(false);
+  });
 });
 
 describe('D1 client entry and pre-paint bootstrap', () => {

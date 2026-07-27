@@ -91,6 +91,12 @@ export const legacyRedirects: Readonly<Record<string, string>> = Object.freeze({
   '#/security': '#/security?mode=security',
 });
 
+const explicitDefaultModePaths = new Set(
+  Object.entries(legacyRedirects)
+    .filter(([from, to]) => to.startsWith(`${from}?mode=`))
+    .map(([from]) => from),
+);
+
 export const navigationItems: readonly NavigationItem[] = Object.freeze([
   Object.freeze({
     id: 'home',
@@ -179,7 +185,8 @@ export function resolveHashRoute(
   const selectedMode = route.hub.modes.find((mode) => mode.id === requestedMode)
     ?? route.hub.modes[0]
     ?? null;
-  const href = requestedMode && selectedMode
+  const shouldNameMode = Boolean(requestedMode) || explicitDefaultModePaths.has(path);
+  const href = shouldNameMode && selectedMode
     ? `${path}?mode=${encodeURIComponent(selectedMode.id)}`
     : path;
 
