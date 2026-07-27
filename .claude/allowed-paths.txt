@@ -6,18 +6,11 @@
 # .claude/hooks/scope-guard.mjs). With no entries below, nothing else
 # inside the repo is writable — the between-units state.
 
-# Unit 8 (C1) — PLAN "Files:" list
-src/styles/tokens.css
-src/styles/base.css
+# Unit 6 (B3) — PLAN "Files:" list
+src/protocol/events.ts
 # client test location established by A1 (vitest include: src/**/*.test.*)
 src/tests/
-# NOT a PLAN-declared path. The §4.1 `--text-3` amendment (#798396 dark /
-# #676d7b light) is a user-approved SPEC change this unit depends on: the
-# values SPEC currently states fail its own WCAG AA gate on 6 of 8 surface
-# pairings, so C1 cannot be both faithful to the table and green. The user
-# approved the amendment and reported it done, but their commit (94df4af)
-# only deleted the stale token test — SPEC.md was untouched — so the edit is
-# made here, limited to that one row.
-SPEC.md
+# unit 6 is flagged for its own detailed plan (PLAN "Units flagged…")
+docs/plans/UNIT-B3.md
 PROGRESS.md
 evidence/
