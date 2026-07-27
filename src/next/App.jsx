@@ -11,6 +11,7 @@ import '../styles/tokens.css';
 import '../styles/base.css';
 import '../styles/primitives.css';
 import '../styles/views.css';
+import '../styles/workbench.css';
 import {
   Card,
   CommandPalette,
@@ -28,6 +29,7 @@ import {
   selectActiveJobs,
   subscribe,
 } from '../protocol/store';
+import Workbench from '../workbench/Workbench.jsx';
 
 const AssetGallery = import.meta.env.DEV
   ? lazy(() => import('./views/AssetGallery.jsx'))
@@ -228,6 +230,12 @@ export default function App() {
             <Suspense fallback={<Skeleton variant="row" lines={6} label="Loading Asset Gallery" />}>
               <AssetGallery theme={theme} />
             </Suspense>
+          ) : route.kind === 'hub' ? (
+            <Workbench
+              hub={route.hub}
+              mode={mode}
+              onModeChange={(modeId) => navigate(`#/${route.id}?mode=${encodeURIComponent(modeId)}`)}
+            />
           ) : (
             <RoutePlaceholder resolved={resolved} />
           )}
