@@ -86,11 +86,15 @@ export default function Dropzone({
         <Icon name={safeVariant === 'paste' ? 'copy' : 'upload'} size={28} />
       </div>
       <div className="dropzone__copy">
-        <h3>{title || (safeVariant === 'paste' ? 'Paste or add a file' : 'Drop files here')}</h3>
+        <h3>{title || (safeVariant === 'paste'
+          ? 'Paste or add a file'
+          : empty ? 'Drop files here' : 'Add more files')}</h3>
         <p>
           {description || (safeVariant === 'paste'
             ? 'Paste from the clipboard, or choose a file from your device.'
-            : 'Drag files into this area, or browse from your device.')}
+            : empty
+              ? 'Drag files into this area, or browse from your device.'
+              : 'Drop or browse to add to the current list.')}
         </p>
       </div>
       <Button

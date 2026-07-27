@@ -91,7 +91,14 @@
   gap: var(--space-3);
 }
 
-.flow-state .progress-bar--indeterminate:not(.is-reduced) .progress-bar__fill {
+.toast-region.flow-toast-proof {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  pointer-events: auto;
+}
+
+html[data-motion='full'] .flow-state .progress-bar--indeterminate:not(.is-reduced) .progress-bar__fill {
   animation: none;
   transform: translateX(70%);
 }
@@ -130,14 +137,6 @@
 
 .flow-toast-proof .toast {
   width: min(100%, 520px);
-}
-
-.flow-live-proof {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
 }
 
 @media (max-width: 800px) {

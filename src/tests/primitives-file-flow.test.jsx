@@ -42,6 +42,15 @@ describe('C3 file primitives', () => {
     expect(html).toContain('aria-disabled="true"');
   });
 
+  it('renders visibly distinct empty and populated Dropzone copy', () => {
+    const empty = renderToStaticMarkup(<Dropzone />);
+    const populated = renderToStaticMarkup(<Dropzone empty={false} />);
+    expect(empty).toContain('is-empty');
+    expect(empty).toContain('Drop files here');
+    expect(populated).not.toContain('is-empty');
+    expect(populated).toContain('Add more files');
+  });
+
   it('renders FileRow slots and state treatments', () => {
     const html = renderToStaticMarkup(
       <FileRow
@@ -166,10 +175,10 @@ describe('C3 flow primitives', () => {
       href: '#/security?mode=archive',
     }];
     const full = renderToStaticMarkup(
-      <ResumeStrip uploadSessions={uploads} jobs={jobs} />,
+      <ResumeStrip uploadSessions={uploads} jobs={jobs} onResume={() => {}} onDiscard={() => {}} />,
     );
     const uploadsOnly = renderToStaticMarkup(
-      <ResumeStrip variant="uploads-only" uploadSessions={uploads} jobs={jobs} />,
+      <ResumeStrip variant="uploads-only" uploadSessions={uploads} jobs={jobs} onResume={() => {}} onDiscard={() => {}} />,
     );
     expect(full).toContain('large-video.mov');
     expect(full).toContain('Archive batch');
@@ -191,8 +200,42 @@ describe('C3 flow primitives', () => {
         originalName: 'orphan.mov',
         size: 100,
         receivedBytes: 50,
-      }]} />,
+      }]} onResume={() => {}} onDiscard={() => {}} />,
     )).toThrow(/owning workflow/i);
+  });
+
+  it('requires full mode ownership and functional upload recovery handlers', () => {
+    const session = {
+      id: 'upload',
+      originalName: 'video.mov',
+      size: 100,
+      receivedBytes: 50,
+      href: '#/media',
+    };
+    expect(() => renderToStaticMarkup(
+      <ResumeStrip uploadSessions={[session]} />,
+    )).toThrow(/handlers/i);
+    expect(() => renderToStaticMarkup(
+      <ResumeStrip uploadSessions={[session]} onResume={() => {}} onDiscard={() => {}} />,
+    )).toThrow(/hub and mode/i);
+  });
+
+  it('filters terminal jobs out of the full ResumeStrip', () => {
+    const html = renderToStaticMarkup(<ResumeStrip jobs={[
+      { id: 'running', label: 'Running job', status: 'running', progress: 50, href: '#/media?mode=convert' },
+      { id: 'done', label: 'Completed job', status: 'completed', progress: 100, href: '#/media?mode=convert' },
+      { id: 'failed', label: 'Failed job', status: 'failed', progress: 70, href: '#/media?mode=convert' },
+    ]} />);
+    expect(html).toContain('Running job');
+    expect(html).not.toContain('Completed job');
+    expect(html).not.toContain('Failed job');
+  });
+
+  it('makes disabled FileRow action descendants inert', () => {
+    const html = renderToStaticMarkup(
+      <FileRow name="locked.pdf" disabled actions={<button type="button">Remove</button>} />,
+    );
+    expect(html).toContain('inert=""');
   });
 });
 
@@ -227,5 +270,7 @@ describe('C3 structural invariants', () => {
     expect(progressSource).not.toMatch(/style=\{\{[^}]*width/s);
     expect(css).toMatch(/prefers-reduced-motion:[\s\S]*\.progress-bar--indeterminate/);
     expect(css).toMatch(/prefers-reduced-motion:[\s\S]*\.toast/);
+    expect(css).toMatch(/html\[data-motion='reduced'\][\s\S]*\.progress-bar--indeterminate/);
+    expect(css).toMatch(/html\[data-motion='reduced'\][\s\S]*\.toast/);
   });
 });

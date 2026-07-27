@@ -19,6 +19,7 @@ import './unit-10-gallery.css';
 
 const query = new URLSearchParams(window.location.search);
 document.documentElement.dataset.theme = query.get('theme') === 'light' ? 'light' : 'dark';
+document.documentElement.dataset.motion = query.get('motion') === 'reduced' ? 'reduced' : 'full';
 const activePanel = query.get('panel') || 'all';
 const activePart = query.get('part') || 'all';
 
@@ -79,7 +80,8 @@ function StateMatrix() {
         <Panel name="dropzone">
         <Section eyebrow="Dropzone" title="D · H · F · A · X · E" wide>
           <div className="flow-state-grid flow-state-grid--three">
-            <StateTile label="Default / empty" part="a"><Dropzone /></StateTile>
+            <StateTile label="Default / populated" part="a"><Dropzone empty={false} /></StateTile>
+            <StateTile label="Empty" part="a"><Dropzone /></StateTile>
             <StateTile label="Hover" className="force-hover" part="a"><Dropzone title="Ready for files" /></StateTile>
             <StateTile label="Focus" className="force-focus" part="a"><Dropzone title="Keyboard ready" /></StateTile>
             <StateTile label="Drag-over" className="force-drag" part="b"><Dropzone title="Release to add" /></StateTile>
@@ -127,8 +129,8 @@ function StateMatrix() {
         <Panel name="resume">
         <Section eyebrow="ResumeStrip" title="Full · uploads-only · empty" wide>
           <div className="flow-stack">
-            <ResumeStrip uploadSessions={uploadSessions} jobs={jobs} />
-            <ResumeStrip variant="uploads-only" uploadSessions={uploadSessions} />
+            <ResumeStrip uploadSessions={uploadSessions} jobs={jobs} onResume={() => {}} onDiscard={() => {}} />
+            <ResumeStrip variant="uploads-only" uploadSessions={uploadSessions} onResume={() => {}} onDiscard={() => {}} />
             <ResumeStrip />
           </div>
         </Section>
@@ -151,14 +153,15 @@ function StateMatrix() {
 
         <Section eyebrow="Toast" title="Notice · success · danger" wide>
           <div className="flow-toast-proof">
-            <Toast tone="notice" autoDismiss={false}>Preferences saved on this device.</Toast>
-            <Toast tone="success" autoDismiss={false}>3 outputs are ready to download.</Toast>
-            <Toast tone="danger" autoDismiss={false}>Could not copy the link.</Toast>
+            <ToastRegion className="flow-toast-proof" aria-label="Notification live region">
+              <Toast tone="notice" autoDismiss={false}>Preferences saved on this device.</Toast>
+              <Toast tone="success" autoDismiss={false}>3 outputs are ready to download.</Toast>
+              <Toast tone="danger" autoDismiss={false}>Could not copy the link.</Toast>
+            </ToastRegion>
           </div>
         </Section>
         </Panel>
       </div>
-      <ToastRegion className="flow-live-proof" aria-label="Notification live region" />
     </main>
   );
 }

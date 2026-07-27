@@ -34,10 +34,13 @@
 
 ## Automated gates
 
-- `npm run test:client` — PASS, 16 files / 338 tests.
+- `npm run test:client` — PASS, 16 files / 342 tests.
 - `npm run typecheck` — PASS.
 - `npm run build:client` — PASS.
 - `npm run visual:checks` — PASS: token purity, motion purity, WCAG contrast.
+- `npm run visual:capture` — PASS: 1 smoke capture; 268 gallery targets are
+  expected pending D1/D2.
+- `npm run visual:diff` — PASS: 1 capture accounted for.
 
 ## Browser QA
 
@@ -48,6 +51,9 @@
   region, one native file input per rendered Dropzone, and determinate/
   indeterminate progressbar roles without a separately announced RunBar
   aggregate.
+- Root `data-motion="reduced"` browser audit: Toast and both indeterminate
+  progress examples report `animation-name: none`; Toasts remain fully readable
+  and are descendants of the populated polite live region.
 - Valid visual proofs are the `unit-10-{dark,light}-{dropzone,files,progress,
   resume,run}.png` and `unit-10-mobile-*.png` files in this directory.
 

@@ -5,12 +5,17 @@ import ProgressBar from './ProgressBar';
 import { formatBytes } from './FileRow';
 
 function entryHref(entry) {
-  if (entry.href) return entry.href;
-  if (!entry.hubId) {
-    throw new Error('ResumeStrip entries require href or hubId so they link to the owning workflow.');
+  if (entry.href) {
+    const href = String(entry.href);
+    if (!/[?&]mode=[^&]+/.test(href)) {
+      throw new Error('ResumeStrip href must name the owning hub and mode.');
+    }
+    return href;
   }
-  const mode = entry.modeId ? `?mode=${encodeURIComponent(entry.modeId)}` : '';
-  return `#/${entry.hubId}${mode}`;
+  if (!entry.hubId || !entry.modeId) {
+    throw new Error('ResumeStrip entries require href or both hubId and modeId for the owning workflow.');
+  }
+  return `#/${encodeURIComponent(entry.hubId)}?mode=${encodeURIComponent(entry.modeId)}`;
 }
 
 function uploadProgress(session) {
@@ -29,7 +34,13 @@ export default function ResumeStrip({
   ...props
 }) {
   const safeVariant = variant === 'uploads-only' ? 'uploads-only' : 'full';
-  const visibleJobs = safeVariant === 'full' ? jobs : [];
+  if (uploadSessions.length > 0
+    && (typeof onResume !== 'function' || typeof onDiscard !== 'function')) {
+    throw new Error('ResumeStrip upload entries require functional Resume and Discard handlers.');
+  }
+  const visibleJobs = safeVariant === 'full'
+    ? jobs.filter((job) => job.status === 'queued' || job.status === 'running')
+    : [];
   const empty = uploadSessions.length === 0 && visibleJobs.length === 0;
 
   return (

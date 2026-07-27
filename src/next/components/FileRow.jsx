@@ -79,7 +79,14 @@ export default function FileRow({
           </div>
         ) : null}
       </div>
-      {actions ? <div className="file-row__actions">{actions}</div> : null}
+      {actions ? (
+        <div
+          className="file-row__actions"
+          inert={disabled ? '' : undefined}
+        >
+          {actions}
+        </div>
+      ) : null}
     </article>
   );
 }

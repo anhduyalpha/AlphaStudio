@@ -830,7 +830,7 @@ textarea.field__control {
   gap: var(--space-4);
   min-height: 176px;
   padding: var(--space-5);
-  border: 1px dashed var(--border-strong);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   background: var(--surface);
   color: var(--text);
@@ -839,6 +839,11 @@ textarea.field__control {
     border-color var(--duration-fast) var(--ease-standard),
     opacity var(--duration-fast) var(--ease-standard),
     transform var(--duration-fast) var(--ease-standard);
+}
+
+.dropzone.is-empty {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--surface), var(--surface-2));
 }
 
 .dropzone > .button {
@@ -1345,4 +1350,25 @@ textarea.field__control {
   .toast {
     animation: none;
   }
+}
+
+html[data-motion='reduced'] .button__spinner,
+html[data-motion='reduced'] .status-badge--live .status-badge__dot,
+html[data-motion='reduced'] .skeleton::after,
+html[data-motion='reduced'] .progress-bar--indeterminate .progress-bar__fill,
+html[data-motion='reduced'] .toast {
+  animation: none;
+}
+
+html[data-motion='reduced'] .progress-bar--indeterminate .progress-bar__fill {
+  width: 100%;
+  opacity: 0.46;
+  transform: none;
+  background: repeating-linear-gradient(
+    135deg,
+    var(--live-soft),
+    var(--live-soft) var(--space-2),
+    var(--live) var(--space-2),
+    var(--live) var(--space-4)
+  );
 }
