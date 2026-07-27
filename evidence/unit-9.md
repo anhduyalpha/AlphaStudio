@@ -28,7 +28,7 @@
 
 ## Automated gates
 
-- `npm run test:client` — PASS, 15 files / 304 tests.
+- `npm run test:client` — PASS, 15 files / 312 tests.
 - `npm run typecheck` — PASS.
 - `npm run build:client` — PASS.
 - `npm run visual:checks` — PASS: token purity, motion purity, WCAG contrast.
@@ -62,3 +62,18 @@ The visual judge requested two revision rounds:
 After both fixes, the third review found no material visual issues and returned:
 
 `VERDICT: SHIP`
+
+## Independent spec review
+
+The first spec review found four gaps, all covered by regression tests and
+production fixes:
+
+- Tabs now normalizes missing, removed, disabled, and asynchronously populated
+  selections to the first enabled item, while the all-disabled case has no
+  unreachable `tabIndex=0`.
+- Interactive Card keeps a native button target separate from header actions,
+  avoiding nested buttons and invalid always-emitted block markup.
+- Field merges external `aria-describedby` IDs and preserves caller-managed
+  `aria-invalid` unless local error state forces `true`.
+- The exactly-one rule now targets the tablist implementation itself rather
+  than rejecting legitimate keyboard handlers in future primitives.

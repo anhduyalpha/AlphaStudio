@@ -2,6 +2,11 @@ import React, { useId, useMemo, useRef, useState } from 'react';
 
 const KEYS = new Set(['ArrowLeft', 'ArrowRight', 'Home', 'End']);
 
+export function getEffectiveTabValue(items, requestedValue) {
+  const requested = items.find((item) => item.id === requestedValue && !item.disabled);
+  return requested?.id ?? items.find((item) => !item.disabled)?.id;
+}
+
 export function getNextTabIndex(items, currentIndex, key) {
   if (!KEYS.has(key) || items.length === 0) return currentIndex;
   const enabled = items
@@ -32,7 +37,8 @@ export default function Tabs({
   const firstEnabled = useMemo(() => items.find((item) => !item.disabled)?.id, [items]);
   const controlled = value !== undefined;
   const [internalValue, setInternalValue] = useState(defaultValue ?? firstEnabled);
-  const selectedValue = controlled ? value : internalValue;
+  const requestedValue = controlled ? value : internalValue;
+  const selectedValue = getEffectiveTabValue(items, requestedValue);
 
   function select(item) {
     if (item.disabled) return;

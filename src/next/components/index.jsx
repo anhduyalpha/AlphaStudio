@@ -12,5 +12,5 @@ export {
 } from './Icon';
 export { default as Skeleton } from './Skeleton';
 export { default as StatusBadge } from './StatusBadge';
-export { default as Tabs, getNextTabIndex } from './Tabs';
+export { default as Tabs, getEffectiveTabValue, getNextTabIndex } from './Tabs';
 export { default as Toggle } from './Toggle';

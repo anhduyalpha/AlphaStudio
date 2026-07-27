@@ -557,6 +557,20 @@ textarea.field__control {
   box-shadow: var(--shadow-1);
 }
 
+.card__interactive {
+  display: block;
+  width: 100%;
+  padding: var(--space-4);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
 .card__header {
   display: flex;
   align-items: flex-start;
@@ -596,6 +610,14 @@ textarea.field__control {
 }
 
 .card__header + .card__body {
+  padding-top: var(--space-3);
+}
+
+.card.is-interactive .card__body {
+  padding: 0;
+}
+
+.card__header + .card__body .card__interactive {
   padding-top: var(--space-3);
 }
 

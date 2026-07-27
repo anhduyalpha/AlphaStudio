@@ -12,15 +12,14 @@ export default function Card({
   children,
   ...props
 }) {
-  const Component = as || (interactive ? 'button' : 'section');
+  const Component = as || 'section';
   const safeVariant = variant === 'flat' ? 'flat' : 'panel';
-  const buttonProps = Component === 'button' ? { type: 'button' } : {};
   const hasHeader = header || title || subtitle || actions;
+  const rootProps = interactive ? {} : props;
 
   return (
     <Component
-      {...buttonProps}
-      {...props}
+      {...rootProps}
       className={[
         'card',
         `card--${safeVariant}`,
@@ -41,7 +40,13 @@ export default function Card({
           {actions ? <div className="card__actions">{actions}</div> : null}
         </div>
       ) : null}
-      <div className="card__body">{children}</div>
+      <div className="card__body">
+        {interactive ? (
+          <button {...props} type={props.type || 'button'} className="card__interactive">
+            {children}
+          </button>
+        ) : children}
+      </div>
     </Component>
   );
 }

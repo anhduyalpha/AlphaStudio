@@ -16,6 +16,7 @@ import {
   StatusBadge,
   Tabs,
   Toggle,
+  getEffectiveTabValue,
   getNextTabIndex,
   resolveIconName,
 } from '../next/components/index.jsx';
@@ -71,6 +72,29 @@ describe('C2 controls expose the SPEC state contracts', () => {
     expect(html).toContain('role="alert"');
   });
 
+  it('preserves and merges caller-owned Field accessibility relationships', () => {
+    const externalOnly = renderToStaticMarkup(
+      <Field
+        label="Output"
+        aria-describedby="external-help"
+        aria-invalid="grammar"
+      />,
+    );
+    const merged = renderToStaticMarkup(
+      <Field
+        label="Output"
+        hint="Local hint"
+        error="Local error"
+        aria-describedby="external-help"
+        aria-invalid="false"
+      />,
+    );
+    expect(externalOnly).toContain('aria-describedby="external-help"');
+    expect(externalOnly).toContain('aria-invalid="grammar"');
+    expect(merged).toMatch(/aria-describedby="external-help [^"]+-hint [^"]+-error"/);
+    expect(merged).toContain('aria-invalid="true"');
+  });
+
   it('renders Toggle as a named native button switch', () => {
     const html = renderToStaticMarkup(<Toggle label="Keep metadata" checked />);
     expect(html).toContain('role="switch"');
@@ -107,13 +131,37 @@ describe('Tabs use one roving-tabindex keyboard model', () => {
     expect(getNextTabIndex(items, 0, 'Enter')).toBe(0);
   });
 
-  it('has exactly one tablist keydown implementation in the component layer', () => {
-    const sources = fs
-      .readdirSync(COMPONENTS_DIR)
-      .filter((file) => file.endsWith('.jsx'))
-      .map((file) => fs.readFileSync(path.join(COMPONENTS_DIR, file), 'utf8'))
-      .join('\n');
-    expect(sources.match(/onKeyDown=/g) ?? []).toHaveLength(1);
+  it('normalizes missing, removed, and disabled selections to an enabled tab', () => {
+    expect(getEffectiveTabValue(items, undefined)).toBe('first');
+    expect(getEffectiveTabValue(items, 'missing')).toBe('first');
+    expect(getEffectiveTabValue(items, 'disabled')).toBe('first');
+    expect(getEffectiveTabValue(items, 'last')).toBe('last');
+    expect(getEffectiveTabValue([], undefined)).toBeUndefined();
+    expect(getEffectiveTabValue(items.map((item) => ({ ...item, disabled: true })), 'first')).toBeUndefined();
+  });
+
+  it.each([
+    { label: 'missing controlled value', props: { value: 'missing' } },
+    { label: 'disabled controlled value', props: { value: 'disabled' } },
+    { label: 'missing default value', props: { defaultValue: 'missing' } },
+    { label: 'async population fallback', props: {} },
+  ])('keeps one reachable tab stop for $label', ({ props }) => {
+    const html = renderToStaticMarkup(<Tabs aria-label="Modes" items={items} {...props} />);
+    expect(html.match(/tabindex="0"/g) ?? []).toHaveLength(1);
+    expect(html).toMatch(/role="tab"[^>]*aria-selected="true"[^>]*tabindex="0"/);
+  });
+
+  it('keeps every tab out of the order when all items are disabled', () => {
+    const disabledItems = items.map((item) => ({ ...item, disabled: true }));
+    const html = renderToStaticMarkup(<Tabs aria-label="Modes" items={disabledItems} value="first" />);
+    expect(html).not.toContain('tabindex="0"');
+    expect(html.match(/tabindex="-1"/g) ?? []).toHaveLength(disabledItems.length);
+  });
+
+  it('has exactly one tablist keydown implementation without blocking unrelated components', () => {
+    const tabsSource = fs.readFileSync(path.join(COMPONENTS_DIR, 'Tabs.jsx'), 'utf8');
+    expect(tabsSource.match(/onKeyDown=/g) ?? []).toHaveLength(1);
+    expect(tabsSource.match(/role="tablist"/g) ?? []).toHaveLength(1);
   });
 });
 
@@ -153,6 +201,23 @@ describe('C2 status and content primitives preserve semantic roles', () => {
     const html = renderToStaticMarkup(<Card variant={variant} title="Details">Content</Card>);
     expect(html).toContain(`card--${variant}`);
     expect(html).toContain('card__header');
+  });
+
+  it('keeps interactive Card actions outside its native button target', () => {
+    const html = renderToStaticMarkup(
+      <Card
+        interactive
+        as="div"
+        title="Recent workspace"
+        actions={<Button variant="icon" aria-label="More actions"><Icon name="menu" /></Button>}
+      >
+        Open workspace
+      </Card>,
+    );
+    expect(html).toMatch(/^<div class="card card--panel is-interactive">/);
+    expect(html).toContain('class="card__interactive"');
+    expect(html.match(/<button/g) ?? []).toHaveLength(2);
+    expect(html).not.toMatch(/<button[^>]*>(?:(?!<\/button>)[\s\S])*<button/);
   });
 
   it.each(['block', 'row'])('renders a decorative %s Skeleton', (variant) => {

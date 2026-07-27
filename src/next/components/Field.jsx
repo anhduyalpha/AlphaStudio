@@ -13,6 +13,8 @@ export default function Field({
   controlClassName = '',
   required = false,
   children,
+  'aria-describedby': externalDescribedBy,
+  'aria-invalid': externalInvalid,
   ...controlProps
 }) {
   const generatedId = useId();
@@ -20,14 +22,20 @@ export default function Field({
   const safeVariant = VARIANTS.has(variant) ? variant : 'text';
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
-  const describedBy = [hintId, errorId].filter(Boolean).join(' ') || undefined;
+  const describedBy = [
+    ...new Set([
+      ...(externalDescribedBy || '').split(/\s+/).filter(Boolean),
+      hintId,
+      errorId,
+    ].filter(Boolean)),
+  ].join(' ') || undefined;
   const commonProps = {
     ...controlProps,
     id,
     className: `field__control ${controlClassName}`.trim(),
     required,
     'aria-describedby': describedBy,
-    'aria-invalid': error ? true : undefined,
+    'aria-invalid': error ? true : externalInvalid,
   };
 
   let control;
