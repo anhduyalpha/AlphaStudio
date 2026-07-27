@@ -6,16 +6,10 @@
 # .claude/hooks/scope-guard.mjs). With no entries below, nothing else
 # inside the repo is writable — the between-units state.
 
-# Unit 7 (B4) — PLAN "Files:" list
-src/protocol/uploads.ts
-# Minimal acceptance-critical extension: completed sessions must be queryable
-# for lost-finalize adoption without changing the legacy default listing.
-src/api/client.js
-src/api/resumableUpload.js
-server/src/routes/upload-sessions.ts
-server/src/services/upload-session.ts
-server/tests/
-# client test location established by A1 (vitest include: src/**/*.test.*)
+# Unit 9 (C2) — PLAN "Files:" list
+src/next/components/
+src/styles/primitives.css
+# Client test location established by A1 (vitest include: src/**/*.test.*)
 src/tests/
 PROGRESS.md
 evidence/
