@@ -262,6 +262,6 @@ describe('C2 status and content primitives preserve semantic roles', () => {
     expect(css).not.toMatch(/#[0-9a-f]{3,8}\b/i);
     expect(css).not.toMatch(/\b(?:rgb|rgba|hsl|hsla)\s*\(/i);
     expect(css).not.toMatch(/(?<![\w#-])(?:\d+(?:\.\d+)?|\.\d+)m?s\b/);
-    expect(css).not.toContain('backdrop-filter');
+    expect(css).toContain('backdrop-filter: blur(var(--glass-blur))');
   });
 });
