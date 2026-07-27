@@ -1372,3 +1372,514 @@ html[data-motion='reduced'] .progress-bar--indeterminate .progress-bar__fill {
     var(--live) var(--space-4)
   );
 }
+
+/* Overlay and chrome primitives — SPEC §4.3, §4.4 and §4.7 / C4. */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: fixed;
+  z-index: var(--z-toast);
+  top: var(--space-2);
+  left: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--focus-ring);
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  color: var(--text);
+  font: var(--text-meta);
+  text-decoration: none;
+  opacity: 0;
+  transform: translateY(calc((100% + var(--space-3)) * -1));
+  transition:
+    opacity var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard);
+}
+
+.skip-link:focus-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.modal-layer {
+  position: fixed;
+  z-index: var(--z-modal);
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+}
+
+.modal__scrim,
+.sidebar__scrim {
+  position: fixed;
+  inset: 0;
+  border: 0;
+  background: color-mix(in srgb, var(--bg), transparent 28%);
+}
+
+.modal__scrim {
+  z-index: -1;
+}
+
+.modal__surface {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-1);
+}
+
+.modal__surface {
+  display: grid;
+  width: min(640px, 100%);
+  max-height: calc(100dvh - var(--space-7));
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  color: var(--text);
+  box-shadow: var(--shadow-2);
+  animation: modal-enter var(--duration-base) var(--ease-out) both;
+}
+
+.modal--palette {
+  width: min(720px, 100%);
+  box-shadow: var(--shadow-1);
+}
+
+.modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.modal__header > div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.modal__header h2,
+.modal__header p {
+  margin: 0;
+}
+
+.modal__header h2 {
+  font: var(--text-title);
+}
+
+.modal__header p {
+  color: var(--text-2);
+}
+
+.modal__body {
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-4);
+}
+
+.modal--palette .modal__body {
+  padding: 0;
+}
+
+.modal__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.modal__surface:focus {
+  outline: none;
+}
+
+@keyframes modal-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+.command-palette {
+  display: grid;
+}
+
+.command-palette__search {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-2);
+}
+
+.command-palette__search input {
+  min-width: 0;
+  min-height: 48px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: var(--text-section);
+}
+
+.command-palette__search input::placeholder {
+  color: var(--text-3);
+}
+
+.command-palette kbd,
+.topbar kbd {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  color: var(--text-3);
+  font: var(--text-code);
+}
+
+.command-palette__results {
+  display: grid;
+  gap: var(--space-1);
+  max-height: min(58vh, 520px);
+  overflow-y: auto;
+  padding: var(--space-2);
+}
+
+.command-palette__empty {
+  padding: var(--space-2);
+}
+
+.command-palette__results > button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 60px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+
+.command-palette__results > button:hover,
+.command-palette__results > button.is-selected {
+  border-color: var(--border-strong);
+  background: var(--accent-soft);
+}
+
+.command-palette__results > button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.command-palette__results > button > span {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.command-palette__results strong {
+  font: var(--text-meta);
+}
+
+.command-palette__results small {
+  color: var(--text-2);
+  font: var(--text-meta);
+}
+
+.sidebar {
+  position: fixed;
+  z-index: var(--z-rail);
+  inset: 0 auto 0 0;
+  display: flex;
+  flex-direction: column;
+  width: var(--sidebar-width);
+  padding: var(--space-4);
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.sidebar__scrim {
+  z-index: calc(var(--z-drawer) - 1);
+}
+
+.sidebar__brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--topbar-height);
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar__brand img {
+  width: 164px;
+  max-width: calc(100% - var(--space-7));
+  height: auto;
+}
+
+.sidebar__close {
+  display: none;
+}
+
+.sidebar > .status-badge {
+  align-self: flex-start;
+  margin-top: var(--space-3);
+}
+
+.sidebar__nav {
+  display: grid;
+  gap: var(--space-4);
+  min-height: 0;
+  margin-top: var(--space-4);
+  overflow-y: auto;
+}
+
+.sidebar__group {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sidebar__group h2 {
+  color: var(--text-3);
+  font: var(--text-meta);
+  text-transform: uppercase;
+}
+
+.sidebar__group > div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  color: var(--text-2);
+  font: var(--text-meta);
+  text-decoration: none;
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+
+.sidebar__link:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.sidebar__link:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.sidebar__link.is-current {
+  border-color: color-mix(in srgb, var(--accent), transparent);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+.sidebar__footer {
+  margin-top: auto;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.topbar {
+  position: sticky;
+  z-index: var(--z-rail);
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: var(--topbar-height);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.topbar__identity,
+.topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.topbar__identity > div {
+  min-width: 0;
+}
+
+.topbar__identity p,
+.topbar__identity h1 {
+  overflow: hidden;
+  margin: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar__identity p {
+  color: var(--text-2);
+  font: var(--text-meta);
+}
+
+.topbar__identity h1 {
+  font: var(--text-section);
+}
+
+.topbar__menu {
+  display: none;
+}
+
+.topbar__search kbd {
+  margin-left: var(--space-2);
+}
+
+.topbar__profile {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+.topbar__profile:hover {
+  border-color: var(--border-strong);
+  color: var(--accent-hover);
+}
+
+.topbar__profile:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .modal__surface {
+    background: var(--surface);
+  }
+}
+
+[data-power='low'] .modal__surface {
+  background: var(--surface);
+  backdrop-filter: none;
+}
+
+@media (max-width: 900px) {
+  .sidebar {
+    z-index: var(--z-drawer);
+    visibility: hidden;
+    border-color: var(--glass-border);
+    transform: translateX(-100%);
+    transition: transform var(--duration-base) var(--ease-out);
+  }
+
+  .sidebar.is-mobile-open {
+    visibility: visible;
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-1);
+    transform: translateX(0);
+  }
+
+  .sidebar__close,
+  .topbar__menu {
+    display: inline-flex;
+  }
+
+  .topbar__search span,
+  .topbar__search kbd,
+  .topbar__actions > .status-badge {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  @supports not (backdrop-filter: blur(1px)) {
+    .sidebar.is-mobile-open {
+      background: var(--surface);
+    }
+  }
+
+  [data-power='low'] .sidebar.is-mobile-open {
+    background: var(--surface);
+    backdrop-filter: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .modal-layer {
+    align-items: end;
+    padding: var(--space-2);
+  }
+
+  .modal__surface,
+  .modal--palette {
+    width: 100%;
+    max-height: calc(100dvh - var(--space-4));
+    border-radius: var(--radius-lg) var(--radius-lg) var(--radius-xs) var(--radius-xs);
+  }
+
+  .topbar {
+    padding: var(--space-2);
+  }
+
+  .topbar__identity {
+    flex: 1 1 auto;
+  }
+
+  .topbar__actions {
+    gap: var(--space-1);
+  }
+
+  .topbar__actions .button--icon,
+  .topbar__profile {
+    width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skip-link,
+  .sidebar,
+  .modal__surface {
+    transition: none;
+    animation: none;
+  }
+}
+
+html[data-motion='reduced'] .skip-link,
+html[data-motion='reduced'] .sidebar,
+html[data-motion='reduced'] .modal__surface {
+  transition: none;
+  animation: none;
+}
