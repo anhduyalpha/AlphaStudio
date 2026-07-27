@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { hubRegistry } from '../hubs/index';
 import Workbench, {
+  scopeWorkbenchAttempt,
   selectedWorkbenchFiles,
   workbenchProgress,
 } from '../workbench/Workbench.jsx';
@@ -104,6 +105,39 @@ describe('D3 canonical Workbench flow', () => {
     expect(workbenchProgress(snapshot)).toBe(60);
   });
 
+  it('scopes busy, failure, and results to the current hub-mode attempt', () => {
+    const snapshot = {
+      jobs: [
+        { id: 'convert-job', type: 'convert', status: 'running' },
+        { id: 'pdf-job', type: 'pdf', status: 'failed' },
+      ],
+      outputs: [
+        { id: 'convert-output', jobId: 'convert-job' },
+        { id: 'pdf-output', jobId: 'pdf-job' },
+      ],
+    };
+    const pdf = scopeWorkbenchAttempt(snapshot, {
+      jobType: 'pdf',
+      jobIds: ['pdf-job'],
+    });
+    expect(pdf.jobs.map((job) => job.id)).toEqual(['pdf-job']);
+    expect(pdf.activeJobs).toEqual([]);
+    expect(pdf.failedJob?.id).toBe('pdf-job');
+    expect(pdf.outputs.map((output) => output.id)).toEqual(['pdf-output']);
+
+    const local = scopeWorkbenchAttempt(snapshot, {
+      jobEnabled: false,
+      jobIds: ['convert-job'],
+    });
+    expect(local).toEqual({
+      jobIds: [],
+      jobs: [],
+      activeJobs: [],
+      failedJob: null,
+      outputs: [],
+    });
+  });
+
   it('renders mode, input, configure, results, and exactly one persistent run bar', () => {
     const hub = {
       id: 'example',
@@ -134,8 +168,8 @@ describe('D3 canonical Workbench flow', () => {
   it('uses the 1200/900 canonical columns and a single-column mobile run layout', () => {
     const css = fs.readFileSync(CSS, 'utf8');
     expect(css).toContain('minmax(280px, var(--rail-width))');
-    expect(css).toContain('@media (max-width: 1200px)');
-    expect(css).toContain('@media (max-width: 900px)');
+    expect(css).toContain('@media (width < 1200px)');
+    expect(css).toContain('@media (width < 900px)');
     expect(css).toContain('@media (max-width: 640px)');
     expect(css).toMatch(/\.workbench__run\s*\{[\s\S]*position: sticky/);
   });

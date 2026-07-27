@@ -7,6 +7,9 @@
   checking a hub id or name.
 - Bound files, upload sessions, jobs, outputs, hydrate/error state, selected
   inputs, and normative batch progress to the protocol store through `useStore`.
+- Scoped jobs, failures, progress, and outputs to the current hub+mode resume
+  pointer/current-attempt ids; unrelated workspace jobs cannot leak across
+  modes, and local-only modes never inherit job progress.
 - Kept run-blocking capability/implementation reasons visible in the persistent
   RunBar rather than silently disabling its action.
 - Added declarative option rendering for text/select/textarea/toggle/range/color
@@ -31,6 +34,8 @@
 - Ran `#/pdf` in the rebuild client at `http://127.0.0.1:4177`.
 - Desktop rendered the normative three-column input/configure/results workspace
   with one sticky RunBar and no horizontal overflow.
+- At an exact 1200px viewport the workspace retained all three columns; only
+  widths strictly below 1200px collapse the Results region.
 - The route-only PDF config exposed all three modes in the registry order and
   named the not-yet-implemented run reason.
 - At 390 × 844 the workspace collapsed to one column, retained the pinned

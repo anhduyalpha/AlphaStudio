@@ -18,7 +18,7 @@ import {
   Tabs,
   Toggle,
 } from '../next/components/index.jsx';
-import { selectActiveJobs, selectRunProgress } from '../protocol/store.js';
+import { readActiveJobId, selectRunProgress } from '../protocol/store.js';
 import RegisteredPanel from './registry.jsx';
 
 const selectSnapshot = (snapshot) => snapshot;
@@ -30,8 +30,37 @@ export function selectedWorkbenchFiles(snapshot) {
   return snapshot.files.filter((file) => selected.has(file.id));
 }
 
-export function workbenchProgress(snapshot) {
-  const files = selectedWorkbenchFiles(snapshot);
+export function scopeWorkbenchAttempt(
+  snapshot,
+  {
+    jobEnabled = true,
+    jobType,
+    jobIds = [],
+  } = {},
+) {
+  if (!jobEnabled) {
+    return { jobIds: [], jobs: [], activeJobs: [], failedJob: null, outputs: [] };
+  }
+  const ids = new Set(jobIds.filter(Boolean));
+  const jobs = snapshot.jobs.filter((job) => (
+    ids.has(job.id) && (!jobType || job.type === jobType)
+  ));
+  const scopedIds = new Set(jobs.map((job) => job.id));
+  return {
+    jobIds: [...scopedIds],
+    jobs,
+    activeJobs: jobs.filter((job) => job.status === 'running' || job.status === 'queued'),
+    failedJob: jobs.find((job) => job.status === 'failed') || null,
+    outputs: snapshot.outputs.filter((output) => scopedIds.has(output.jobId)),
+  };
+}
+
+export function workbenchProgress(snapshot, jobIds = []) {
+  const ids = new Set(jobIds);
+  const attemptFiles = ids.size
+    ? snapshot.files.filter((file) => ids.has(file.jobId))
+    : selectedWorkbenchFiles(snapshot);
+  const files = attemptFiles.length ? attemptFiles : selectedWorkbenchFiles(snapshot);
   return selectRunProgress(snapshot, files.map((file) => file.id));
 }
 
@@ -220,6 +249,8 @@ function ConfigureRegion({
 
 function ResultsRegion({
   snapshot,
+  failedJob,
+  outputs,
   onDownload,
   onDownloadBatch,
   onRetry,
@@ -240,7 +271,6 @@ function ResultsRegion({
       />
     );
   }
-  const failedJob = snapshot.jobs.find((job) => job.status === 'failed');
   if (failedJob) {
     return (
       <ErrorState
@@ -251,7 +281,7 @@ function ResultsRegion({
       />
     );
   }
-  if (!snapshot.outputs.length) {
+  if (!outputs.length) {
     return (
       <EmptyState
         variant="compact"
@@ -264,14 +294,14 @@ function ResultsRegion({
   }
   return (
     <div className="workbench-results-stack">
-      {snapshot.outputs.length > 1 ? (
-        <Button size="sm" variant="secondary" icon="download" onClick={onDownloadBatch}>
+      {outputs.length > 1 ? (
+        <Button size="sm" variant="secondary" icon="download" onClick={() => onDownloadBatch(outputs)}>
           Download batch ZIP
         </Button>
       ) : null}
       <FileList
         label="Results"
-        items={snapshot.outputs}
+        items={outputs}
         renderItem={(result) => (
           <FileRow
             key={result.id}
@@ -302,6 +332,8 @@ export default function Workbench({
   optionValues = {},
   panelState = {},
   inputValue = '',
+  attemptJobIds = [],
+  localResults = [],
   onModeChange = noop,
   onOptionChange = noop,
   onPanelDispatch = noop,
@@ -321,9 +353,17 @@ export default function Workbench({
 }) {
   const snapshot = useStore(selectSnapshot);
   const files = selectedWorkbenchFiles(snapshot);
-  const activeJobs = selectActiveJobs(snapshot);
-  const progress = workbenchProgress(snapshot);
   const selectedMode = mode || hub.modes[0];
+  const jobRun = selectedMode.run?.job;
+  const resumeJobId = jobRun ? readActiveJobId(hub.id, selectedMode.id) : null;
+  const attempt = scopeWorkbenchAttempt(snapshot, {
+    jobEnabled: Boolean(jobRun),
+    jobType: jobRun?.jobType,
+    jobIds: [...attemptJobIds, resumeJobId],
+  });
+  const outputs = [...attempt.outputs, ...localResults];
+  const activeJobs = attempt.activeJobs;
+  const progress = workbenchProgress(snapshot, attempt.jobIds);
   const capabilityReason = capability.available === false ? capability.reason : '';
   const implementationReason = typeof onRun === 'function' ? '' : 'This mode is not implemented yet.';
   const inputReason = (selectedMode.input?.kind || 'files') === 'files' && files.length === 0
@@ -386,6 +426,8 @@ export default function Workbench({
         <Card className="workbench__region workbench__results" title="Results" subtitle="Outputs and recovery">
           <ResultsRegion
             snapshot={snapshot}
+            failedJob={attempt.failedJob}
+            outputs={outputs}
             onDownload={onDownload}
             onDownloadBatch={onDownloadBatch}
             onRetry={onRetry}
