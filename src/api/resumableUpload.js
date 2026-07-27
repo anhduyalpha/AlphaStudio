@@ -80,6 +80,9 @@ class ResumableUploadController {
     try {
       const saved = await this.runtime.request(`/api/upload-sessions/${encodeURIComponent(savedId)}`);
       if (saved.originalName === this.file.name && saved.size === this.file.size) {
+        // Binding is intentional: protocol/uploads.ts may pause or cancel while
+        // its separate completed-session listing is still pending.
+        this.session = saved;
         return saved;
       }
       storageRemove(this.key);
@@ -249,7 +252,7 @@ class ResumableUploadController {
   async pause() {
     this.paused = true;
     this.inflight?.abort();
-    if (this.session?.id) {
+    if (this.session?.id && this.session.status === 'uploading') {
       try {
         this.session = await this.runtime.request(`/api/upload-sessions/${this.session.id}/pause`, { method: 'POST' });
       } catch (err) {
@@ -263,10 +266,14 @@ class ResumableUploadController {
   async cancel() {
     this.cancelled = true;
     this.inflight?.abort();
-    if (this.session?.id) {
+    const cancellable =
+      this.session?.id && ['uploading', 'paused', 'failed'].includes(this.session.status);
+    if (cancellable) {
       await this.runtime.request(`/api/upload-sessions/${this.session.id}`, { method: 'DELETE' });
     }
-    storageRemove(this.key);
+    // A completed/finalizing session cannot be cancelled server-side. Keep its
+    // exact identity so a later re-selection still adopts instead of duplicating.
+    if (!this.session || cancellable) storageRemove(this.key);
     this.onState?.('cancelled', this.session);
   }
 }

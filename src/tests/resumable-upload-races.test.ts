@@ -135,6 +135,82 @@ it('waits for an exact finalizing session instead of opening a duplicate', async
   expect(request).not.toHaveBeenCalledWith('/api/upload-sessions/init', expect.anything());
 });
 
+it('binds an exact active lookup so preflight pause persists on the server', async () => {
+  const file = fileOf('saved-pause.bin');
+  const active = {
+    id: 'session-saved-pause',
+    originalName: file.name,
+    size: file.size,
+    status: 'uploading',
+    receivedChunks: [],
+    receivedBytes: 0,
+    totalChunks: 1,
+    chunkSize: file.size,
+  };
+  const paused = { ...active, status: 'paused' };
+  const request = vi.fn(async (path: string, options?: { method?: string }) => {
+    if (path === `/api/upload-sessions/${active.id}` && !options) return active;
+    if (path === `/api/upload-sessions/${active.id}/pause` && options?.method === 'POST') {
+      return paused;
+    }
+    throw new Error(`unexpected request ${path}`);
+  });
+  const controller = createResumableUpload(
+    file,
+    { workspaceId: 'ws-1' },
+    { request, apiUrl: (path: string) => path, apiToken: '', ApiError: TestApiError },
+  ) as unknown as {
+    key: string;
+    lookupSession: () => Promise<unknown>;
+    pause: () => Promise<unknown>;
+  };
+  storage.set(controller.key, active.id);
+
+  await controller.lookupSession();
+  await expect(controller.pause()).resolves.toMatchObject({ status: 'paused' });
+  expect(request).toHaveBeenCalledWith(`/api/upload-sessions/${active.id}/pause`, {
+    method: 'POST',
+  });
+});
+
+it('binds an exact active lookup so preflight cancel deletes the server session', async () => {
+  const file = fileOf('saved-cancel.bin');
+  const active = {
+    id: 'session-saved-cancel',
+    originalName: file.name,
+    size: file.size,
+    status: 'uploading',
+    receivedChunks: [],
+    receivedBytes: 0,
+    totalChunks: 1,
+    chunkSize: file.size,
+  };
+  const request = vi.fn(async (path: string, options?: { method?: string }) => {
+    if (path === `/api/upload-sessions/${active.id}` && !options) return active;
+    if (path === `/api/upload-sessions/${active.id}` && options?.method === 'DELETE') {
+      return { cancelled: true, id: active.id };
+    }
+    throw new Error(`unexpected request ${path}`);
+  });
+  const controller = createResumableUpload(
+    file,
+    { workspaceId: 'ws-1' },
+    { request, apiUrl: (path: string) => path, apiToken: '', ApiError: TestApiError },
+  ) as unknown as {
+    key: string;
+    lookupSession: () => Promise<unknown>;
+    cancel: () => Promise<void>;
+  };
+  storage.set(controller.key, active.id);
+
+  await controller.lookupSession();
+  await controller.cancel();
+  expect(request).toHaveBeenCalledWith(`/api/upload-sessions/${active.id}`, {
+    method: 'DELETE',
+  });
+  expect(storage.has(controller.key)).toBe(false);
+});
+
 it('persists pause when it wins while session initialization is pending', async () => {
   const file = fileOf('pause-init.bin');
   const init = deferred<Record<string, unknown>>();
