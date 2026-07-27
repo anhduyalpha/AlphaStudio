@@ -264,7 +264,7 @@ Direction rationale (non-normative): evolve, don't replace, the identity — wha
 
 Status tints are derived in CSS via `color-mix(in srgb, var(--success) 14%, transparent)` etc. — `color-mix` from a token is the only sanctioned way to make a tint; new literal `rgba(...)` tints are violations.
 
-`--text-3` is pinned by contrast, not taste: it is the lightest muted grey that clears WCAG AA 4.5:1 against **all four** surfaces (`--bg`, `--bg-raised`, `--surface`, `--surface-2`) in both themes, which the `contrast` check in `npm run visual:checks` enforces over this table. The originally specified `#717b90` / `#6b7280` cleared only one surface per theme and failed the other six pairings (4.06–4.46:1); amended in unit C1. Do not lighten it back.
+`--text-3` is pinned by contrast, not taste: each theme's value sits at its own contrast boundary against **all four** surfaces (`--bg`, `--bg-raised`, `--surface`, `--surface-2`), which the `contrast` check in `npm run visual:checks` enforces over this table at WCAG AA 4.5:1. The two themes bound it from opposite directions — in dark, contrast rises as the grey lightens, so `#798396` is the **darkest** value that still clears (lighter is safe, darker is not; worst pairing `--surface-2` at 4.52); in light it is the reverse, so `#676d7b` is the **lightest** that clears (darker is safe, lighter is not; worst pairing `--bg-raised` at 4.53). The originally specified `#717b90` / `#6b7280` cleared only one surface per theme and failed the other six pairings (4.06–4.46:1); amended in unit C1. Neither value has more than ~0.03 of margin, so do not nudge either toward its own failing direction, and re-check both if any of the four surface values ever change.
 
 ### 4.2 Accent role table (normative)
 

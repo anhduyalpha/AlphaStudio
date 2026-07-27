@@ -28,8 +28,9 @@ html[data-theme='dark'] {
   /* Text */
   --text: #f7f8fc;
   --text-2: #a7b0c2;
-  /* Pinned by contrast (§4.1 note): lightest muted grey clearing AA 4.5:1 on
-     all four dark surfaces. Do not lighten. */
+  /* Pinned by contrast (§4.1 note): the DARKEST grey still clearing AA 4.5:1 on
+     all four dark surfaces — lighter is safe, darker is not. Margin at the
+     worst pairing (--surface-2) is 0.02. */
   --text-3: #798396;
 
   /* Accent — identity and interaction (§4.2 role table) */
@@ -73,8 +74,9 @@ html[data-theme='light'] {
 
   --text: #111827;
   --text-2: #475569;
-  /* Pinned by contrast (§4.1 note): darkest muted grey clearing AA 4.5:1 on
-     all four light surfaces. Do not lighten. */
+  /* Pinned by contrast (§4.1 note): the LIGHTEST grey still clearing AA 4.5:1
+     on all four light surfaces — darker is safe, lighter is not. Margin at the
+     worst pairing (--bg-raised) is 0.03. */
   --text-3: #676d7b;
 
   --accent: #5f3fe4;
@@ -110,7 +112,16 @@ html[data-theme='light'] {
 
   /* Six type steps, no seventh. Each step publishes its size, line-height and
      weight separately (what most declarations need) plus a `font` shorthand
-     composed from those same parts — the values live in exactly one place. */
+     composed from those same parts — the values live in exactly one place.
+
+     Two caveats for consumers:
+     - §4.5 gives `--text-code` as size/line-height only, with no weight. The
+       400 below is a C1 decision, not a SPEC value; it matches what the `font`
+       shorthand would reset to anyway.
+     - The `font` shorthand resets `font-weight` AND `font-variant-numeric` to
+       their initial values. Anything that must inherit a weight, or that sits
+       inside a `tabular-nums` container (progress values, counts, ETAs), must
+       use the three part tokens rather than the composite. */
   --text-display-size: 1.75rem;
   --text-display-line: 1.2;
   --text-display-weight: 650;
