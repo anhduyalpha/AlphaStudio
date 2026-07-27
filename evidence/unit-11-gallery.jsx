@@ -83,6 +83,7 @@ function Shell({ mobileOpen = false }) {
         mobileOpen={mobileOpen}
         onClose={() => {}}
         activeJobCount={3}
+        theme={document.documentElement.dataset.theme}
         footer={<span>Private · Local workspace</span>}
       />
     </div>

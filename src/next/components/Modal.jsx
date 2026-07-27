@@ -20,7 +20,13 @@ export default function Modal({
   const titleId = useId();
   const descriptionId = useId();
   const safeVariant = variant === 'palette' ? 'palette' : 'dialog';
-  const showHeader = Boolean(title) || (safeVariant === 'dialog' && Boolean(onClose));
+  const hasTitle = typeof title === 'string' ? Boolean(title.trim()) : Boolean(title);
+  const accessibleLabel = typeof ariaLabel === 'string' ? ariaLabel.trim() : '';
+  const showHeader = hasTitle || (safeVariant === 'dialog' && Boolean(onClose));
+
+  if (open && !hasTitle && !accessibleLabel) {
+    throw new Error('Modal requires a non-empty title or ariaLabel while open.');
+  }
 
   useFocusTrap({
     active: open,
@@ -47,15 +53,15 @@ export default function Modal({
         role="dialog"
         aria-modal="true"
         aria-busy={busy || undefined}
-        aria-label={!title ? ariaLabel : undefined}
-        aria-labelledby={title ? titleId : undefined}
+        aria-label={!hasTitle ? accessibleLabel : undefined}
+        aria-labelledby={hasTitle ? titleId : undefined}
         aria-describedby={description ? descriptionId : undefined}
         tabIndex={-1}
       >
         {showHeader ? (
           <header className="modal__header">
             <div>
-              {title ? <h2 id={titleId}>{title}</h2> : null}
+              {hasTitle ? <h2 id={titleId}>{title}</h2> : null}
               {description ? <p id={descriptionId}>{description}</p> : null}
             </div>
             {onClose ? (

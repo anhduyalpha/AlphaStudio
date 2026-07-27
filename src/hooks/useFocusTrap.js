@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 export const FOCUSABLE_SELECTOR = [
   'a[href]',
@@ -9,12 +9,28 @@ export const FOCUSABLE_SELECTOR = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
-export function getFocusableElements(root) {
+export function isFocusableCandidate(element, activeElement) {
+  if (!element || element.matches?.(':disabled')) return false;
+  if (element.closest?.('[hidden], [inert], [aria-hidden="true"]')) return false;
+  const style = element.ownerDocument?.defaultView?.getComputedStyle?.(element);
+  if (style && (style.display === 'none' || style.visibility === 'hidden')) return false;
+  const hasLayoutBox = element.offsetParent !== null
+    || (typeof element.getClientRects === 'function' && element.getClientRects().length > 0);
+  return hasLayoutBox || element === activeElement;
+}
+
+export function getFocusableElements(
+  root,
+  activeElement = typeof document === 'undefined' ? null : document.activeElement,
+) {
   if (!root) return [];
   return Array.from(root.querySelectorAll(FOCUSABLE_SELECTOR))
-    .filter((element) => !element.hasAttribute('inert')
-      && element.getAttribute('aria-hidden') !== 'true'
-      && (element.offsetParent !== null || element === document.activeElement));
+    .filter((element) => isFocusableCandidate(element, activeElement));
+}
+
+export function selectInitialFocusTarget(root, focusable, requested) {
+  if (requested && root?.contains?.(requested) && focusable.includes(requested)) return requested;
+  return focusable[0] || root || null;
 }
 
 export default function useFocusTrap({
@@ -24,20 +40,28 @@ export default function useFocusTrap({
   onEscape,
   restoreFocus = true,
 }) {
+  const optionsRef = useRef({ initialFocusRef, onEscape, restoreFocus });
+  optionsRef.current = { initialFocusRef, onEscape, restoreFocus };
+
   useEffect(() => {
     if (!active || typeof document === 'undefined') return undefined;
     const root = containerRef.current;
     if (!root) return undefined;
     const previous = document.activeElement;
     const frame = requestAnimationFrame(() => {
-      const target = initialFocusRef?.current || getFocusableElements(root)[0] || root;
+      const focusable = getFocusableElements(root);
+      const target = selectInitialFocusTarget(
+        root,
+        focusable,
+        optionsRef.current.initialFocusRef?.current,
+      );
       target?.focus?.();
     });
 
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        onEscape?.();
+        optionsRef.current.onEscape?.();
         return;
       }
       if (event.key !== 'Tab') return;
@@ -62,7 +86,9 @@ export default function useFocusTrap({
     return () => {
       cancelAnimationFrame(frame);
       document.removeEventListener('keydown', handleKeyDown);
-      if (restoreFocus && previous && typeof previous.focus === 'function') previous.focus();
+      if (optionsRef.current.restoreFocus && previous && typeof previous.focus === 'function') {
+        previous.focus();
+      }
     };
-  }, [active, containerRef, initialFocusRef, onEscape, restoreFocus]);
+  }, [active, containerRef]);
 }

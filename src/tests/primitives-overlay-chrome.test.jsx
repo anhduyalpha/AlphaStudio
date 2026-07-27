@@ -5,6 +5,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
+import { brandAssets } from '../assets/registry.js';
 import {
   CommandPalette,
   Modal,
@@ -12,8 +13,13 @@ import {
   Topbar,
   buildPaletteItems,
   filterPaletteItems,
+  getPaletteInputEntryIndex,
   getNextPaletteIndex,
 } from '../next/components/index.jsx';
+import {
+  isFocusableCandidate,
+  selectInitialFocusTarget,
+} from '../hooks/useFocusTrap.js';
 
 const COMPONENTS_DIR = fileURLToPath(new URL('../next/components/', import.meta.url));
 const FOCUS_TRAP = fileURLToPath(new URL('../hooks/useFocusTrap.js', import.meta.url));
@@ -62,6 +68,12 @@ describe('C4 Modal and the single focus trap', () => {
     )).toBe('');
   });
 
+  it('rejects an open unnamed dialog', () => {
+    expect(() => renderToStaticMarkup(
+      <Modal open onClose={() => {}}>Unnamed</Modal>,
+    )).toThrow(/non-empty title or ariaLabel/);
+  });
+
   it('keeps one focus-trap implementation and makes Modal and Sidebar consume it', () => {
     const sources = fs
       .readdirSync(COMPONENTS_DIR)
@@ -74,6 +86,45 @@ describe('C4 Modal and the single focus trap', () => {
     expect(consumers).toEqual(['Modal.jsx', 'Sidebar.jsx']);
     expect(fs.readFileSync(FOCUS_TRAP, 'utf8')).toContain('export default function useFocusTrap');
     expect(sources.some(({ source }) => source.includes('querySelectorAll(FOCUSABLE_SELECTOR)'))).toBe(false);
+  });
+
+  it('does not restart the trap when escape, busy, or restoration options change', () => {
+    const source = fs.readFileSync(FOCUS_TRAP, 'utf8');
+    expect(source).toContain('optionsRef.current = { initialFocusRef, onEscape, restoreFocus }');
+    expect(source).toContain('}, [active, containerRef]);');
+  });
+
+  it('falls back from disabled, hidden, or out-of-root initial targets', () => {
+    const fallback = { id: 'fallback' };
+    const disabled = { id: 'disabled' };
+    const hidden = { id: 'hidden' };
+    const outside = { id: 'outside' };
+    const root = {
+      contains: (candidate) => candidate !== outside,
+    };
+    const focusable = [fallback];
+    expect(selectInitialFocusTarget(root, focusable, disabled)).toBe(fallback);
+    expect(selectInitialFocusTarget(root, focusable, hidden)).toBe(fallback);
+    expect(selectInitialFocusTarget(root, focusable, outside)).toBe(fallback);
+  });
+
+  it('excludes disabled controls and controls below hidden or inert ancestors', () => {
+    const visible = {
+      matches: () => false,
+      closest: () => null,
+      offsetParent: {},
+    };
+    expect(isFocusableCandidate(visible, null)).toBe(true);
+    expect(isFocusableCandidate({ ...visible, matches: () => true }, null)).toBe(false);
+    expect(isFocusableCandidate({ ...visible, closest: () => ({}) }, null)).toBe(false);
+    expect(isFocusableCandidate({
+      ...visible,
+      ownerDocument: {
+        defaultView: {
+          getComputedStyle: () => ({ display: 'block', visibility: 'hidden' }),
+        },
+      },
+    }, null)).toBe(false);
   });
 });
 
@@ -108,6 +159,14 @@ describe('C4 CommandPalette searches hubs and modes with roving focus', () => {
     expect(getNextPaletteIndex(3, 2, 'Home')).toBe(0);
     expect(getNextPaletteIndex(3, 0, 'End')).toBe(2);
     expect(getNextPaletteIndex(0, 0, 'ArrowDown')).toBe(-1);
+  });
+
+  it('enters the result list from search without skipping the first option', () => {
+    expect(getPaletteInputEntryIndex(3, 'ArrowDown')).toBe(0);
+    expect(getPaletteInputEntryIndex(3, 'Home')).toBe(0);
+    expect(getPaletteInputEntryIndex(3, 'ArrowUp')).toBe(2);
+    expect(getPaletteInputEntryIndex(3, 'End')).toBe(2);
+    expect(getPaletteInputEntryIndex(0, 'ArrowDown')).toBe(-1);
   });
 
   it('renders selected listbox options and a designed empty state', () => {
@@ -146,6 +205,17 @@ describe('C4 Sidebar and Topbar chrome', () => {
     expect(html).toContain('aria-current="page"');
     expect(html).toContain('3 active jobs');
     expect(html).toContain('status-badge--live');
+  });
+
+  it('uses the contrast-safe brand lockup for each chrome theme', () => {
+    const dark = renderToStaticMarkup(
+      <Sidebar navigation={navigation} theme="dark" />,
+    );
+    const light = renderToStaticMarkup(
+      <Sidebar navigation={navigation} theme="light" />,
+    );
+    expect(dark).toContain(brandAssets.horizontal);
+    expect(light).toContain(brandAssets.horizontalLight);
   });
 
   it('marks the mobile drawer open and exposes one named close action', () => {

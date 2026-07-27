@@ -46,6 +46,11 @@ export function getNextPaletteIndex(length, current, key) {
   return Math.min(Math.max(current, 0), length - 1);
 }
 
+export function getPaletteInputEntryIndex(length, key) {
+  if (length <= 0) return -1;
+  return key === 'ArrowUp' || key === 'End' ? length - 1 : 0;
+}
+
 export default function CommandPalette({
   open,
   navigation = [],
@@ -106,7 +111,7 @@ export default function CommandPalette({
             onKeyDown={(event) => {
               if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
                 event.preventDefault();
-                focusResult(getNextPaletteIndex(results.length, activeIndex, event.key));
+                focusResult(getPaletteInputEntryIndex(results.length, event.key));
               }
             }}
             placeholder="Search tools and modes…"

@@ -13,6 +13,7 @@ export default function Sidebar({
   onClose,
   activeJobCount = 0,
   footer,
+  theme = 'dark',
   className = '',
 }) {
   const drawerRef = useRef(null);
@@ -54,7 +55,10 @@ export default function Sidebar({
         tabIndex={mobileOpen ? -1 : undefined}
       >
         <header className="sidebar__brand">
-          <img src={brandAssets.horizontal} alt="AlphaStudio" />
+          <img
+            src={theme === 'light' ? brandAssets.horizontalLight : brandAssets.horizontal}
+            alt="AlphaStudio"
+          />
           <Button
             ref={closeRef}
             className="sidebar__close"

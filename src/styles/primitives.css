@@ -1422,7 +1422,7 @@ html[data-motion='reduced'] .progress-bar--indeterminate .progress-bar__fill {
   position: fixed;
   inset: 0;
   border: 0;
-  background: color-mix(in srgb, var(--bg), transparent 28%);
+  background: color-mix(in srgb, var(--bg), transparent 12%);
 }
 
 .modal__scrim {
@@ -1459,6 +1459,7 @@ html[data-motion='reduced'] .progress-bar--indeterminate .progress-bar__fill {
   gap: var(--space-4);
   padding: var(--space-4);
   border-bottom: 1px solid var(--border);
+  background: var(--surface);
 }
 
 .modal__header > div {
@@ -1483,6 +1484,7 @@ html[data-motion='reduced'] .progress-bar--indeterminate .progress-bar__fill {
   min-height: 0;
   overflow: auto;
   padding: var(--space-4);
+  background: var(--surface);
 }
 
 .modal--palette .modal__body {
@@ -1496,6 +1498,7 @@ html[data-motion='reduced'] .progress-bar--indeterminate .progress-bar__fill {
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
   border-top: 1px solid var(--border);
+  background: var(--surface);
 }
 
 .modal__surface:focus {

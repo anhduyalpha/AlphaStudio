@@ -5,6 +5,7 @@ export {
   default as CommandPalette,
   buildPaletteItems,
   filterPaletteItems,
+  getPaletteInputEntryIndex,
   getNextPaletteIndex,
 } from './CommandPalette';
 export { default as EmptyState } from './EmptyState';
