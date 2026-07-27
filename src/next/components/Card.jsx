@@ -12,10 +12,19 @@ export default function Card({
   children,
   ...props
 }) {
-  const Component = as || 'section';
+  // An interactive Card always owns one native button target. Keeping the
+  // wrapper non-interactive prevents `as="button"` / `as="a"` from nesting
+  // interactive elements; polymorphism remains available for static Cards.
+  const Component = interactive ? 'section' : (as || 'section');
   const safeVariant = variant === 'flat' ? 'flat' : 'panel';
   const hasHeader = header || title || subtitle || actions;
   const rootProps = interactive ? {} : props;
+  const interactiveProps = { ...props };
+  if (interactive) {
+    for (const linkProp of ['href', 'target', 'rel', 'download', 'hrefLang', 'referrerPolicy', 'ping']) {
+      delete interactiveProps[linkProp];
+    }
+  }
 
   return (
     <Component
@@ -42,7 +51,7 @@ export default function Card({
       ) : null}
       <div className="card__body">
         {interactive ? (
-          <button {...props} type={props.type || 'button'} className="card__interactive">
+          <button {...interactiveProps} type={interactiveProps.type || 'button'} className="card__interactive">
             {children}
           </button>
         ) : children}

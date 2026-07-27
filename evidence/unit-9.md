@@ -28,7 +28,7 @@
 
 ## Automated gates
 
-- `npm run test:client` — PASS, 15 files / 312 tests.
+- `npm run test:client` — PASS, 15 files / 314 tests.
 - `npm run typecheck` — PASS.
 - `npm run build:client` — PASS.
 - `npm run visual:checks` — PASS: token purity, motion purity, WCAG contrast.
@@ -77,3 +77,8 @@ production fixes:
   `aria-invalid` unless local error state forces `true`.
 - The exactly-one rule now targets the tablist implementation itself rather
   than rejecting legitimate keyboard handlers in future primitives.
+- Interactive Cards always force a non-interactive `section` wrapper, even
+  when an incompatible polymorphic `as="button"` or `as="a"` is requested;
+  link-only props are not leaked onto the inner native button.
+- The exactly-one structural scan covers every rebuild component when locating
+  the sole tablist owner, then limits the keydown assertion to that owner.

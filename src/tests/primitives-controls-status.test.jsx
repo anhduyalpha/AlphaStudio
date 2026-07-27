@@ -158,10 +158,18 @@ describe('Tabs use one roving-tabindex keyboard model', () => {
     expect(html.match(/tabindex="-1"/g) ?? []).toHaveLength(disabledItems.length);
   });
 
-  it('has exactly one tablist keydown implementation without blocking unrelated components', () => {
-    const tabsSource = fs.readFileSync(path.join(COMPONENTS_DIR, 'Tabs.jsx'), 'utf8');
-    expect(tabsSource.match(/onKeyDown=/g) ?? []).toHaveLength(1);
-    expect(tabsSource.match(/role="tablist"/g) ?? []).toHaveLength(1);
+  it('has exactly one tablist owner without blocking unrelated keyboard handlers', () => {
+    const sources = fs
+      .readdirSync(COMPONENTS_DIR)
+      .filter((file) => file.endsWith('.jsx'))
+      .map((file) => ({
+        file,
+        source: fs.readFileSync(path.join(COMPONENTS_DIR, file), 'utf8'),
+      }));
+    const owners = sources.filter(({ source }) => source.includes('role="tablist"'));
+    expect(owners.map(({ file }) => file)).toEqual(['Tabs.jsx']);
+    expect(owners.flatMap(({ source }) => source.match(/role="tablist"/g) ?? [])).toHaveLength(1);
+    expect(owners[0].source.match(/onKeyDown=/g) ?? []).toHaveLength(1);
   });
 });
 
@@ -214,10 +222,22 @@ describe('C2 status and content primitives preserve semantic roles', () => {
         Open workspace
       </Card>,
     );
-    expect(html).toMatch(/^<div class="card card--panel is-interactive">/);
+    expect(html).toMatch(/^<section class="card card--panel is-interactive">/);
     expect(html).toContain('class="card__interactive"');
     expect(html.match(/<button/g) ?? []).toHaveLength(2);
     expect(html).not.toMatch(/<button[^>]*>(?:(?!<\/button>)[\s\S])*<button/);
+  });
+
+  it.each(['button', 'a'])('forces a safe wrapper for interactive Card as="%s"', (as) => {
+    const html = renderToStaticMarkup(
+      <Card interactive as={as} href={as === 'a' ? '/workspace' : undefined}>
+        Open workspace
+      </Card>,
+    );
+    expect(html).toMatch(/^<section class="card card--panel is-interactive">/);
+    expect(html.match(/<button/g) ?? []).toHaveLength(1);
+    expect(html).not.toMatch(/^<(?:button|a)\b/);
+    expect(html).not.toContain('href=');
   });
 
   it.each(['block', 'row'])('renders a decorative %s Skeleton', (variant) => {
