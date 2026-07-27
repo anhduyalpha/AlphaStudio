@@ -3,6 +3,11 @@ import Button from './Button';
 import Icon from './Icon';
 import StatusBadge from './StatusBadge';
 
+export function focusSkipTarget(event, targetId = 'main-content') {
+  event.preventDefault();
+  document.getElementById(targetId)?.focus();
+}
+
 const Topbar = forwardRef(function Topbar({
   title,
   subtitle,
@@ -18,7 +23,13 @@ const Topbar = forwardRef(function Topbar({
 }, headingRef) {
   return (
     <>
-      <a className="skip-link" href={`#${skipTargetId}`}>Skip to content</a>
+      <a
+        className="skip-link"
+        href={`#${skipTargetId}`}
+        onClick={(event) => focusSkipTarget(event, skipTargetId)}
+      >
+        Skip to content
+      </a>
       <header className={['topbar', className].filter(Boolean).join(' ')}>
         <div className="topbar__identity">
           <Button

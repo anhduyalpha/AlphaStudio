@@ -30,5 +30,5 @@ export { default as Sidebar } from './Sidebar';
 export { default as StatusBadge } from './StatusBadge';
 export { default as Tabs, getEffectiveTabValue, getNextTabIndex } from './Tabs';
 export { default as Toast, ToastRegion, parseCssDuration } from './Toast';
-export { default as Topbar } from './Topbar';
+export { default as Topbar, focusSkipTarget } from './Topbar';
 export { default as Toggle } from './Toggle';

@@ -70,6 +70,13 @@
   box-shadow: none;
 }
 
+.button--primary:disabled:not(.is-busy) {
+  border-color: var(--border);
+  background: var(--surface-2);
+  color: var(--text-3);
+  box-shadow: none;
+}
+
 .button--secondary {
   border-color: var(--border);
   background: var(--surface-2);
