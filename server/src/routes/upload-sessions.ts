@@ -26,9 +26,16 @@ export async function uploadSessionRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get('/api/upload-sessions', async (req) => {
-    const { workspaceId } = (req.query || {}) as { workspaceId?: string };
+    const { workspaceId, includeCompleted } = (req.query || {}) as {
+      workspaceId?: string;
+      includeCompleted?: string | boolean;
+    };
     if (!workspaceId) throw badRequest('workspaceId query parameter required');
-    return { sessions: listWorkspaceUploadSessions(workspaceId) };
+    return {
+      sessions: listWorkspaceUploadSessions(workspaceId, {
+        includeCompleted: includeCompleted === true || includeCompleted === '1' || includeCompleted === 'true',
+      }),
+    };
   });
 
   app.get('/api/upload-sessions/:id', async (req) => {

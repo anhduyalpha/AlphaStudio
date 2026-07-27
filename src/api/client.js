@@ -100,8 +100,12 @@ export const api = {
   filePreviewUrl: (id) => apiUrl(`/api/files/${id}/preview`),
 
   workspaceEventsUrl: (id) => apiUrl(`/api/workspaces/${id}/events`),
-  listUploadSessions: (workspaceId) =>
-    request(`/api/upload-sessions?workspaceId=${encodeURIComponent(workspaceId)}`),
+  listUploadSessions: (workspaceId, { includeCompleted = false } = {}) =>
+    request(
+      `/api/upload-sessions?workspaceId=${encodeURIComponent(workspaceId)}${
+        includeCompleted ? '&includeCompleted=1' : ''
+      }`,
+    ),
   getUploadSession: (id) => request(`/api/upload-sessions/${id}`),
   pauseUploadSession: (id) => request(`/api/upload-sessions/${id}/pause`, { method: 'POST' }),
   cancelUploadSession: (id) => request(`/api/upload-sessions/${id}`, { method: 'DELETE' }),
