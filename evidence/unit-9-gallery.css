@@ -1,0 +1,203 @@
+.proof-shell {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 48px 0 80px;
+}
+
+.proof-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-5);
+  margin-bottom: var(--space-6);
+}
+
+.proof-hero > div {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.proof-hero p {
+  color: var(--text-2);
+}
+
+.proof-kicker,
+.proof-section__header span {
+  color: var(--accent) !important;
+  font: var(--text-meta);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.proof-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.proof-section {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+}
+
+.proof-section--wide {
+  grid-column: 1 / -1;
+}
+
+.proof-section__header {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.proof-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.proof-stack {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.proof-stack--loose {
+  gap: var(--space-5);
+}
+
+.proof-stack--banner {
+  margin-top: var(--space-4);
+}
+
+.proof-field-pair {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: var(--space-4);
+}
+
+.proof-shell--states {
+  max-width: 1320px;
+}
+
+.proof-state-sections {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.proof-state-grid {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.proof-state-grid--six {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.proof-state-grid--four,
+.proof-state-grid--tabs {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.proof-state-grid--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.proof-state {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.proof-state__label {
+  color: var(--text-3);
+  font: var(--text-meta);
+}
+
+.proof-state__sample {
+  min-width: 0;
+}
+
+.proof-state--hover .button {
+  border-color: var(--border-strong);
+  background: color-mix(in srgb, var(--surface-2), var(--accent-soft));
+}
+
+.proof-state--focus .button,
+.proof-state--focus .field__control,
+.proof-state--focus .toggle {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.proof-state--focus .tabs__tab:first-child {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--focus-ring);
+}
+
+.proof-state--focus .field__control {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.proof-state--active .button--danger {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger), transparent 68%);
+  color: var(--danger);
+}
+
+.proof-state--hover .tabs__tab:first-child {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.proof-state--focus .toggle__track {
+  border-color: var(--accent);
+}
+
+.proof-state-grid--tabs .tabs__list {
+  width: 100%;
+}
+
+.proof-state-grid--tabs .tabs__tab {
+  padding-right: var(--space-2);
+  padding-left: var(--space-2);
+}
+
+@media (max-width: 760px) {
+  .proof-shell {
+    width: min(100% - 24px, 1180px);
+    padding: 32px 0 48px;
+  }
+
+  .proof-hero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .proof-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .proof-section--wide {
+    grid-column: auto;
+  }
+
+  .proof-state-grid--six,
+  .proof-state-grid--four,
+  .proof-state-grid--tabs,
+  .proof-state-grid--two {
+    grid-template-columns: 1fr;
+  }
+}
