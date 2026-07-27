@@ -34,7 +34,7 @@
 
 ## Automated gates
 
-- `npm run test:client -- --run` — PASS, 18 files / 372 tests.
+- `npm run test:client -- --run` — PASS, 18 files / 378 tests.
 - `npm run typecheck` — PASS.
 - Default `npm run build` — PASS, client and server.
 - `VITE_UI=next npm run build` — PASS, client and server.
@@ -68,4 +68,15 @@ there is no D1 visual artifact to judge or baseline to accept.
 
 ## Independent spec review
 
-Pending.
+The reviewer found one single-pass canonicalization defect: empty `mode` or an
+unrelated query on Media/Text/Security could first resolve to a mode-less hash,
+which then needed a second resolver pass to reach the required explicit legacy
+default. Because `replaceState` does not emit `hashchange`, the intermediate
+URL could remain visible.
+
+The resolver now derives the three explicit-default paths from the legacy map
+and canonicalizes them directly. Six idempotence regressions cover empty-mode
+and unrelated-query inputs across all three hubs. Browser QA confirms the
+correct final hashes in one pass. The final review returned:
+
+`VERDICT: SHIP`
