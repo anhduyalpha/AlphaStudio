@@ -10,6 +10,7 @@
 src/next/App.jsx
 src/next/components/
 src/next/views/AssetGallery.jsx
+src/styles/primitives.css
 src/styles/views.css
 # Client test location established by A1 (vitest include: src/**/*.test.*)
 src/tests/

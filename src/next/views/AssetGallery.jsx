@@ -79,6 +79,7 @@ const activeJobs = [{
 export default function AssetGallery({ theme = 'dark' }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [paletteQuery, setPaletteQuery] = useState('');
   const [toggleOn, setToggleOn] = useState(true);
   const [selectedTab, setSelectedTab] = useState('source');
 
@@ -296,7 +297,25 @@ export default function AssetGallery({ theme = 'dark' }) {
         <Section id="overlays" eyebrow="Modal · CommandPalette · Toast" title="Overlay and notification states" contract="D · E · S · enter · exit · live" wide>
           <div className="gallery-overlay-launchers">
             <Button variant="secondary" onClick={() => setDialogOpen(true)}>Open dialog</Button>
-            <Button variant="secondary" icon="search" onClick={() => setPaletteOpen(true)}>Open palette</Button>
+            <Button
+              variant="secondary"
+              icon="search"
+              onClick={() => {
+                setPaletteQuery('');
+                setPaletteOpen(true);
+              }}
+            >
+              Open selected palette
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setPaletteQuery('missing workflow');
+                setPaletteOpen(true);
+              }}
+            >
+              Open empty palette
+            </Button>
           </div>
           <div className="gallery-split">
             <State label="Dialog default"><div className="gallery-overlay-diagram"><Icon name="layers" /><span>Named dialog + close + actions</span></div></State>
@@ -399,6 +418,7 @@ export default function AssetGallery({ theme = 'dark' }) {
       <CommandPalette
         open={paletteOpen}
         navigation={navigationItems}
+        initialQuery={paletteQuery}
         onClose={() => setPaletteOpen(false)}
         onNavigate={() => setPaletteOpen(false)}
       />

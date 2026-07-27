@@ -379,6 +379,7 @@ html[data-motion='balanced'] .gallery-state .progress-bar--indeterminate:not(.is
     padding: var(--space-4);
   }
 
+  .topbar__search .button__content,
   .topbar__search .button__icon {
     display: inline-flex;
   }

@@ -138,7 +138,7 @@ export default function App() {
   const [announcement, setAnnouncement] = useState('');
   const headingRef = useRef(null);
   const previousJobsRef = useRef(new Map());
-  const hasMountedRouteRef = useRef(false);
+  const previousRouteRef = useRef(resolved.href);
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   const activeJobs = selectActiveJobs(snapshot);
 
@@ -156,8 +156,8 @@ export default function App() {
   }, [syncRoute]);
 
   useEffect(() => {
-    if (hasMountedRouteRef.current) headingRef.current?.focus();
-    hasMountedRouteRef.current = true;
+    if (previousRouteRef.current !== resolved.href) headingRef.current?.focus();
+    previousRouteRef.current = resolved.href;
   }, [resolved.href]);
 
   useEffect(() => {
