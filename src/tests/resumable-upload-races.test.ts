@@ -137,6 +137,7 @@ it('waits for an exact finalizing session instead of opening a duplicate', async
 
 it('binds an exact active lookup so preflight pause persists on the server', async () => {
   const file = fileOf('saved-pause.bin');
+  const lookup = deferred<Record<string, unknown>>();
   const active = {
     id: 'session-saved-pause',
     originalName: file.name,
@@ -149,7 +150,7 @@ it('binds an exact active lookup so preflight pause persists on the server', asy
   };
   const paused = { ...active, status: 'paused' };
   const request = vi.fn(async (path: string, options?: { method?: string }) => {
-    if (path === `/api/upload-sessions/${active.id}` && !options) return active;
+    if (path === `/api/upload-sessions/${active.id}` && !options) return lookup.promise;
     if (path === `/api/upload-sessions/${active.id}/pause` && options?.method === 'POST') {
       return paused;
     }
@@ -166,8 +167,11 @@ it('binds an exact active lookup so preflight pause persists on the server', asy
   };
   storage.set(controller.key, active.id);
 
-  await controller.lookupSession();
-  await expect(controller.pause()).resolves.toMatchObject({ status: 'paused' });
+  const looking = controller.lookupSession();
+  const pausing = controller.pause();
+  lookup.resolve(active);
+  await looking;
+  await expect(pausing).resolves.toMatchObject({ status: 'paused' });
   expect(request).toHaveBeenCalledWith(`/api/upload-sessions/${active.id}/pause`, {
     method: 'POST',
   });
@@ -175,6 +179,7 @@ it('binds an exact active lookup so preflight pause persists on the server', asy
 
 it('binds an exact active lookup so preflight cancel deletes the server session', async () => {
   const file = fileOf('saved-cancel.bin');
+  const lookup = deferred<Record<string, unknown>>();
   const active = {
     id: 'session-saved-cancel',
     originalName: file.name,
@@ -186,7 +191,7 @@ it('binds an exact active lookup so preflight cancel deletes the server session'
     chunkSize: file.size,
   };
   const request = vi.fn(async (path: string, options?: { method?: string }) => {
-    if (path === `/api/upload-sessions/${active.id}` && !options) return active;
+    if (path === `/api/upload-sessions/${active.id}` && !options) return lookup.promise;
     if (path === `/api/upload-sessions/${active.id}` && options?.method === 'DELETE') {
       return { cancelled: true, id: active.id };
     }
@@ -203,8 +208,11 @@ it('binds an exact active lookup so preflight cancel deletes the server session'
   };
   storage.set(controller.key, active.id);
 
-  await controller.lookupSession();
-  await controller.cancel();
+  const looking = controller.lookupSession();
+  const cancelling = controller.cancel();
+  lookup.resolve(active);
+  await looking;
+  await cancelling;
   expect(request).toHaveBeenCalledWith(`/api/upload-sessions/${active.id}`, {
     method: 'DELETE',
   });

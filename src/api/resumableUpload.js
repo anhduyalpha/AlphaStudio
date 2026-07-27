@@ -66,6 +66,7 @@ class ResumableUploadController {
     this.cancelled = false;
     this.inflight = null;
     this.running = null;
+    this.lookupRunning = null;
     this.key = storageKey(file, this.workspaceId);
   }
 
@@ -74,7 +75,7 @@ class ResumableUploadController {
    * creating or resuming anything. The key includes lastModified and MIME, so
    * the orchestrator can distinguish equal-name/equal-size files safely.
    */
-  async lookupSession() {
+  async lookupSavedSession() {
     const savedId = storageGet(this.key);
     if (!savedId) return null;
     try {
@@ -94,6 +95,15 @@ class ResumableUploadController {
       }
       throw err;
     }
+  }
+
+  lookupSession() {
+    if (this.lookupRunning) return this.lookupRunning;
+    const running = this.lookupSavedSession();
+    this.lookupRunning = running;
+    return running.finally(() => {
+      if (this.lookupRunning === running) this.lookupRunning = null;
+    });
   }
 
   async ensureSession() {
@@ -252,6 +262,7 @@ class ResumableUploadController {
   async pause() {
     this.paused = true;
     this.inflight?.abort();
+    if (this.lookupRunning) await this.lookupRunning;
     if (this.session?.id && this.session.status === 'uploading') {
       try {
         this.session = await this.runtime.request(`/api/upload-sessions/${this.session.id}/pause`, { method: 'POST' });
@@ -266,6 +277,7 @@ class ResumableUploadController {
   async cancel() {
     this.cancelled = true;
     this.inflight?.abort();
+    if (this.lookupRunning) await this.lookupRunning;
     const cancellable =
       this.session?.id && ['uploading', 'paused', 'failed'].includes(this.session.status);
     if (cancellable) {
