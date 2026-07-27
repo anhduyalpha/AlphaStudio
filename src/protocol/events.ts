@@ -356,10 +356,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function handleMessage(conn: Connection, message: SseMessage): void {
-  // Any completed frame proves the connection is healthy, so the failure count
-  // starts over — HTTP 200 alone deliberately does NOT (a server that accepts
-  // and immediately drops would otherwise never back off).
-  conn.attempt = 0;
   if (message.id) conn.lastEventId = message.id;
   if (message.retry !== null) conn.retryHintMs = message.retry;
   if (!message.data) return;
@@ -378,6 +374,10 @@ function handleMessage(conn: Connection, message: SseMessage): void {
     return;
   }
 
+  // Only a valid parsed envelope proves the application stream is healthy.
+  // HTTP 200 or malformed frames must not reset the failure count, otherwise a
+  // server that repeatedly emits garbage and closes can hot-loop forever.
+  conn.attempt = 0;
   const epoch = typeof parsed.epoch === 'string' && parsed.epoch ? parsed.epoch : null;
   if (epoch && epoch !== conn.epoch) {
     const previousEpoch = conn.epoch;
@@ -402,40 +402,48 @@ async function readOnce(conn: Connection): Promise<void> {
   if (conn.token) headers.Authorization = `Bearer ${conn.token}`;
   if (conn.lastEventId) headers['Last-Event-ID'] = conn.lastEventId;
 
-  const response = await globalThis.fetch(conn.url, {
-    headers,
-    signal: controller.signal,
-    cache: 'no-store',
-    credentials: 'same-origin',
-  });
-  if (!response.ok) {
-    // A 404/503 mid-restart is the §6.5 item 4 case, not a reason to give up:
-    // it backs off like any other failure and the delay caps out.
-    throw new Error(`Workspace event stream failed with HTTP ${response.status}`);
-  }
-  if (!response.body) throw new Error('Workspace event stream returned no body');
-
-  const reconnected = conn.everOpened;
-  conn.everOpened = true;
-  emitPhase(conn, 'open');
-  // §6.3 re-hydrates on re-open, not on drop: hydrating while the stream is
-  // still down races the outage instead of repairing it.
-  if (reconnected) emitResync(conn, 'reconnect', conn.epoch);
-
+  // Start the watchdog before fetch: a TCP/TLS request can hang before response
+  // headers arrive, and that half-open handshake must reconnect just like a
+  // stream that goes silent after opening.
   armWatchdog(conn);
-  const reader = response.body.getReader();
-  const decoder = createSseDecoder();
   try {
-    while (!conn.closed) {
-      const { done, value } = await reader.read();
-      if (done) return; // server closed — the caller reconnects
-      armWatchdog(conn);
-      if (!value) continue;
-      for (const message of decoder.push(value)) handleMessage(conn, message);
+    const response = await globalThis.fetch(conn.url, {
+      headers,
+      signal: controller.signal,
+      cache: 'no-store',
+      credentials: 'same-origin',
+    });
+    if (!response.ok) {
+      // A 404/503 mid-restart is the §6.5 item 4 case, not a reason to give up:
+      // it backs off like any other failure and the delay caps out.
+      throw new Error(`Workspace event stream failed with HTTP ${response.status}`);
+    }
+    if (!response.body) throw new Error('Workspace event stream returned no body');
+
+    const reconnected = conn.everOpened;
+    conn.everOpened = true;
+    emitPhase(conn, 'open');
+    // §6.3 re-hydrates on re-open, not on drop: hydrating while the stream is
+    // still down races the outage instead of repairing it.
+    if (reconnected) emitResync(conn, 'reconnect', conn.epoch);
+
+    armWatchdog(conn);
+    const reader = response.body.getReader();
+    const decoder = createSseDecoder();
+    try {
+      while (!conn.closed) {
+        const { done, value } = await reader.read();
+        if (done) return; // server closed — the caller reconnects
+        armWatchdog(conn);
+        if (!value) continue;
+        for (const message of decoder.push(value)) handleMessage(conn, message);
+      }
+    } finally {
+      void reader.cancel().catch(() => {});
     }
   } finally {
     clearWatchdog(conn);
-    void reader.cancel().catch(() => {});
+    if (conn.controller === controller) conn.controller = null;
   }
 }
 
@@ -520,7 +528,11 @@ export function connectWorkspaceEvents(
   }
 
   const connection = conn;
-  connection.subscribers.add(handlers);
+  // Each connect call is one subscription even when callers intentionally
+  // share the same stable handlers object. A Set of that object directly would
+  // collapse two subscriptions and let the first close tear down the socket.
+  const subscriber = { ...handlers };
+  connection.subscribers.add(subscriber);
   // Registered before the loop starts so the first phase reaches this caller.
   if (fresh) void runLoop(connection);
 
@@ -530,11 +542,11 @@ export function connectWorkspaceEvents(
     close(): void {
       if (released) return;
       released = true;
-      connection.subscribers.delete(handlers);
+      connection.subscribers.delete(subscriber);
       if (connection.subscribers.size === 0 && !connection.closed) {
         // `handlers` is passed along so the caller that closed the last
         // subscription still hears the resulting `closed` phase.
-        closeConnection(connection, handlers);
+        closeConnection(connection, subscriber);
       }
     },
   };
