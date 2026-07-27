@@ -32,10 +32,13 @@
 
 ## Automated gates
 
-- `npm run test:client -- --run` — PASS, 17 files / 355 tests.
+- `npm run test:client -- --run` — PASS, 17 files / 361 tests.
 - `npm run typecheck` — PASS.
 - `npm run build:client` — PASS.
 - `npm run visual:checks` — PASS: token purity, motion purity, WCAG contrast.
+- `npm run visual:capture` — PASS: 1 smoke capture; 268 gallery targets are
+  expected pending D1/D2.
+- `npm run visual:diff` — PASS: 1 capture accounted for.
 
 ## Browser QA
 
@@ -56,6 +59,28 @@
 - Visual proofs are the `unit-11-{dark,light}-{chrome,modal,palette,empty}.png`
   files and `unit-11-mobile-drawer.png` in this directory.
 
-## Independent reviews
+## Independent visual review
 
-Pending visual and specification review.
+The visual judge requested one revision round:
+
+1. Strengthen overlay content isolation so page copy cannot bleed through the
+   dialog/palette, and use the contrast-safe light lockup in light chrome.
+
+The exact glass recipe remains on the allowed overlay shell; opaque internal
+content layers make readability independent of blur. Stable-state screenshots
+were recaptured after the entrance animation. The final review returned:
+
+`VERDICT: SHIP`
+
+## Independent spec review
+
+The reviewer requested one correction round:
+
+1. Keep escape/restore callbacks in refs so callback or busy changes do not
+   restart the trap; reject invalid initial-focus targets and hidden/inert
+   descendants; enter palette results at the correct edge from the search
+   input; and require every open Modal to have an accessible name.
+
+All findings have regression coverage. The final review returned:
+
+`VERDICT: SHIP`
