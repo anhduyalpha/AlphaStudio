@@ -6,9 +6,10 @@
 # .claude/hooks/scope-guard.mjs). With no entries below, nothing else
 # inside the repo is writable — the between-units state.
 
-# Unit 10 (C3) — PLAN "Files:" list
+# Unit 11 (C4) — PLAN "Files:" list
 src/next/components/
 src/styles/primitives.css
+src/hooks/useFocusTrap.js
 # Client test location established by A1 (vitest include: src/**/*.test.*)
 src/tests/
 PROGRESS.md
