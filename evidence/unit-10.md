@@ -69,3 +69,20 @@ The visual judge requested two revision rounds:
 After both revisions, the independent review returned:
 
 `VERDICT: SHIP`
+
+## Independent spec review
+
+The reviewer requested three correction rounds:
+
+1. Make root `data-motion="reduced"` stop C3 keyframes; filter terminal jobs;
+   distinguish Dropzone default/empty; require owning workflow links and upload
+   handlers; make disabled FileRow actions inert; place proof Toasts inside the
+   actual live region.
+2. Reject mode-only and external ResumeStrip links, and replace a blank dark
+   Dropzone capture.
+3. Validate only canonical internal `#/<hub>?mode=<mode>` hrefs and split the
+   mobile Dropzone evidence so Focus remains visible.
+
+All findings have regression coverage. The final review returned:
+
+`VERDICT: SHIP`
