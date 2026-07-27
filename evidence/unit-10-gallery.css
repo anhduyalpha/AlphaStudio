@@ -1,0 +1,163 @@
+.flow-shell {
+  width: min(1240px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 48px 0 96px;
+}
+
+.flow-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-5);
+  margin-bottom: var(--space-6);
+}
+
+.flow-hero > div {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.flow-hero p {
+  color: var(--text-2);
+}
+
+.flow-kicker,
+.flow-section__header span {
+  color: var(--accent) !important;
+  font: var(--text-meta);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.flow-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.flow-section {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+}
+
+.flow-section--wide {
+  grid-column: 1 / -1;
+}
+
+.flow-section__header {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.flow-state-grid {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.flow-state-grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.flow-state-grid--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.flow-state {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.flow-state__label {
+  color: var(--text-3);
+  font: var(--text-meta);
+}
+
+.flow-stack,
+.flow-toast-proof {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.flow-state .progress-bar--indeterminate:not(.is-reduced) .progress-bar__fill {
+  animation: none;
+  transform: translateX(70%);
+}
+
+.force-hover .dropzone {
+  border-color: var(--accent-hover);
+  background: color-mix(in srgb, var(--surface), var(--accent-soft));
+}
+
+.force-focus .dropzone {
+  border-color: var(--accent-hover);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.force-drag .dropzone {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  transform: scale(1.01);
+}
+
+.force-row-hover .file-row {
+  border-color: var(--border-strong);
+  background: color-mix(in srgb, var(--surface), var(--surface-2));
+}
+
+.force-row-focus .file-row {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.flow-stack--runbars .run-bar {
+  position: relative;
+  bottom: auto;
+}
+
+.flow-toast-proof .toast {
+  width: min(100%, 520px);
+}
+
+.flow-live-proof {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+@media (max-width: 800px) {
+  .flow-shell {
+    width: min(100% - 24px, 1240px);
+    padding: 32px 0 56px;
+  }
+
+  .flow-grid,
+  .flow-state-grid--three,
+  .flow-state-grid--two {
+    grid-template-columns: 1fr;
+  }
+
+  .flow-section--wide {
+    grid-column: auto;
+  }
+
+  .flow-hero h1,
+  .flow-hero p {
+    overflow-wrap: anywhere;
+  }
+}
