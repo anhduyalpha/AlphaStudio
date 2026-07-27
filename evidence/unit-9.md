@@ -82,3 +82,8 @@ production fixes:
   link-only props are not leaked onto the inner native button.
 - The exactly-one structural scan covers every rebuild component when locating
   the sole tablist owner, then limits the keydown assertion to that owner.
+
+The final spec-review pass found no correctness or requirement gaps and
+returned:
+
+`VERDICT: SHIP`
