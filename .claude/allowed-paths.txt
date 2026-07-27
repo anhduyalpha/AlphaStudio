@@ -6,11 +6,11 @@
 # .claude/hooks/scope-guard.mjs). With no entries below, nothing else
 # inside the repo is writable — the between-units state.
 
-# Unit 12 (D1) — PLAN "Files:" list
-src/main.jsx
+# Unit 13 (D2) — PLAN "Files:" list
 src/next/App.jsx
-src/hubs/
-index.html
+src/next/components/
+src/next/views/AssetGallery.jsx
+src/styles/views.css
 # Client test location established by A1 (vitest include: src/**/*.test.*)
 src/tests/
 PROGRESS.md
