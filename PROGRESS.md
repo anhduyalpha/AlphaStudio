@@ -27,7 +27,7 @@ and the visual-judge subagent. Nothing waits on human review during the run.)
 | 10 | C3 | Primitives II: file and flow | done | unit-10-c3-primitives-file-flow | d494660 | 9 | evidence/unit-10.md; visual + spec reviewers SHIP |
 | 11 | C4 | Primitives III: overlay and chrome | done | unit-11-c4-primitives-overlay-chrome | 5c84775 | 9 | evidence/unit-11.md; visual + spec reviewers SHIP |
 | 12 | D1 | Shell skeleton: entry flag, router, hub registry | done | unit-12-d1-shell-skeleton | 9bfdbc7 | 5,9 | evidence/unit-12.md; spec reviewer SHIP; verified and removed no-op index.html heuristic |
-| 13 | D2 | Shell chrome and Asset Gallery | in-progress | unit-13-d2-shell-chrome-gallery | — | 11,12 | |
+| 13 | D2 | Shell chrome and Asset Gallery | done | unit-13-d2-shell-chrome-gallery | 175f9c4 | 11,12 | |
 | 14 | D3 | Workbench and panel registry | todo | — | — | 4,5,9,10,12 | |
 | 15 | E1 | Convert hub | todo | — | — | 7,14 | flagged: own detailed plan; e2e centerpiece |
 | 16 | E2 | PDF hub config + export/operations | todo | — | — | 14 | |
