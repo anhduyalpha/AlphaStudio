@@ -411,7 +411,10 @@ export function filterSortResults(rows, { status = 'all', format = 'all', sort =
  * Deduplicate job create: reject if same uploadIds+format already queued/running.
  */
 export function hasActiveDuplicateJob(jobs, { uploadIds = [], format, type = 'converter' } = {}) {
-  const key = [...uploadIds].sort().join(',') + '|' + String(format || '');
+  const key =
+    [...uploadIds].map(String).sort().join(',') +
+    '|' +
+    String(format || '').toLowerCase();
   return (jobs || []).some((j) => {
     if (j.type !== type && j.tool !== type) return false;
     if (!['queued', 'running'].includes(j.status)) return false;
@@ -423,7 +426,10 @@ export function hasActiveDuplicateJob(jobs, { uploadIds = [], format, type = 'co
         : [];
     // If options don't carry ids, fall back to false (server has job_files)
     if (!ids.length) return false;
-    const k2 = [...ids].sort().join(',') + '|' + String(opts.format || opts.outputFormat || '');
+    const k2 =
+      [...ids].map(String).sort().join(',') +
+      '|' +
+      String(opts.format || opts.outputFormat || '').toLowerCase();
     return k2 === key;
   });
 }
@@ -511,7 +517,7 @@ export function buildConvertAllPlans(groups = [], groupSettings = {}) {
  * Uses group settings for the primary group when provided.
  */
 export function buildConvertSelectionPlan(files, selectedIds, format, settings = {}) {
-  const ids = [...(selectedIds || [])].map(String).filter(Boolean);
+  const ids = [...new Set([...(selectedIds || [])].map(String).filter(Boolean))];
   if (!ids.length || !format) return null;
   if (!canConvertSelection(files, ids, format)) return null;
   return {
@@ -527,7 +533,8 @@ export function buildConvertSelectionPlan(files, selectedIds, format, settings =
  * Returns { value, indeterminate, label } for ProgressWave.
  */
 export function aggregateJobProgress(jobs = {}) {
-  const active = Object.values(jobs || {}).filter((j) =>
+  const rows = Array.isArray(jobs) ? jobs : Object.values(jobs || {});
+  const active = rows.filter((j) =>
     ['queued', 'running'].includes(j?.status),
   );
   if (!active.length) {

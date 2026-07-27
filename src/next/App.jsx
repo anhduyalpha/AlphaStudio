@@ -24,12 +24,17 @@ import {
 } from './components/index.jsx';
 import { navigationItems, resolveHashRoute } from '../hubs/index';
 import {
+  applyEvent,
   getSnapshot,
+  hydrate,
   isTerminalStatus,
   selectActiveJobs,
   subscribe,
 } from '../protocol/store';
+import { connectWorkspaceEvents } from '../protocol/events';
+import { recoverUploadSessions } from '../protocol/uploads';
 import Workbench from '../workbench/Workbench.jsx';
+import useConvertWorkbench from './hooks/useConvertWorkbench.js';
 
 const AssetGallery = import.meta.env.DEV
   ? lazy(() => import('./views/AssetGallery.jsx'))
@@ -144,6 +149,24 @@ export default function App() {
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   const activeJobs = selectActiveJobs(snapshot);
 
+  useEffect(() => {
+    void hydrate({ route: resolved.route.kind === 'hub' ? resolved.route.id : resolved.route.id });
+    // The store owns later route-independent re-hydrates and epoch recovery.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!snapshot.workspaceId) return undefined;
+    void recoverUploadSessions(snapshot.workspaceId).catch(() => {});
+    const subscription = connectWorkspaceEvents(snapshot.workspaceId, {
+      onEvent: applyEvent,
+      onResync: () => {
+        void hydrate();
+      },
+    });
+    return () => subscription.close();
+  }, [snapshot.workspaceId]);
+
   const syncRoute = useCallback(() => {
     const next = readRoute();
     if (window.location.hash !== next.href) replaceHash(next.href);
@@ -199,6 +222,10 @@ export default function App() {
   }, [syncRoute]);
 
   const { route, mode } = resolved;
+  const convertController = useConvertWorkbench({
+    enabled: route.kind === 'hub' && route.id === 'convert',
+    mode,
+  });
   const subtitle = route.kind === 'hub'
     ? (mode?.name || 'Studio')
     : route.id === 'assets' ? 'Development reference' : 'Local utility studio';
@@ -233,7 +260,8 @@ export default function App() {
           ) : route.kind === 'hub' ? (
             <Workbench
               hub={route.hub}
-              mode={mode}
+              mode={convertController.mode || mode}
+              {...convertController}
               onModeChange={(modeId) => navigate(`#/${route.id}?mode=${encodeURIComponent(modeId)}`)}
             />
           ) : (

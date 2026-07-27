@@ -271,17 +271,25 @@ function ResultsRegion({
       />
     );
   }
-  if (failedJob) {
-    return (
+  const failedState = failedJob ? (
+    <div className="workbench-result-error">
       <ErrorState
         title={failedJob.outputName || failedJob.type || 'Job failed'}
         message={failedJob.error || failedJob.message || 'The operation did not complete.'}
         actionLabel="Retry input"
         onAction={() => onRetry(failedJob)}
       />
-    );
-  }
-  if (!outputs.length) {
+      <Button
+        size="sm"
+        variant="ghost"
+        icon="trash"
+        onClick={() => onRemoveResult(failedJob)}
+      >
+        Remove failed row
+      </Button>
+    </div>
+  ) : null;
+  if (!outputs.length && !failedJob) {
     return (
       <EmptyState
         variant="compact"
@@ -294,6 +302,7 @@ function ResultsRegion({
   }
   return (
     <div className="workbench-results-stack">
+      {failedState}
       {outputs.length > 1 ? (
         <Button size="sm" variant="secondary" icon="download" onClick={() => onDownloadBatch(outputs)}>
           Download batch ZIP
@@ -350,6 +359,8 @@ export default function Workbench({
   onRetry = noop,
   onRemoveResult = noop,
   onRetryHydrate = noop,
+  actionError = '',
+  unsupportedFiles = [],
 }) {
   const snapshot = useStore(selectSnapshot);
   const files = selectedWorkbenchFiles(snapshot);
@@ -395,6 +406,16 @@ export default function Workbench({
       {capabilityReason ? (
         <Banner tone="warning" title="This mode cannot run" icon={<Icon name="warning" />}>
           {capabilityReason}
+        </Banner>
+      ) : null}
+      {actionError ? (
+        <Banner tone="danger" title="Convert action needs attention" icon={<Icon name="warning" />}>
+          {actionError}
+        </Banner>
+      ) : null}
+      {unsupportedFiles.length ? (
+        <Banner tone="warning" title={`${unsupportedFiles.length} unsupported ${unsupportedFiles.length === 1 ? 'file' : 'files'}`} icon={<Icon name="warning" />}>
+          Remove the unsupported input or upload a repaired version before converting it.
         </Banner>
       ) : null}
       <div className="workbench__workspace">

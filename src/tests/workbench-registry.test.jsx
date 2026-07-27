@@ -55,9 +55,16 @@ describe('D3 lazy panel registry', () => {
 
 describe('D3 hub reference validation', () => {
   it('accepts the D1 route-only stubs until their E units fill the config fields', () => {
-    for (const hub of hubRegistry) {
+    const routeOnlyStubs = hubRegistry.filter((hub) => hub.modes.every((mode) => (
+      !mode.capabilityIds
+      && !mode.input
+      && !mode.panels
+      && !mode.run
+    )));
+    for (const hub of routeOnlyStubs) {
       expect(validateHubReferences(hub), hub.id).toEqual([]);
     }
+    expect(routeOnlyStubs.map((hub) => hub.id)).not.toContain('convert');
   });
 
   it('validates every normative reference family through injected resolvers', () => {

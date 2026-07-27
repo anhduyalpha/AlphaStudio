@@ -52,6 +52,12 @@
   gap: var(--space-3);
 }
 
+.workbench-result-error {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+}
+
 .workbench__configure .empty-state--compact,
 .workbench__results .empty-state--compact {
   grid-template-columns: auto minmax(0, 1fr);
@@ -93,6 +99,7 @@
 
 .workbench__run .run-bar {
   bottom: auto;
+  background: var(--surface);
 }
 
 @media (width < 1200px) {
@@ -106,6 +113,10 @@
 }
 
 @media (width < 900px) {
+  .workbench {
+    padding-bottom: var(--runbar-height);
+  }
+
   .workbench__workspace {
     grid-template-columns: minmax(0, 1fr);
   }
