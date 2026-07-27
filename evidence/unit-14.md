@@ -49,4 +49,6 @@
 
 ## Independent review
 
-- Pending.
+- The first pass found workspace-global job/result leakage and an inclusive
+  1200px collapse. Both were fixed with attempt-scoped selectors, a cross-hub
+  regression, and strict range breakpoints. Final verdict: `SHIP`.
