@@ -51,6 +51,7 @@ export type UploadedFile = {
 };
 
 type ResumableController = {
+  lookupSession: () => Promise<UploadSession | null>;
   start: () => Promise<UploadedFile>;
   pause: () => Promise<UploadSession | null>;
   cancel: () => Promise<void>;
@@ -158,6 +159,10 @@ function codeOf(error: unknown): string {
   return typeof error.code === 'string' ? error.code : '';
 }
 
+function lifecycleError(message: string, code: 'PAUSED' | 'CANCELLED'): Error & { code: string } {
+  return Object.assign(new Error(message), { code });
+}
+
 function makeClientId(file: File): string {
   const uuid = globalThis.crypto?.randomUUID?.();
   if (uuid) return `upload-${uuid}`;
@@ -184,29 +189,22 @@ export async function recoverUploadSessions(workspaceId: string): Promise<Upload
   return listSessions(workspaceId, false);
 }
 
-function sameFileIdentity(session: UploadSession, file: File): boolean {
-  const fileMime = file.type || null;
-  const sessionMime = session.mime || null;
-  return (
-    session.originalName === file.name &&
-    session.size === file.size &&
-    sessionMime === fileMime
-  );
-}
-
 async function adoptCompleted(
   workspaceId: string,
-  file: File,
+  resumable: ResumableController,
 ): Promise<{ file: UploadedFile; snapshot: Record<string, unknown> } | null> {
+  // resumableUpload.js owns the persisted identity key, whose tuple includes
+  // lastModified and MIME. Never approximate that identity here with metadata
+  // from the server list: distinct files can share name, size and MIME.
+  const exact = await resumable.lookupSession();
   const sessions = await listSessions(workspaceId, true);
-  const completed = sessions
-    .filter(
-      (session) =>
-        session.status === 'completed' &&
-        typeof session.fileId === 'string' &&
-        sameFileIdentity(session, file),
-    )
-    .sort((left, right) => String(right.updatedAt).localeCompare(String(left.updatedAt)))[0];
+  if (!exact) return null;
+  const completed = sessions.find(
+    (session) =>
+      session.id === exact.id &&
+      session.status === 'completed' &&
+      typeof session.fileId === 'string',
+  );
   if (!completed?.fileId) return null;
 
   // Once a completed match exists, fail closed: a transient hydrate failure
@@ -235,6 +233,8 @@ class UploadTaskController implements UploadTask {
   private readonly resumable: ResumableController | null;
   private current: Promise<UploadedFile> | null = null;
   private currentState: UploadTaskState = 'idle';
+  private pauseRequested = false;
+  private cancelRequested = false;
 
   constructor(file: File, options: UploadTaskOptions) {
     if (!options.workspaceId) throw new Error('workspaceId is required');
@@ -300,6 +300,8 @@ class UploadTaskController implements UploadTask {
     if (this.currentState === 'cancelled') {
       return Promise.reject(new Error('Upload is cancelled'));
     }
+    // An explicit resume releases a pause that won during preflight.
+    if (this.currentState === 'paused') this.pauseRequested = false;
     this.current = this.run().finally(() => {
       this.current = null;
     });
@@ -319,7 +321,13 @@ class UploadTaskController implements UploadTask {
       let result: UploadedFile;
       if (this.kind === 'resumable') {
         this.transition('checking');
-        const adopted = await adoptCompleted(this.options.workspaceId, this.file);
+        const adopted = await adoptCompleted(this.options.workspaceId, this.resumable!);
+        if (this.cancelRequested) {
+          throw lifecycleError('Upload cancelled', 'CANCELLED');
+        }
+        if (this.pauseRequested) {
+          throw lifecycleError('Upload paused', 'PAUSED');
+        }
         if (adopted) {
           applyPoll(adopted.snapshot);
           resolveOptimisticUpload(this.clientId, adopted.file.id);
@@ -367,8 +375,18 @@ class UploadTaskController implements UploadTask {
     if (this.kind !== 'resumable') {
       throw new Error('Multipart uploads cannot be paused');
     }
-    const session = await this.resumable!.pause();
-    this.transition('paused', session);
+    const previous = this.currentState;
+    this.pauseRequested = true;
+    this.transition('paused');
+    let session: UploadSession | null;
+    try {
+      session = await this.resumable!.pause();
+      this.transition('paused', session);
+    } catch (error) {
+      this.pauseRequested = false;
+      this.transition(previous);
+      throw error;
+    }
     const running = this.current;
     if (running) await running.catch(() => {});
     return session;
@@ -386,6 +404,7 @@ class UploadTaskController implements UploadTask {
 
   async cancel(): Promise<void> {
     if (this.currentState === 'completed') return;
+    this.cancelRequested = true;
     this.transition('cancelled');
     try {
       if (this.kind === 'resumable') {
@@ -396,6 +415,7 @@ class UploadTaskController implements UploadTask {
       }
       failOptimisticUpload(this.clientId, 'Upload cancelled');
     } catch (error) {
+      this.cancelRequested = false;
       this.transition('failed');
       failOptimisticUpload(this.clientId, messageOf(error));
       throw error;

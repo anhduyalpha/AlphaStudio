@@ -11,6 +11,7 @@ src/protocol/uploads.ts
 # Minimal acceptance-critical extension: completed sessions must be queryable
 # for lost-finalize adoption without changing the legacy default listing.
 src/api/client.js
+src/api/resumableUpload.js
 server/src/routes/upload-sessions.ts
 server/src/services/upload-session.ts
 server/tests/

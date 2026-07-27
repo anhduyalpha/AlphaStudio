@@ -64,6 +64,7 @@ describe('transport branching and progress', () => {
       start: vi.fn().mockResolvedValue(largeResult),
       pause: vi.fn(),
       cancel: vi.fn(),
+      lookupSession: vi.fn().mockResolvedValue(null),
     };
     mocks.api.createResumableUpload.mockReturnValue(resumable);
 
@@ -114,6 +115,7 @@ describe('resumable lifecycle', () => {
         return { id: 'session-1', status: 'paused', receivedBytes: 64, size: 128 };
       }),
       cancel: vi.fn(),
+      lookupSession: vi.fn().mockResolvedValue(null),
     };
     mocks.api.createResumableUpload.mockReturnValue(controller);
     const task = createUploadTask(fileOf(RESUMABLE_UPLOAD_THRESHOLD_BYTES, 'resume.bin'), {
@@ -136,6 +138,7 @@ describe('resumable lifecycle', () => {
       start: vi.fn(),
       pause: vi.fn(),
       cancel: vi.fn().mockResolvedValue(undefined),
+      lookupSession: vi.fn().mockResolvedValue(null),
     };
     mocks.api.createResumableUpload.mockReturnValue(controller);
     const task = createUploadTask(fileOf(RESUMABLE_UPLOAD_THRESHOLD_BYTES, 'cancel.bin'), {
@@ -198,6 +201,7 @@ describe('recovery and completed-session adoption', () => {
       start: vi.fn(),
       pause: vi.fn(),
       cancel: vi.fn(),
+      lookupSession: vi.fn().mockResolvedValue(completed),
     };
     mocks.api.listUploadSessions.mockResolvedValue({ sessions: [completed] });
     mocks.api.getWorkspace.mockResolvedValue(snapshot);
@@ -216,5 +220,101 @@ describe('recovery and completed-session adoption', () => {
     expect(mocks.api.upload).not.toHaveBeenCalled();
     expect(mocks.applyPoll).toHaveBeenCalledWith(snapshot);
     expect(mocks.resolveOptimisticUpload).toHaveBeenCalledWith('adopt', 'file-existing');
+  });
+
+  it('does not adopt a different file that merely shares name, size and MIME', async () => {
+    const file = fileOf(RESUMABLE_UPLOAD_THRESHOLD_BYTES, 'collision.bin', 'application/test');
+    const metadataCollision = {
+      id: 'session-other-file',
+      originalName: file.name,
+      mime: file.type,
+      size: file.size,
+      receivedBytes: file.size,
+      status: 'completed',
+      fileId: 'file-other',
+      updatedAt: '2026-07-27T01:00:00.000Z',
+    };
+    const uploaded = { id: 'file-new', originalName: file.name };
+    const resumable = {
+      start: vi.fn().mockResolvedValue(uploaded),
+      pause: vi.fn(),
+      cancel: vi.fn(),
+      // No server session is bound to this file's exact local identity key.
+      lookupSession: vi.fn().mockResolvedValue(null),
+    };
+    mocks.api.listUploadSessions.mockResolvedValue({ sessions: [metadataCollision] });
+    mocks.api.createResumableUpload.mockReturnValue(resumable);
+
+    await expect(
+      createUploadTask(file, { workspaceId: 'ws-1', clientId: 'collision' }).start(),
+    ).resolves.toEqual(uploaded);
+
+    expect(resumable.start).toHaveBeenCalledTimes(1);
+    expect(mocks.api.getWorkspace).not.toHaveBeenCalled();
+  });
+});
+
+describe('preflight lifecycle races', () => {
+  it('never starts transport when cancel wins while completed-session lookup is pending', async () => {
+    let releaseList!: (value: { sessions: unknown[] }) => void;
+    mocks.api.listUploadSessions.mockReturnValue(
+      new Promise((resolve) => {
+        releaseList = resolve;
+      }),
+    );
+    const controller = {
+      start: vi.fn(),
+      pause: vi.fn(),
+      cancel: vi.fn().mockResolvedValue(undefined),
+      lookupSession: vi.fn().mockResolvedValue(null),
+    };
+    mocks.api.createResumableUpload.mockReturnValue(controller);
+    const task = createUploadTask(fileOf(RESUMABLE_UPLOAD_THRESHOLD_BYTES, 'cancel-race.bin'), {
+      workspaceId: 'ws-1',
+      clientId: 'cancel-race',
+    });
+
+    const running = task.start();
+    await vi.waitFor(() => expect(mocks.api.listUploadSessions).toHaveBeenCalled());
+    await task.cancel();
+    releaseList({ sessions: [] });
+
+    await expect(running).rejects.toMatchObject({ code: 'CANCELLED' });
+    expect(controller.start).not.toHaveBeenCalled();
+    expect(task.state).toBe('cancelled');
+  });
+
+  it('holds a preflight pause until an explicit resume', async () => {
+    let releaseList!: (value: { sessions: unknown[] }) => void;
+    mocks.api.listUploadSessions.mockReturnValueOnce(
+      new Promise((resolve) => {
+        releaseList = resolve;
+      }),
+    );
+    const uploaded = { id: 'file-after-resume', originalName: 'pause-race.bin' };
+    const controller = {
+      start: vi.fn().mockResolvedValue(uploaded),
+      pause: vi.fn().mockResolvedValue(null),
+      cancel: vi.fn(),
+      lookupSession: vi.fn().mockResolvedValue(null),
+    };
+    mocks.api.createResumableUpload.mockReturnValue(controller);
+    const task = createUploadTask(fileOf(RESUMABLE_UPLOAD_THRESHOLD_BYTES, 'pause-race.bin'), {
+      workspaceId: 'ws-1',
+      clientId: 'pause-race',
+    });
+
+    const running = task.start();
+    await vi.waitFor(() => expect(mocks.api.listUploadSessions).toHaveBeenCalled());
+    const pausing = task.pause();
+    releaseList({ sessions: [] });
+
+    await pausing;
+    await expect(running).rejects.toMatchObject({ code: 'PAUSED' });
+    expect(controller.start).not.toHaveBeenCalled();
+
+    mocks.api.listUploadSessions.mockResolvedValue({ sessions: [] });
+    await expect(task.resume()).resolves.toEqual(uploaded);
+    expect(controller.start).toHaveBeenCalledTimes(1);
   });
 });

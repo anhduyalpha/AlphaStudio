@@ -69,20 +69,37 @@ class ResumableUploadController {
     this.key = storageKey(file, this.workspaceId);
   }
 
-  async ensureSession() {
+  /**
+   * Resolve the server session bound to this exact file identity key without
+   * creating or resuming anything. The key includes lastModified and MIME, so
+   * the orchestrator can distinguish equal-name/equal-size files safely.
+   */
+  async lookupSession() {
     const savedId = storageGet(this.key);
-    if (savedId) {
-      try {
-        const saved = await this.runtime.request(`/api/upload-sessions/${encodeURIComponent(savedId)}`);
-        if (saved.originalName === this.file.name && saved.size === this.file.size && saved.status !== 'completed') {
-          this.session = saved;
-        } else {
-          storageRemove(this.key);
-        }
-      } catch (err) {
-        if (err?.status === 404) storageRemove(this.key);
-        else throw err;
+    if (!savedId) return null;
+    try {
+      const saved = await this.runtime.request(`/api/upload-sessions/${encodeURIComponent(savedId)}`);
+      if (saved.originalName === this.file.name && saved.size === this.file.size) {
+        return saved;
       }
+      storageRemove(this.key);
+      return null;
+    } catch (err) {
+      if (err?.status === 404) {
+        storageRemove(this.key);
+        return null;
+      }
+      throw err;
+    }
+  }
+
+  async ensureSession() {
+    const saved = await this.lookupSession();
+    if (saved) {
+      // Preserve every server state, including finalizing/completed. run()
+      // handles those states idempotently; discarding a completed identity here
+      // would recreate the lost-finalize duplicate that B4 must prevent.
+      this.session = saved;
     }
     if (!this.session) {
       this.session = await this.runtime.request('/api/upload-sessions/init', {
@@ -99,6 +116,57 @@ class ResumableUploadController {
     return this.session;
   }
 
+  async settlePreflightIntent(session) {
+    if (this.cancelled) {
+      if (['uploading', 'paused', 'failed'].includes(session.status)) {
+        await this.runtime.request(`/api/upload-sessions/${session.id}`, { method: 'DELETE' });
+        storageRemove(this.key);
+      }
+      this.onState?.('cancelled', session);
+      throw new this.runtime.ApiError('Upload cancelled', { code: 'CANCELLED' });
+    }
+    if (this.paused) {
+      if (session.status === 'uploading') {
+        session = await this.runtime.request(`/api/upload-sessions/${session.id}/pause`, {
+          method: 'POST',
+        });
+        this.session = session;
+      }
+      this.onState?.('paused', session);
+      throw new this.runtime.ApiError('Upload paused', { code: 'PAUSED' });
+    }
+    return session;
+  }
+
+  async waitForFinalizing(session) {
+    const deadline = Date.now() + 30_000;
+    let current = session;
+    this.onState?.('finalizing', current);
+    while (current.status === 'finalizing' && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      current = await this.runtime.request(`/api/upload-sessions/${current.id}`);
+      this.session = current;
+      current = await this.settlePreflightIntent(current);
+    }
+    if (current.status === 'finalizing') {
+      throw new this.runtime.ApiError('Timed out waiting for upload finalization', {
+        code: 'UPLOAD_TIMEOUT',
+      });
+    }
+    return current;
+  }
+
+  async adoptCompletedSession(session, runBaseBytes, runStarted) {
+    const finalized = await this.runtime.request(`/api/upload-sessions/${session.id}/finalize`, {
+      method: 'POST',
+    });
+    this.session = finalized.session;
+    storageRemove(this.key);
+    this.emitProgress(this.file.size, runBaseBytes, runStarted);
+    this.onState?.('completed', finalized.session);
+    return finalized.file;
+  }
+
   start() {
     if (this.running) return this.running;
     this.paused = false;
@@ -112,6 +180,15 @@ class ResumableUploadController {
 
   async run() {
     let session = await this.ensureSession();
+    session = await this.settlePreflightIntent(session);
+    if (session.status === 'finalizing') {
+      session = await this.waitForFinalizing(session);
+    }
+    const preflightStarted = Date.now();
+    const preflightBytes = Number(session.receivedBytes || 0);
+    if (session.status === 'completed') {
+      return this.adoptCompletedSession(session, preflightBytes, preflightStarted);
+    }
     if (session.status === 'paused' || session.status === 'failed') {
       session = await this.runtime.request(`/api/upload-sessions/${session.id}/resume`, { method: 'POST' });
       this.session = session;
@@ -153,12 +230,7 @@ class ResumableUploadController {
 
     if (this.paused) throw new this.runtime.ApiError('Upload paused', { code: 'PAUSED' });
     this.onState?.('finalizing', session);
-    const finalized = await this.runtime.request(`/api/upload-sessions/${session.id}/finalize`, { method: 'POST' });
-    this.session = finalized.session;
-    storageRemove(this.key);
-    this.emitProgress(this.file.size, runBaseBytes, runStarted);
-    this.onState?.('completed', finalized.session);
-    return finalized.file;
+    return this.adoptCompletedSession(session, runBaseBytes, runStarted);
   }
 
   emitProgress(loaded, runBaseBytes, runStarted) {
