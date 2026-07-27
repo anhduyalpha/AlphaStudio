@@ -26,7 +26,7 @@ and the visual-judge subagent. Nothing waits on human review during the run.)
 | 9 | C2 | Primitives I: controls and status | done | unit-9-c2-primitives-controls-status | a5d2b8d | 1,8 | evidence/unit-9.md; own-render state matrix reviewed in both themes; visual + spec reviewers SHIP |
 | 10 | C3 | Primitives II: file and flow | done | unit-10-c3-primitives-file-flow | d494660 | 9 | evidence/unit-10.md; visual + spec reviewers SHIP |
 | 11 | C4 | Primitives III: overlay and chrome | done | unit-11-c4-primitives-overlay-chrome | 5c84775 | 9 | evidence/unit-11.md; visual + spec reviewers SHIP |
-| 12 | D1 | Shell skeleton: entry flag, router, hub registry | todo | — | — | 5,9 | verify index.html heuristic claim before deleting |
+| 12 | D1 | Shell skeleton: entry flag, router, hub registry | in-progress | unit-12-d1-shell-skeleton | — | 5,9 | verify index.html heuristic claim before deleting |
 | 13 | D2 | Shell chrome and Asset Gallery | todo | — | — | 11,12 | |
 | 14 | D3 | Workbench and panel registry | todo | — | — | 4,5,9,10,12 | |
 | 15 | E1 | Convert hub | todo | — | — | 7,14 | flagged: own detailed plan; e2e centerpiece |
