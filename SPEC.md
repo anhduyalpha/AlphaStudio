@@ -243,7 +243,7 @@ Direction rationale (non-normative): evolve, don't replace, the identity — wha
 | `--border-strong` | `rgba(255,255,255,0.14)` | `rgba(15,23,42,0.14)` | Emphasis hairline |
 | `--text` | `#f7f8fc` | `#111827` | Primary text |
 | `--text-2` | `#a7b0c2` | `#475569` | Secondary text |
-| `--text-3` | `#717b90` | `#6b7280` | Muted/meta text |
+| `--text-3` | `#798396` | `#676d7b` | Muted/meta text |
 | `--accent` | `#9b7cff` | `#5f3fe4` | Identity + interaction (see role table) |
 | `--accent-hover` | `#ab90ff` | `#4f32c9` | Hover of accent controls |
 | `--accent-active` | `#8a68f5` | `#462cb4` | Pressed |
@@ -263,6 +263,8 @@ Direction rationale (non-normative): evolve, don't replace, the identity — wha
 | `--shadow-2` | `0 18px 48px rgba(0,0,0,0.26)` | `0 18px 48px rgba(50,65,90,0.12)` | Modal elevation |
 
 Status tints are derived in CSS via `color-mix(in srgb, var(--success) 14%, transparent)` etc. — `color-mix` from a token is the only sanctioned way to make a tint; new literal `rgba(...)` tints are violations.
+
+`--text-3` is pinned by contrast, not taste: each theme's value sits at its own contrast boundary against **all four** surfaces (`--bg`, `--bg-raised`, `--surface`, `--surface-2`), which the `contrast` check in `npm run visual:checks` enforces over this table at WCAG AA 4.5:1. The two themes bound it from opposite directions — in dark, contrast rises as the grey lightens, so `#798396` is the **darkest** value that still clears (lighter is safe, darker is not; worst pairing `--surface-2` at 4.52); in light it is the reverse, so `#676d7b` is the **lightest** that clears (darker is safe, lighter is not; worst pairing `--bg-raised` at 4.53). The originally specified `#717b90` / `#6b7280` cleared only one surface per theme and failed the other six pairings (4.06–4.46:1); amended in unit C1. Neither value has more than ~0.03 of margin, so do not nudge either toward its own failing direction, and re-check both if any of the four surface values ever change.
 
 ### 4.2 Accent role table (normative)
 
