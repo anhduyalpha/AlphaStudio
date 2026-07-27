@@ -218,6 +218,20 @@ describe('C3 flow primitives', () => {
     expect(() => renderToStaticMarkup(
       <ResumeStrip uploadSessions={[session]} onResume={() => {}} onDiscard={() => {}} />,
     )).toThrow(/hub and mode/i);
+    expect(() => renderToStaticMarkup(
+      <ResumeStrip
+        uploadSessions={[{ ...session, href: '?mode=convert' }]}
+        onResume={() => {}}
+        onDiscard={() => {}}
+      />,
+    )).toThrow(/hub and mode/i);
+    expect(() => renderToStaticMarkup(
+      <ResumeStrip
+        uploadSessions={[{ ...session, href: 'https://example.test/?mode=convert' }]}
+        onResume={() => {}}
+        onDiscard={() => {}}
+      />,
+    )).toThrow(/hub and mode/i);
   });
 
   it('filters terminal jobs out of the full ResumeStrip', () => {

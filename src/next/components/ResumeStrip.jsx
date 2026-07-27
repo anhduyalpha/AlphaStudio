@@ -7,7 +7,7 @@ import { formatBytes } from './FileRow';
 function entryHref(entry) {
   if (entry.href) {
     const href = String(entry.href);
-    if (!/[?&]mode=[^&]+/.test(href)) {
+    if (!/^#\/[a-z0-9-]+\?mode=[^&#]+(?:&[^#]*)?$/i.test(href)) {
       throw new Error('ResumeStrip href must name the owning hub and mode.');
     }
     return href;

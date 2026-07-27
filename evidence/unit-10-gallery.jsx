@@ -82,8 +82,8 @@ function StateMatrix() {
           <div className="flow-state-grid flow-state-grid--three">
             <StateTile label="Default / populated" part="a"><Dropzone empty={false} /></StateTile>
             <StateTile label="Empty" part="a"><Dropzone /></StateTile>
-            <StateTile label="Hover" className="force-hover" part="a"><Dropzone title="Ready for files" /></StateTile>
-            <StateTile label="Focus" className="force-focus" part="a"><Dropzone title="Keyboard ready" /></StateTile>
+            <StateTile label="Hover" className="force-hover" part="c"><Dropzone title="Ready for files" /></StateTile>
+            <StateTile label="Focus" className="force-focus" part="c"><Dropzone title="Keyboard ready" /></StateTile>
             <StateTile label="Drag-over" className="force-drag" part="b"><Dropzone title="Release to add" /></StateTile>
             <StateTile label="Paste" part="b"><Dropzone variant="paste" /></StateTile>
             <StateTile label="Disabled" part="b"><Dropzone disabled /></StateTile>
