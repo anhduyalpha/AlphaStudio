@@ -42,7 +42,7 @@ and the visual-judge subagent. Nothing waits on human review during the run.)
 | 25 | V3 | Settings + Profile views | done | unit-25-v3-settings-profile | 8a0a73c | 9,13 | evidence/unit-25.md; theme/motion mirrors + server-only inert density verified; live Profile preview/save/restore verified; 495 client tests green |
 | 26 | F0 | Motion system | done | unit-26-f0-motion-system | fe526e2 | 9,10,11,13,14,15,16,17,18,19,20,21,22,23,24,25 | evidence/unit-26.md; all three modes computed-style verified; ambient-1 full-only; reduced zero keyframes + static indicators; 506 client tests green |
 | 27 | F2 | E2E acceptance gate | done | unit-27-f2-e2e-acceptance | ac1f9a2 | 2,5,6,12,13,15,26 | evidence/unit-27.md; production 12-step journey green locally in 3.9m; browser/network audit clean; restartable Windows-safe E2E runner |
-| 28 | F1 | Flip, deletion, S3 | in-progress | unit-28-f1-flip-deletion-s3 | — | 1-27 | docs/plans/UNIT-F1.md; single point of no return |
+| 28 | F1 | Flip, deletion, S3 | done | unit-28-f1-flip-deletion-s3 | fee8106 | 1-27 | docs/plans/UNIT-F1.md; evidence/unit-28.md; target architecture, deletion, visual, E2E, and live production browser gates green |
 
 Column semantics:
 - **branch** — `unit-<n>-<slug>` once started; `—` before.

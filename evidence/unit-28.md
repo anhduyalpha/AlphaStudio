@@ -52,3 +52,18 @@ The E2E journey covered all production routes in both themes, legacy
 redirects, multipart and resumable upload, pause/reload/resume, mixed
 success/failure conversion, mid-job reload recovery, retry/remove/repair,
 single-result download, batch ZIP download, and browser console/network audit.
+
+## Final production handoff
+
+- Merge checkpoint: `fee8106` on `rebuild`.
+- Rebuilt the final client without the E2E-only `VITE_API_URL`, then verified
+  the emitted bundle contains no `127.0.0.1:18787` origin and uses same-origin
+  `/api`.
+- Live production server: health 200 and root 200 at
+  `http://127.0.0.1:8789`.
+- In-app browser audit: Home, Convert, PDF, Media, Text, Security, Utilities,
+  Activity, Settings, and Profile all rendered with a ready workspace, no
+  alerts, no broken images, no horizontal overflow, and no console
+  warnings/errors.
+- Dark and light themes rendered correctly. Convert also passed at the
+  390×844 mobile viewport without horizontal overflow.
