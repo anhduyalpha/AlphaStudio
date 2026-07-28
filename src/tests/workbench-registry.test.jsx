@@ -8,6 +8,7 @@ import { hubRegistry } from '../hubs/index';
 import Workbench, {
   scopeWorkbenchAttempt,
   selectedWorkbenchFiles,
+  workbenchIndeterminate,
   workbenchProgress,
 } from '../workbench/Workbench.jsx';
 import RegisteredPanel, {
@@ -112,6 +113,16 @@ describe('D3 canonical Workbench flow', () => {
     expect(workbenchProgress(snapshot)).toBe(60);
   });
 
+  it('uses the static indeterminate progress state while the current attempt is only queued', () => {
+    expect(workbenchIndeterminate([{ id: 'queued', status: 'queued' }])).toBe(true);
+    expect(workbenchIndeterminate([
+      { id: 'queued', status: 'queued' },
+      { id: 'running', status: 'running' },
+    ])).toBe(true);
+    expect(workbenchIndeterminate([{ id: 'running', status: 'running' }])).toBe(false);
+    expect(workbenchIndeterminate([])).toBe(false);
+  });
+
   it('scopes busy, failure, and results to the current hub-mode attempt', () => {
     const snapshot = {
       jobs: [
@@ -172,6 +183,8 @@ describe('D3 canonical Workbench flow', () => {
     expect(workbenchSource).not.toMatch(/hub\.(?:id|name)\s*===/);
     expect(workbenchSource).toContain('selectRunProgress(snapshot');
     expect(workbenchSource).toContain('mode.panels || []');
+    expect(workbenchSource).toContain('className="workbench-result-error"');
+    expect(workbenchSource).toContain('actionLabel="Retry"');
   });
 
   it('uses the 1200/900 canonical columns and a single-column mobile run layout', () => {

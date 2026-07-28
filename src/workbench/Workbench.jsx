@@ -69,6 +69,10 @@ export function workbenchProgress(snapshot, jobIds = []) {
   return selectRunProgress(snapshot, files.map((file) => file.id));
 }
 
+export function workbenchIndeterminate(activeJobs = []) {
+  return activeJobs.some((job) => job.status === 'queued');
+}
+
 function OptionControl({ option, value, onChange }) {
   const common = {
     label: option.label || option.id,
@@ -628,54 +632,77 @@ function ResultsRegion({
       <FileList
         label="Results"
         items={visibleRows}
-        renderItem={(result) => (
-          <FileRow
-            key={result.id}
-            name={result.name || result.outputName}
-            meta={[
-              result.outputFormat ? String(result.outputFormat).toUpperCase() : '',
-              result.sourceLabel || '',
-              result.detail || '',
-            ].filter(Boolean).join(' | ')}
-            status={result.status === 'running' ? 'converting' : result.status}
-            statusLabel={result.error || result.message || undefined}
-            progress={['queued', 'running'].includes(result.status) ? result.progress : undefined}
-            selected={selectedIds.has(String(result.id))}
-            actions={(
-              <>
-                <label className="workbench-file-select">
-                  <input
-                    type="checkbox"
-                    aria-label={`Select result ${result.name || result.outputName || result.id}`}
-                    checked={selectedIds.has(String(result.id))}
-                    onChange={() => toggleResult(result.id)}
-                  />
-                  <span>Select</span>
-                </label>
-                {result.status === 'completed' ? (
-                  <Button size="sm" variant="secondary" icon="download" onClick={() => onDownload(result)}>
-                    Download
-                  </Button>
-                ) : null}
-                {result.status === 'failed' ? (
-                  <>
-                    <Button size="sm" variant="secondary" onClick={() => onRetry(result)}>
-                      Retry
+        renderItem={(result) => {
+          const resultName = result.name || result.outputName || result.sourceLabel || 'Conversion';
+          if (result.status === 'failed') {
+            return (
+              <div
+                key={result.id}
+                className="workbench-result-error"
+                data-job-id={result.jobId || result.id}
+              >
+                <ErrorState
+                  title={`${resultName} failed`}
+                  message={result.error || result.message || 'The conversion could not be completed.'}
+                  actionLabel="Retry"
+                  onAction={() => onRetry(result)}
+                />
+                <div className="workbench-result-error__actions">
+                  {(result.options?._uploadIds || result.options?.uploadIds || []).length === 1 ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      icon="trash"
+                      onClick={() => onRemoveBadInput(result)}
+                    >
+                      Remove bad input
                     </Button>
-                    {(result.options?._uploadIds || result.options?.uploadIds || []).length === 1 ? (
-                      <Button size="sm" variant="ghost" icon="trash" onClick={() => onRemoveBadInput(result)}>
-                        Remove bad input
-                      </Button>
-                    ) : null}
-                  </>
-                ) : null}
-                <Button size="sm" variant="ghost" icon="trash" onClick={() => onRemoveResult(result)}>
-                  Remove
-                </Button>
-              </>
-            )}
-          />
-        )}
+                  ) : null}
+                  <Button size="sm" variant="ghost" icon="trash" onClick={() => onRemoveResult(result)}>
+                    Remove result
+                  </Button>
+                </div>
+              </div>
+            );
+          }
+          return (
+            <FileRow
+              key={result.id}
+              data-job-id={result.jobId || result.id}
+              name={resultName}
+              meta={[
+                result.outputFormat ? String(result.outputFormat).toUpperCase() : '',
+                result.sourceLabel || '',
+                result.detail || '',
+              ].filter(Boolean).join(' | ')}
+              status={result.status === 'running' ? 'converting' : result.status}
+              statusLabel={result.error || result.message || undefined}
+              progress={['queued', 'running'].includes(result.status) ? result.progress : undefined}
+              selected={selectedIds.has(String(result.id))}
+              actions={(
+                <>
+                  <label className="workbench-file-select">
+                    <input
+                      type="checkbox"
+                      aria-label={`Select result ${resultName}`}
+                      checked={selectedIds.has(String(result.id))}
+                      onChange={() => toggleResult(result.id)}
+                    />
+                    <span>Select</span>
+                  </label>
+                  {result.status === 'completed' ? (
+                    <Button size="sm" variant="secondary" icon="download" onClick={() => onDownload(result)}>
+                      Download
+                    </Button>
+                  ) : null}
+                  <Button size="sm" variant="ghost" icon="trash" onClick={() => onRemoveResult(result)}>
+                    Remove
+                  </Button>
+                </>
+              )}
+            />
+          );
+        }}
       />
     </div>
   );
@@ -749,6 +776,7 @@ export default function Workbench({
   const availabilityReason = capabilityReason || detectionReason;
   const disabledReason = capabilityReason || implementationReason || inputReason || detectionReason;
   const busy = activeJobs.length > 0;
+  const indeterminate = workbenchIndeterminate(activeJobs);
   const modeItems = hub.modes.map((item) => ({ id: item.id, label: item.name }));
 
   return (
@@ -841,6 +869,7 @@ export default function Workbench({
           disabled={Boolean(disabledReason)}
           status={busy ? `Running ${activeJobs.length} ${activeJobs.length === 1 ? 'job' : 'jobs'}` : disabledReason || 'Ready to run'}
           progress={busy ? progress : undefined}
+          indeterminate={indeterminate}
           secondaryAction={busy && onCancel ? <Button onClick={onCancel}>Cancel</Button> : null}
           primaryAction={(
             <Button variant="primary" busy={busy} disabled={Boolean(disabledReason)} onClick={onRun}>

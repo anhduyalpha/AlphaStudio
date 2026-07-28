@@ -114,7 +114,7 @@ async function main() {
     page.on('pageerror', (e) => errors.push(String(e)));
 
     const settle = async () => {
-      await page.waitForLoadState('networkidle').catch(() => {});
+      await page.locator('.skeleton-wrap').waitFor({ state: 'detached', timeout: 5_000 }).catch(() => {});
       await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
     };
     const clsSince = (t0) => page.evaluate((t) => (window.__visualShifts || []).filter((s) => s.t > t).reduce((a, s) => a + s.v, 0), t0);
