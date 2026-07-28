@@ -33,7 +33,7 @@ and the visual-judge subagent. Nothing waits on human review during the run.)
 | 16 | E2 | PDF hub config + export/operations | done | unit-16-e2-pdf-hub | b059714 | 14 | evidence/unit-16.md; live merge/from-images/export verified; capability/runtime parity fixed; 146 PDF + 428 client tests green |
 | 17 | E3 | PdfOrganizerPanel | done | unit-17-e3-pdf-organizer | 9479231 | 16 | evidence/unit-17.md; bounded PDF.js organizer + live reorder/rotate/duplicate verified; 146 PDF + 436 client tests green |
 | 18 | E4 | Media hub + preview/crop | done | unit-18-e4-media-hub | 8b8b493 | 14 | evidence/unit-18.md; live image optimize/crop + audio upload/preview/convert verified; 447 client tests green |
-| 19 | E5 | Media editor panels | todo | — | — | 18 | |
+| 19 | E5 | Media editor panels | in-progress | unit-19-e5-media-editors | — | 18 | waveform + timeline mounted through Media Studio config |
 | 20 | E6 | Text & Dev hub | todo | — | — | 14 | |
 | 21 | E7 | Security & Archive hub | todo | — | — | 14 | |
 | 22 | E8 | Utilities hub | todo | — | — | 14 | dual local+job run shape |

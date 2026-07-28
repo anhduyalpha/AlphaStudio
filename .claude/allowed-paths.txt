@@ -1,11 +1,8 @@
 src/hubs/media.ts
-src/lib/mediaJobOptions.js
-src/lib/imageCrop.js
-src/hooks/useJobPreviewUrl.js
 src/next/hooks/useMediaWorkbench.js
-src/next/App.jsx
 src/workbench/panels/MediaPreviewPanel.jsx
-src/workbench/panels/CropPanel.jsx
+src/workbench/panels/WaveformPanel.jsx
+src/workbench/panels/TimelinePanel.jsx
 src/styles/workbench.css
 src/tests/
 PROGRESS.md
