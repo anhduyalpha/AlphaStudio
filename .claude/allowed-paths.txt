@@ -1,10 +1,10 @@
-src/hubs/textdev.ts
-src/lib/textJobOptions.js
-src/lib/textDiff.js
+src/hubs/security.ts
+src/lib/securityJobOptions.js
+src/lib/archiveJobOptions.js
+src/lib/archiveTree.js
 src/next/App.jsx
-src/next/hooks/useTextDevWorkbench.js
-src/workbench/panels/DiffPanel.jsx
-src/workbench/panels/ComparePanel.jsx
+src/next/hooks/useSecurityArchiveWorkbench.js
+src/workbench/panels/ArchiveTreePanel.jsx
 src/styles/workbench.css
 src/tests/
 PROGRESS.md
