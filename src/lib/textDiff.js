@@ -6,6 +6,9 @@ export function splitLines(text) {
   return String(text ?? '').split(/\r\n|\n|\r/);
 }
 
+export const MAX_DIFF_LINES = 400;
+export const MAX_DIFF_CHARACTERS = 100_000;
+
 /**
  * @returns {Array<{ type: 'equal'|'add'|'remove', text: string, leftLine?: number, rightLine?: number }>}
  */
@@ -47,6 +50,37 @@ export function diffLines(leftText, rightText) {
     j += 1; rightLine += 1;
   }
   return hunks;
+}
+
+export function boundedDiffLines(
+  leftText,
+  rightText,
+  {
+    maxLines = MAX_DIFF_LINES,
+    maxCharacters = MAX_DIFF_CHARACTERS,
+  } = {},
+) {
+  const safeLines = Math.max(20, Math.min(MAX_DIFF_LINES, Math.floor(Number(maxLines) || MAX_DIFF_LINES)));
+  const safeCharacters = Math.max(
+    1_000,
+    Math.min(MAX_DIFF_CHARACTERS, Math.floor(Number(maxCharacters) || MAX_DIFF_CHARACTERS)),
+  );
+  const leftValue = String(leftText ?? '').slice(0, safeCharacters);
+  const rightValue = String(rightText ?? '').slice(0, safeCharacters);
+  const left = splitLines(leftValue);
+  const right = splitLines(rightValue);
+  const truncated = (
+    String(leftText ?? '').length > leftValue.length
+    || String(rightText ?? '').length > rightValue.length
+    || left.length > safeLines
+    || right.length > safeLines
+  );
+  return {
+    hunks: diffLines(left.slice(0, safeLines).join('\n'), right.slice(0, safeLines).join('\n')),
+    truncated,
+    leftLines: left.length,
+    rightLines: right.length,
+  };
 }
 
 /**
