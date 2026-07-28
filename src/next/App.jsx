@@ -34,6 +34,7 @@ import {
 import { recoverUploadSessions } from '../protocol/uploads';
 import Workbench from '../workbench/Workbench.jsx';
 import useConvertWorkbench from './hooks/useConvertWorkbench.js';
+import useMediaWorkbench from './hooks/useMediaWorkbench.js';
 import usePdfWorkbench from './hooks/usePdfWorkbench.js';
 
 const AssetGallery = import.meta.env.DEV
@@ -219,6 +220,7 @@ export default function App() {
   const { route, mode } = resolved;
   const convertEnabled = route.kind === 'hub' && route.id === 'convert';
   const pdfEnabled = route.kind === 'hub' && route.id === 'pdf';
+  const mediaEnabled = route.kind === 'hub' && route.id === 'media';
   const convertController = useConvertWorkbench({
     enabled: convertEnabled,
     mode: convertEnabled ? mode : null,
@@ -227,11 +229,17 @@ export default function App() {
     enabled: pdfEnabled,
     mode: pdfEnabled ? mode : null,
   });
+  const mediaController = useMediaWorkbench({
+    enabled: mediaEnabled,
+    mode: mediaEnabled ? mode : null,
+  });
   const workbenchController = route.kind === 'hub' && route.id === 'convert'
     ? convertController
     : route.kind === 'hub' && route.id === 'pdf'
       ? pdfController
-      : {};
+      : route.kind === 'hub' && route.id === 'media'
+        ? mediaController
+        : {};
   const subtitle = route.kind === 'hub'
     ? (mode?.name || 'Studio')
     : route.id === 'assets' ? 'Development reference' : 'Local utility studio';
