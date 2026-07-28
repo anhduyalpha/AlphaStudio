@@ -1,5 +1,5 @@
 import React from 'react';
-import useStore from '../next/hooks/useStore.js';
+import useStore from '../hooks/useStore.js';
 import {
   Banner,
   Button,
@@ -17,7 +17,7 @@ import {
   StatusBadge,
   Tabs,
   Toggle,
-} from '../next/components/index.jsx';
+} from '../components/index.jsx';
 import { readActiveJobId, selectRunProgress } from '../protocol/store.js';
 import { applyResultVisibility } from '../lib/converterGroups.js';
 import RegisteredPanel from './registry.jsx';

@@ -32,9 +32,9 @@ export function resolveIconName(name) {
 }
 
 /**
- * Shared AlphaStudio SVG icon. Icons are decorative by default because most
- * instances sit beside visible text. Pass `label` when the icon itself carries
- * meaning; icon-only buttons should keep their accessible label on the button.
+ * Registry-backed AlphaStudio icon. It is decorative by default because most
+ * uses sit beside visible copy. Pass `label` only when the icon carries meaning
+ * by itself; icon-only buttons keep their accessible name on the button.
  */
 export default function Icon({
   name,
@@ -44,12 +44,12 @@ export default function Icon({
   label,
 }) {
   const titleId = useId();
-  const resolved = resolveIconName(name);
   const meaningful = Boolean(label);
+  const resolved = resolveIconName(name);
 
   return (
     <svg
-      className={`alpha-icon ${className}`.trim()}
+      className={`icon ${className}`.trim()}
       width={size}
       height={size}
       viewBox="0 0 24 24"

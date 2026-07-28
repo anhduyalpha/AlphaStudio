@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { EmptyState, Icon, Skeleton, StatusBadge } from '../../next/components/index.jsx';
+import { EmptyState, Icon, Skeleton, StatusBadge } from '../../components/index.jsx';
 
 export const WAVEFORM_BAR_COUNT = 56;
 

@@ -3,6 +3,9 @@
  * Kept free of React so server structural tests and unit tests can import it.
  * Option keys align with server/src/pdf/operation-options.ts normalizePdfOptions.
  */
+import { formatBytes } from './formatBytes.js';
+
+export { formatBytes } from './formatBytes.js';
 
 /** Optional external-tool ops — listed in UI, disabled when capability is false */
 export const GATED_OP_IDS = new Set(['to-images', 'ocr', 'compress-advanced', 'repair']);
@@ -478,15 +481,6 @@ export function buildPdfResultRows({ jobs = [], outputs = [], files = [] } = {})
   return [...outputRows, ...jobRows].sort((a, b) => (
     Date.parse(b.createdAt || '') - Date.parse(a.createdAt || '')
   ));
-}
-
-/** Format bytes for result cards */
-export function formatBytes(n) {
-  if (n == null || !Number.isFinite(Number(n))) return null;
-  const v = Number(n);
-  if (v < 1024) return `${v} B`;
-  if (v < 1024 * 1024) return `${(v / 1024).toFixed(1)} KB`;
-  return `${(v / (1024 * 1024)).toFixed(2)} MB`;
 }
 
 /**

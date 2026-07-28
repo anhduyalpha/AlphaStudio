@@ -87,6 +87,12 @@
   background: color-mix(in srgb, var(--surface-2), var(--accent-soft));
 }
 
+.button--secondary:active:not(:disabled) {
+  border-color: var(--accent-active);
+  background: var(--accent-active);
+  color: var(--on-accent);
+}
+
 .button--ghost {
   color: var(--text-2);
 }
@@ -95,6 +101,12 @@
   border-color: transparent;
   background: var(--accent-soft);
   color: var(--accent-hover);
+}
+
+.button--ghost:active:not(:disabled) {
+  border-color: transparent;
+  background: var(--accent-active);
+  color: var(--on-accent);
 }
 
 .button--danger {
@@ -110,8 +122,8 @@
 
 .button--danger:active:not(:disabled) {
   border-color: var(--danger);
-  background: color-mix(in srgb, var(--danger), transparent 68%);
-  color: var(--danger);
+  background: var(--danger);
+  color: var(--on-accent);
 }
 
 .button--icon {
@@ -841,6 +853,12 @@ textarea.field__control {
 .dropzone:focus-within:not(.is-disabled) {
   border-color: var(--accent-hover);
   background: color-mix(in srgb, var(--surface), var(--accent-soft));
+}
+
+.dropzone:active:not(.is-disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  transform: scale(0.995);
 }
 
 .dropzone.is-drag-over:not(.is-disabled) {
@@ -1641,6 +1659,7 @@ textarea.field__control {
 }
 
 .sidebar__link:hover {
+  border-color: var(--border-strong);
   background: var(--surface-2);
   color: var(--text);
 }

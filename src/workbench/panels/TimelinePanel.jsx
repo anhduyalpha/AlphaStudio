@@ -1,5 +1,5 @@
 import React from 'react';
-import { Field, StatusBadge } from '../../next/components/index.jsx';
+import { Field, StatusBadge } from '../../components/index.jsx';
 
 export function normalizeTimelineRange({ total, start, duration }) {
   const round = (value) => Math.round(value * 1000) / 1000;

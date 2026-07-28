@@ -3,11 +3,8 @@
  *
  * THE single owner of the workspace event stream: open, parse, heartbeat-watch,
  * reconnect with backoff, detect epoch changes (§6.4) — and report all of it
- * outward. It replaces three separate SSE paths (`api/client.js`
- * `subscribeWorkspaceEvents`/`subscribeViaFetch`/`waitViaSse`,
- * `hooks/useWorkspaceEvents.js`, `hooks/useJobRunner.js`), which between them
- * could hold several live streams for one workspace — the F3-H1 leak class that
- * dies with this module's one-connection-per-workspace registry.
+ * outward. Its one-connection-per-workspace registry eliminates the former
+ * multi-stream leak class.
  *
  * Two rules give this module its shape:
  *  - **It owns no rendered state** (§3.2). Envelopes and re-sync requests leave

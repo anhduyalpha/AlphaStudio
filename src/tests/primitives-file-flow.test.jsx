@@ -17,9 +17,9 @@ import {
   ToastRegion,
   formatBytes,
   parseCssDuration,
-} from '../next/components/index.jsx';
+} from '../components/index.jsx';
 
-const COMPONENTS_DIR = fileURLToPath(new URL('../next/components/', import.meta.url));
+const COMPONENTS_DIR = fileURLToPath(new URL('../components/', import.meta.url));
 const PRIMITIVES_CSS = fileURLToPath(new URL('../styles/primitives.css', import.meta.url));
 const MOTION_CSS = fileURLToPath(new URL('../styles/motion.css', import.meta.url));
 
@@ -265,7 +265,7 @@ describe('C3 structural invariants', () => {
       }));
     expect(sources.filter(({ source }) => source.includes('type="file"')).map(({ file }) => file))
       .toEqual(['Dropzone.jsx']);
-    expect(sources.filter(({ source }) => source.includes('export function formatBytes')).map(({ file }) => file))
+    expect(sources.filter(({ source }) => source.includes("export { formatBytes } from '../lib/formatBytes.js'")).map(({ file }) => file))
       .toEqual(['FileRow.jsx']);
     expect(sources.filter(({ source }) => source.includes("role: 'progressbar'")).map(({ file }) => file))
       .toEqual(['ProgressBar.jsx']);

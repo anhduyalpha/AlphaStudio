@@ -8,7 +8,7 @@ import {
   Icon,
   Skeleton,
   StatusBadge,
-} from '../../next/components/index.jsx';
+} from '../../components/index.jsx';
 import { QR_ECC_LEVELS, QR_FORMATS } from '../../lib/qrJobOptions.js';
 
 export default function QrDesignerPanel({ state = {}, dispatch = () => {} }) {

@@ -1,60 +1,80 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
+import Button from './Button';
 import Icon from './Icon';
+import StatusBadge from './StatusBadge';
 
-export default function Topbar({
+export function focusSkipTarget(event, targetId = 'main-content') {
+  event.preventDefault();
+  document.getElementById(targetId)?.focus();
+}
+
+const Topbar = forwardRef(function Topbar({
   title,
   subtitle,
-  theme,
+  theme = 'dark',
   onThemeToggle,
   onMenuOpen,
   onCommandOpen,
   menuExpanded = false,
-  apiOnline = null,
-}) {
-  const healthText = apiOnline === true ? 'API online' : apiOnline === false ? 'API offline' : 'Local API';
-  const healthTone = apiOnline === true ? 'is-online' : apiOnline === false ? 'is-offline' : '';
-
+  apiStatus,
+  profileHref = '#/profile',
+  skipTargetId = 'main-content',
+  className = '',
+}, headingRef) {
   return (
-    <header className="app-topbar studio-topbar" data-testid="studio-topbar">
-      <div className="topbar-title-group">
-        <button
-          className="icon-button menu-button liquid-press"
-          type="button"
-          onClick={onMenuOpen}
-          aria-label="Open navigation"
-          aria-expanded={menuExpanded}
-          aria-controls="studio-sidebar"
-        >
-          <Icon name="menu" />
-        </button>
-        <div>
-          <p className="topbar-context">{subtitle}</p>
-          <h1>{title}</h1>
+    <>
+      <a
+        className="skip-link"
+        href={`#${skipTargetId}`}
+        onClick={(event) => focusSkipTarget(event, skipTargetId)}
+      >
+        Skip to content
+      </a>
+      <header className={['topbar', className].filter(Boolean).join(' ')}>
+        <div className="topbar__identity">
+          <Button
+            className="topbar__menu"
+            variant="icon"
+            aria-label="Open navigation"
+            aria-expanded={menuExpanded}
+            aria-controls="studio-sidebar"
+            onClick={onMenuOpen}
+          >
+            <Icon name="menu" />
+          </Button>
+          <div>
+            {subtitle ? <p>{subtitle}</p> : null}
+            <h1 ref={headingRef} tabIndex={-1}>{title}</h1>
+          </div>
         </div>
-      </div>
-
-      <div className="topbar-controls">
-        <button
-          className="command-search liquid-press"
-          type="button"
-          onClick={onCommandOpen}
-          aria-label="Search tools"
-        >
-          <Icon name="search" size={18} />
-          <span>Search tools</span>
-          <kbd>Ctrl K</kbd>
-        </button>
-        <span className={`front-end-pill ${healthTone}`.trim()} title={healthText}>
-          <span className="status-dot" aria-hidden="true" />
-          {healthText}
-        </span>
-        <button className="icon-button liquid-press" type="button" aria-label="Toggle color theme" onClick={onThemeToggle}>
-          <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
-        </button>
-        <a className="avatar-button" href="#/profile" aria-label="Open AlphaD profile">
-          <img src="/avatars/alphad-profile.svg" alt="" width="40" height="40" />
-        </a>
-      </div>
-    </header>
+        <div className="topbar__actions">
+          <Button
+            className="topbar__search"
+            variant="secondary"
+            icon="search"
+            aria-label="Search tools and modes"
+            onClick={onCommandOpen}
+          >
+            <span>Search tools</span>
+            <kbd>Ctrl K</kbd>
+          </Button>
+          {apiStatus ? (
+            <StatusBadge tone={apiStatus.tone || 'neutral'}>{apiStatus.label}</StatusBadge>
+          ) : null}
+          <Button
+            variant="icon"
+            aria-label={theme === 'dark' ? 'Use light theme' : 'Use dark theme'}
+            onClick={onThemeToggle}
+          >
+            <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
+          </Button>
+          <a className="topbar__profile" href={profileHref} aria-label="Open profile">
+            <Icon name="profile" />
+          </a>
+        </div>
+      </header>
+    </>
   );
-}
+});
+
+export default Topbar;

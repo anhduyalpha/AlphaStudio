@@ -19,9 +19,9 @@ import {
   getEffectiveTabValue,
   getNextTabIndex,
   resolveIconName,
-} from '../next/components/index.jsx';
+} from '../components/index.jsx';
 
-const COMPONENTS_DIR = fileURLToPath(new URL('../next/components/', import.meta.url));
+const COMPONENTS_DIR = fileURLToPath(new URL('../components/', import.meta.url));
 const PRIMITIVES_CSS = fileURLToPath(new URL('../styles/primitives.css', import.meta.url));
 
 describe('C2 controls expose the SPEC state contracts', () => {

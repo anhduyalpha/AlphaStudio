@@ -26,11 +26,11 @@ import ArchiveTreePanel from '../workbench/panels/ArchiveTreePanel.jsx';
 import { getPanelLoader, validateHubReferences } from '../workbench/registry.jsx';
 
 const APP_SOURCE = readFileSync(
-  fileURLToPath(new URL('../next/App.jsx', import.meta.url)),
+  fileURLToPath(new URL('../App.jsx', import.meta.url)),
   'utf8',
 );
 const CONTROLLER_SOURCE = readFileSync(
-  fileURLToPath(new URL('../next/hooks/useSecurityArchiveWorkbench.js', import.meta.url)),
+  fileURLToPath(new URL('../hooks/useSecurityArchiveWorkbench.js', import.meta.url)),
   'utf8',
 );
 

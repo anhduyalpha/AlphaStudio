@@ -15,13 +15,13 @@ import {
   filterPaletteItems,
   getPaletteInputEntryIndex,
   getNextPaletteIndex,
-} from '../next/components/index.jsx';
+} from '../components/index.jsx';
 import {
   isFocusableCandidate,
   selectInitialFocusTarget,
 } from '../hooks/useFocusTrap.js';
 
-const COMPONENTS_DIR = fileURLToPath(new URL('../next/components/', import.meta.url));
+const COMPONENTS_DIR = fileURLToPath(new URL('../components/', import.meta.url));
 const FOCUS_TRAP = fileURLToPath(new URL('../hooks/useFocusTrap.js', import.meta.url));
 const PRIMITIVES_CSS = fileURLToPath(new URL('../styles/primitives.css', import.meta.url));
 
@@ -80,7 +80,7 @@ describe('C4 Modal and the single focus trap', () => {
       .filter((file) => file.endsWith('.jsx'))
       .map((file) => ({ file, source: fs.readFileSync(path.join(COMPONENTS_DIR, file), 'utf8') }));
     const consumers = sources
-      .filter(({ source }) => source.includes("from '../../hooks/useFocusTrap'"))
+      .filter(({ source }) => source.includes("from '../hooks/useFocusTrap'"))
       .map(({ file }) => file)
       .sort();
     expect(consumers).toEqual(['Modal.jsx', 'Sidebar.jsx']);

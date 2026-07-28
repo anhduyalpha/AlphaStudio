@@ -5,11 +5,11 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { navigationItems } from '../hubs/index';
-import AssetGallery from '../next/views/AssetGallery.jsx';
-import { buildPaletteItems, focusSkipTarget } from '../next/components/index.jsx';
+import AssetGallery from '../views/AssetGallery.jsx';
+import { buildPaletteItems, focusSkipTarget } from '../components/index.jsx';
 
-const APP = fileURLToPath(new URL('../next/App.jsx', import.meta.url));
-const GALLERY = fileURLToPath(new URL('../next/views/AssetGallery.jsx', import.meta.url));
+const APP = fileURLToPath(new URL('../App.jsx', import.meta.url));
+const GALLERY = fileURLToPath(new URL('../views/AssetGallery.jsx', import.meta.url));
 const VIEWS_CSS = fileURLToPath(new URL('../styles/views.css', import.meta.url));
 
 afterEach(() => {

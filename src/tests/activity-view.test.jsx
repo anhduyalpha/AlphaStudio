@@ -7,14 +7,14 @@ import Activity, {
   formatActivityTime,
   optimisticallyRemoveActivity,
   rollbackActivityRemoval,
-} from '../next/views/Activity.jsx';
+} from '../views/Activity.jsx';
 
 const APP_SOURCE = readFileSync(
-  fileURLToPath(new URL('../next/App.jsx', import.meta.url)),
+  fileURLToPath(new URL('../App.jsx', import.meta.url)),
   'utf8',
 );
 const ACTIVITY_SOURCE = readFileSync(
-  fileURLToPath(new URL('../next/views/Activity.jsx', import.meta.url)),
+  fileURLToPath(new URL('../views/Activity.jsx', import.meta.url)),
   'utf8',
 );
 

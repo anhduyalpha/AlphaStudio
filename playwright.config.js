@@ -65,7 +65,6 @@ export default defineConfig({
       env: {
         ...process.env,
         VITE_API_URL: serverUrl,
-        VITE_UI: 'next',
         E2E_CLIENT_PORT: String(clientPort),
       },
     },

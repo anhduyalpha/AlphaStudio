@@ -3,21 +3,21 @@ import { fileURLToPath } from 'node:url';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import ResumeStrip from '../next/components/ResumeStrip.jsx';
+import ResumeStrip from '../components/ResumeStrip.jsx';
 import Home, {
   formatRelativeTime,
   formatStorage,
   homeJobDestination,
   homeStats,
   homeUploadDestination,
-} from '../next/views/Home.jsx';
+} from '../views/Home.jsx';
 
 const APP_SOURCE = readFileSync(
-  fileURLToPath(new URL('../next/App.jsx', import.meta.url)),
+  fileURLToPath(new URL('../App.jsx', import.meta.url)),
   'utf8',
 );
 const HOME_SOURCE = readFileSync(
-  fileURLToPath(new URL('../next/views/Home.jsx', import.meta.url)),
+  fileURLToPath(new URL('../views/Home.jsx', import.meta.url)),
   'utf8',
 );
 const WORKBENCH_SOURCE = readFileSync(

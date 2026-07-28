@@ -7,7 +7,7 @@ import {
   Icon,
   Skeleton,
   StatusBadge,
-} from '../../next/components/index.jsx';
+} from '../../components/index.jsx';
 import {
   PDF_PREVIEW_PAGE_LIMIT,
   PDF_PREVIEW_RENDER_CONCURRENCY,
