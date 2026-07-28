@@ -104,3 +104,16 @@ export function flattenTree(node, out = [], limit = Infinity) {
   }
   return out;
 }
+
+/**
+ * Read the common archive listing shapes returned by current and older jobs.
+ * The result is always bounded by the caller before it is rendered.
+ */
+export function extractArchiveEntries(payload) {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload;
+  for (const key of ['entries', 'files', 'contents']) {
+    if (Array.isArray(payload[key])) return payload[key];
+  }
+  return [];
+}
