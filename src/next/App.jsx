@@ -39,6 +39,7 @@ import useTextDevWorkbench from './hooks/useTextDevWorkbench.js';
 import useSecurityArchiveWorkbench from './hooks/useSecurityArchiveWorkbench.js';
 import useUtilitiesWorkbench from './hooks/useUtilitiesWorkbench.js';
 import usePdfWorkbench from './hooks/usePdfWorkbench.js';
+import Activity from './views/Activity.jsx';
 import Home from './views/Home.jsx';
 
 const AssetGallery = import.meta.env.DEV
@@ -298,6 +299,8 @@ export default function App() {
             </Suspense>
           ) : route.id === 'home' ? (
             <Home />
+          ) : route.id === 'activity' ? (
+            <Activity />
           ) : route.kind === 'hub' ? (
             <Workbench
               hub={route.hub}

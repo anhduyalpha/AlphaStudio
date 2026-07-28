@@ -1,5 +1,5 @@
 src/next/App.jsx
-src/next/views/Home.jsx
+src/next/views/Activity.jsx
 src/styles/views.css
 src/tests/
 PROGRESS.md
