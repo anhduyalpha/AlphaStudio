@@ -1,22 +1,25 @@
 ---
 name: next-unit
-description: Execute exactly ONE work unit from PLAN.md end to end (select, scope, branch, implement, verify with deterministic + visual gates, merge into rebuild), then stop. Driven headlessly by run-plan.cmd; all state lives in PROGRESS.md and git, never in session memory.
+description: Execute exactly ONE work unit from PLAN.md end to end (select, scope, branch, implement, verify with deterministic + visual gates, merge into rebuild), then stop. The shared unit engine — invoked directly as /next-unit or looped by /build-goal and /continue-goal; all state lives in PROGRESS.md and git, never in session memory.
 disable-model-invocation: true
 ---
 
 # /next-unit — one unit, end to end, then stop
 
-You are running headlessly (`claude -p`). Nobody can answer questions. Every
-decision you cannot make alone is a BLOCKED outcome, not a question. You do
-exactly one unit per invocation.
+You execute exactly one unit per invocation. The session may be interactive,
+but the unit protocol is not a conversation: every decision you cannot make
+alone from SPEC.md/PLAN.md is a BLOCKED outcome that hands control back —
+never a mid-unit question or stall. When /build-goal or /continue-goal drives
+you in a loop, their narration rules apply on top; the protocol below is
+identical either way.
 
 **Branch model:** `main` is FROZEN (last known-good; hook-enforced). All work
 integrates into the `rebuild` branch. Unit branches fork from `rebuild` and
 merge back into `rebuild`. Only the final human-approved PR ever lands on main.
 
-## Sentinel contract (run-plan.cmd parses your FINAL message)
+## Outcome contract (the caller — /build-goal's loop, /continue-goal, or the user — reads your FINAL message)
 
-Your final message MUST end with exactly one sentinel on its own last line:
+Your final message MUST end with exactly one outcome line on its own last line:
 
 - `DONE <n>` — unit n merged into rebuild, PROGRESS.md updated and pushed.
 - `ALL-DONE` — no todo units remain (only printed AFTER the rebuild→main PR
@@ -25,8 +28,8 @@ Your final message MUST end with exactly one sentinel on its own last line:
   STALLED selection, using the lowest waiting unit's number).
 - `SPLIT <n>` — unit n is too large; a proposed breakdown precedes the sentinel.
 
-Never write any other sentinel word at the start of a line in your final
-message. One sentinel, last line, nothing after it.
+Never write any other outcome word at the start of a line in your final
+message. One outcome line, last line, nothing after it.
 
 ## Protocol
 
@@ -142,7 +145,9 @@ notes += `evidence/unit-<n>.md`. Commit `progress: unit <n> done (<id>)`,
 push rebuild.
 
 ### 10. Stop
-Print a short summary and the sentinel `DONE <n>`. Do NOT start another unit.
+Print a short summary and the outcome line `DONE <n>`. Do NOT start another
+unit inside this protocol — whether to continue is the caller's decision
+(/build-goal's loop rules, or the user).
 
 ## Finish (selection returned ALL-DONE)
 1. Verify every row is `done` and every `evidence/unit-<n>.md` exists.
@@ -151,7 +156,7 @@ Print a short summary and the sentinel `DONE <n>`. Do NOT start another unit.
    evidence file), the overall gate status, all outstanding `REWORD:` items,
    and the standard PR footer. (Creating the PR pushes nothing to main — the
    human merges it.)
-3. Print the PR URL, then the sentinel `ALL-DONE`.
+3. Print the PR URL, then the outcome line `ALL-DONE`.
 
 ## Failure handling
 

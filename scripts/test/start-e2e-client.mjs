@@ -30,12 +30,37 @@ const preview = spawn(
   { cwd: root, env: process.env, stdio: 'inherit', windowsHide: true },
 );
 
-const stop = () => preview.kill('SIGTERM');
-process.once('SIGINT', stop);
-process.once('SIGTERM', stop);
+let stopping = false;
+
+function waitForPreviewExit() {
+  if (preview.exitCode !== null || preview.signalCode !== null) return Promise.resolve();
+  return new Promise((resolve) => preview.once('exit', resolve));
+}
+
+async function stop() {
+  if (stopping) return;
+  stopping = true;
+  const exited = waitForPreviewExit();
+  try {
+    preview.kill(process.platform === 'win32' ? 'SIGKILL' : 'SIGTERM');
+  } catch {
+    // The preview process already exited.
+  }
+  await Promise.race([
+    exited,
+    new Promise((resolve) => setTimeout(resolve, 5_000)),
+  ]);
+  process.exit(0);
+}
+
+process.once('SIGINT', () => void stop());
+process.once('SIGTERM', () => void stop());
+process.on('message', (message) => {
+  if (message?.type === 'shutdown') void stop();
+});
 preview.once('error', (error) => {
   throw error;
 });
 preview.once('exit', (code) => {
-  process.exitCode = code ?? 0;
+  if (!stopping) process.exitCode = code ?? 0;
 });

@@ -9,6 +9,7 @@ const serverUrl = `http://127.0.0.1:${serverPort}`;
 const dataDir = path.resolve(
   process.env.ALPHASTUDIO_E2E_DATA_DIR || path.join(os.tmpdir(), 'alphastudio-e2e-direct'),
 );
+const skipWebServers = process.env.E2E_SKIP_WEBSERVERS === '1';
 
 export default defineConfig({
   testDir: './e2e',
@@ -30,11 +31,12 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
   },
-  webServer: [
+  webServer: skipWebServers ? undefined : [
     {
-      command: 'node --import tsx server/src/index.ts',
+      command: 'node scripts/test/start-restartable-e2e-server.mjs',
       url: `${serverUrl}/api/health`,
       timeout: 60_000,
+      gracefulShutdown: { signal: 'SIGTERM', timeout: 5_000 },
       reuseExistingServer: false,
       stdout: 'pipe',
       stderr: 'pipe',
@@ -56,6 +58,7 @@ export default defineConfig({
       command: 'node scripts/test/start-e2e-client.mjs',
       url: clientUrl,
       timeout: 120_000,
+      gracefulShutdown: { signal: 'SIGTERM', timeout: 5_000 },
       reuseExistingServer: false,
       stdout: 'pipe',
       stderr: 'pipe',

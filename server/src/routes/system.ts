@@ -1,8 +1,10 @@
 import type { FastifyInstance } from 'fastify';
 import { config } from '../config.js';
-import { detectCapabilities } from '../capabilities.js';
+import { detectCapabilities, gatedOperations } from '../capabilities.js';
 import { getWorkerDiagnostics, getWorkerPoolStats } from '../workers/jobs.js';
 import { capabilitySnapshot, publicCapabilitySnapshot } from '../convert/engines/index.js';
+import { publishedAcceptLists } from '../convert/formats.js';
+import { publishedQualityContract } from '../convert/quality.js';
 import { PDF_OPERATION_DESCRIPTORS } from '../pdf/operation-contract.js';
 
 export async function systemRoutes(app: FastifyInstance): Promise<void> {
@@ -45,6 +47,11 @@ export async function systemRoutes(app: FastifyInstance): Promise<void> {
         ]),
       ),
       tools: caps.tools,
+      // S2 (SPEC §3.5) — each derived from its real server-side source, and each
+      // the same source the job-create gate enforces against.
+      acceptLists: publishedAcceptLists(),
+      gatedOps: gatedOperations(),
+      quality: publishedQualityContract(),
       pdf: {
         operations: PDF_OPERATION_DESCRIPTORS,
       },

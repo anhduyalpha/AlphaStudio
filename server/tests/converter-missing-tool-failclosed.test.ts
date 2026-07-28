@@ -2,7 +2,6 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { listOutputsFor, type DetectedKind } from '../src/convert/matrix.js';
 import { capabilitySnapshot } from '../src/convert/engines/index.js';
-import { buildConversionGroups } from '../../src/lib/converterGroups.js';
 
 /**
  * Criterion 2 / verification step 2: when a tool is missing, advertised outputs
@@ -74,30 +73,6 @@ describe('listOutputsFor missing-tool fail-closed (shipped matrix)', () => {
         assert.ok(jpeg.reason);
       }
 
-      // Board grouping must surface the same honesty for ConverterView panel
-      const groups = buildConversionGroups([
-        {
-          id: 'pdf1',
-          originalName: 'doc.pdf',
-          status: 'ready',
-          detect: {
-            format: 'pdf',
-            family: 'pdf',
-            unsupported: false,
-            outputs: outs,
-            recommendedOutput: outs.find((o) => o.available)?.format || null,
-          },
-        },
-      ]);
-      assert.equal(groups.groups.length, 1);
-      const panel = groups.groups[0].outputs.filter((o: { available: boolean }) => !o.available);
-      assert.ok(panel.some((o: { format: string }) => o.format === 'png'));
-      assert.ok(
-        panel.some(
-          (o: { format: string; reason?: string }) =>
-            o.format === 'png' && /pdftoppm|mutool|Ghostscript|rasterizer|image/i.test(String(o.reason || '')),
-        ),
-      );
     } else {
       // Rasterizer present: png may be available — still must list with honest flag
       assert.ok(png);

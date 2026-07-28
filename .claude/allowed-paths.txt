@@ -1,7 +1,10 @@
-# Write scope for the CURRENT unit. Overwritten by /next-unit step 3.
-# One entry per line: exact file, directory prefix ending in '/', or glob
-# ('*' = within one segment, '**' = across segments). '#' starts a comment.
-#
-# PROGRESS.md, this file, and logs/ are always writable (hardcoded in
-# .claude/hooks/scope-guard.mjs). With no entries below, nothing else
-# inside the repo is writable — the between-units state.
+docs/plans/UNIT-F1.md
+e2e/
+server/tests/
+scripts/test/
+scripts/visual/
+playwright.config.js
+package.json
+PROGRESS.md
+evidence/
+src/

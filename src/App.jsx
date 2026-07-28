@@ -1,191 +1,362 @@
-import React from 'react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import Sidebar from './components/Sidebar';
-import Topbar from './components/Topbar';
-import CommandPalette from './components/CommandPalette';
-import DashboardView from './views/DashboardView';
-import ConverterView from './views/ConverterView';
-import PdfView from './views/PdfView';
-import QrView from './views/QrView';
-import ImageView from './views/ImageView';
-import MediaView from './views/MediaView';
-import DeveloperView from './views/DeveloperView';
-import ActivityView from './views/ActivityView';
-import SettingsView from './views/SettingsView';
-import ArchiveView from './views/ArchiveView';
-import TextView from './views/TextView';
-import AudioView from './views/AudioView';
-import ColorView from './views/ColorView';
-import SecurityView from './views/SecurityView';
-import ProfileView from './views/ProfileView';
-import { navigation } from './data/tools';
-import useMotionPreference from './hooks/useMotionPreference';
-import { api } from './api/client';
+import React, {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
+import './styles/tokens.css';
+import './styles/base.css';
+import './styles/primitives.css';
+import './styles/views.css';
+import './styles/workbench.css';
+import './styles/motion.css';
+import {
+  Card,
+  CommandPalette,
+  Icon,
+  Sidebar,
+  Skeleton,
+  StatusBadge,
+  Tabs,
+  Topbar,
+} from './components/index.jsx';
+import { navigationItems, resolveHashRoute } from './hubs/index';
+import {
+  connectWorkspaceStore,
+  getSnapshot,
+  hydrate,
+  isTerminalStatus,
+  selectActiveJobs,
+  subscribe,
+} from './protocol/store';
+import { recoverUploadSessions } from './protocol/uploads';
+import Workbench from './workbench/Workbench.jsx';
+import useConvertWorkbench from './hooks/useConvertWorkbench.js';
+import useMediaWorkbench from './hooks/useMediaWorkbench.js';
+import useTextDevWorkbench from './hooks/useTextDevWorkbench.js';
+import useSecurityArchiveWorkbench from './hooks/useSecurityArchiveWorkbench.js';
+import useUtilitiesWorkbench from './hooks/useUtilitiesWorkbench.js';
+import usePdfWorkbench from './hooks/usePdfWorkbench.js';
+import Activity from './views/Activity.jsx';
+import Home from './views/Home.jsx';
+import Profile from './views/Profile.jsx';
+import Settings from './views/Settings.jsx';
 
-const AssetGalleryView = import.meta.env.DEV
-  ? React.lazy(() => import('./views/AssetGalleryView'))
+const AssetGallery = import.meta.env.DEV
+  ? lazy(() => import('./views/AssetGallery.jsx'))
   : null;
 
-const viewMap = {
-  dashboard: DashboardView,
-  converter: ConverterView,
-  pdf: PdfView,
-  qr: QrView,
-  image: ImageView,
-  media: MediaView,
-  archive: ArchiveView,
-  text: TextView,
-  audio: AudioView,
-  color: ColorView,
-  security: SecurityView,
-  developer: DeveloperView,
-  activity: ActivityView,
-  profile: ProfileView,
-  settings: SettingsView,
-  ...(import.meta.env.DEV ? { assets: AssetGalleryView } : {}),
-};
+function readRoute() {
+  return resolveHashRoute(window.location.hash, {
+    includeAssets: import.meta.env.DEV,
+  });
+}
 
-function getRoute() {
-  const value = window.location.hash.replace('#/', '').replace('#', '');
-  return viewMap[value] ? value : 'dashboard';
+function replaceHash(href) {
+  const nextUrl = `${window.location.pathname}${window.location.search}${href}`;
+  window.history.replaceState(window.history.state, '', nextUrl);
+}
+
+function readTheme() {
+  try {
+    return localStorage.getItem('alpha-studio-theme')
+      || document.documentElement.dataset.theme
+      || 'dark';
+  } catch {
+    return document.documentElement.dataset.theme || 'dark';
+  }
+}
+
+function writeTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  try {
+    localStorage.setItem('alpha-studio-theme', theme);
+  } catch {
+    // The root attribute remains authoritative when storage is unavailable.
+  }
+}
+
+function currentNavigationHref(resolved) {
+  return resolved.route.kind === 'hub'
+    ? `#/${resolved.route.id}`
+    : resolved.href;
+}
+
+function RoutePlaceholder({ resolved }) {
+  const { route, mode } = resolved;
+  const modeItems = route.kind === 'hub'
+    ? route.hub.modes.map((item) => ({
+        id: item.id,
+        label: item.name,
+        panel: (
+          <div className="route-placeholder__panel">
+            <Icon name={route.hub.icon} size={28} />
+            <div>
+              <strong>{item.name}</strong>
+              <p>The workflow surface arrives in its dedicated implementation unit.</p>
+            </div>
+          </div>
+        ),
+      }))
+    : [];
+
+  return (
+    <div className="route-placeholder">
+      <section className="route-placeholder__intro">
+        <div>
+          <p className="view-eyebrow">Unified local workspace</p>
+          <h2>{route.kind === 'hub' ? `${route.name}, ready for focused work.` : 'A calm surface for every local workflow.'}</h2>
+          <p>
+            {route.kind === 'hub'
+              ? `Choose a ${route.name} mode without leaving the shared workspace.`
+              : 'Files, jobs, and outputs stay private and available across AlphaStudio.'}
+          </p>
+        </div>
+        <StatusBadge tone="neutral">Rebuild preview</StatusBadge>
+      </section>
+      {route.kind === 'hub' ? (
+        <Card
+          title={`${route.name} modes`}
+          subtitle={`${route.hub.modes.length} focused workflows`}
+        >
+          <Tabs
+            aria-label={`${route.name} modes`}
+            variant="segmented"
+            value={mode?.id}
+            items={modeItems}
+            onChange={(modeId) => {
+              window.location.hash = `/${route.id}?mode=${encodeURIComponent(modeId)}`;
+            }}
+          />
+        </Card>
+      ) : (
+        <div className="route-placeholder__cards">
+          <Card title="Workspace continuity" subtitle="One source of truth">
+            Follow live uploads and jobs without duplicate progress or stale state.
+          </Card>
+          <Card title="Keyboard first" subtitle="Press Ctrl K">
+            Search every studio and mode from a single command surface.
+          </Card>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function App() {
-  const [route, setRoute] = useState(getRoute);
-  const [theme, setTheme] = useState(() => localStorage.getItem('alpha-studio-theme') || document.documentElement.dataset.theme || 'dark');
+  const [resolved, setResolved] = useState(readRoute);
+  const [theme, setTheme] = useState(readTheme);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [commandOpen, setCommandOpen] = useState(false);
-  const [toast, setToast] = useState('');
-  const mainRef = React.useRef(null);
-  const [apiOnline, setApiOnline] = useState(null);
-  // Resolves + applies html[data-motion]; the inline bootstrap already set it
-  // pre-paint, this keeps it in sync with runtime preference changes.
-  useMotionPreference();
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [announcement, setAnnouncement] = useState('');
+  const headingRef = useRef(null);
+  const previousJobsRef = useRef(new Map());
+  const previousRouteRef = useRef(resolved.href);
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const activeJobs = selectActiveJobs(snapshot);
 
   useEffect(() => {
-    let cancelled = false;
-    const probe = () => {
-      api.health()
-        .then((h) => { if (!cancelled) setApiOnline(Boolean(h?.ok)); })
-        .catch(() => { if (!cancelled) setApiOnline(false); });
-    };
-    probe();
-    const timer = window.setInterval(probe, 15000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
+    void hydrate({ route: resolved.route.kind === 'hub' ? resolved.route.id : resolved.route.id });
+    // The store owns later route-independent re-hydrates and epoch recovery.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    const handleHash = () => setRoute(getRoute());
-    window.addEventListener('hashchange', handleHash);
-    return () => window.removeEventListener('hashchange', handleHash);
-  }, []);
+    if (!snapshot.workspaceId) return undefined;
+    void recoverUploadSessions(snapshot.workspaceId).catch(() => {});
+    const subscription = connectWorkspaceStore(snapshot.workspaceId);
+    return () => subscription.close();
+  }, [snapshot.workspaceId]);
 
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    localStorage.setItem('alpha-studio-theme', theme);
-  }, [theme]);
-
-  useEffect(() => {
-    const onThemeEvent = (event) => {
-      const next = event?.detail;
-      if (next === 'dark' || next === 'light') setTheme(next);
-    };
-    window.addEventListener('alpha-studio-theme', onThemeEvent);
-    return () => window.removeEventListener('alpha-studio-theme', onThemeEvent);
-  }, []);
-
-  useEffect(() => {
-    const handleKey = (event) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        setCommandOpen(true);
-        return;
-      }
-      if (event.key === 'Escape') {
-        // Palette and drawer own their Escape handlers when open; keep a
-        // shell-level fallback so Ctrl+K open always has a close path.
-        if (commandOpen) {
-          setCommandOpen(false);
-          return;
-        }
-        if (mobileOpen) setMobileOpen(false);
-      }
-    };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [commandOpen, mobileOpen]);
-
-  useEffect(() => {
-    if (!toast) return undefined;
-    const timer = window.setTimeout(() => setToast(''), 2600);
-    return () => window.clearTimeout(timer);
-  }, [toast]);
-
-  const current = useMemo(
-    () => route === 'assets'
-      ? { label: 'Asset Gallery', group: 'Development' }
-      : navigation.find((item) => item.id === route) || navigation[0],
-    [route],
-  );
-  const ActiveView = viewMap[route] || DashboardView;
-
-  useEffect(() => {
-    document.title = `${current.label} · AlphaStudio`;
-  }, [current.label]);
-
-  // Stable handlers so the memoized Sidebar doesn't rerender when unrelated
-  // shell state changes (e.g. a toast appearing/clearing every few seconds).
-  const navigate = useCallback((nextRoute) => {
-    window.location.hash = `/${nextRoute}`;
-    setRoute(nextRoute);
+  const syncRoute = useCallback(() => {
+    const next = readRoute();
+    if (window.location.hash !== next.href) replaceHash(next.href);
+    setResolved(next);
     setMobileOpen(false);
-    // Instant scroll — a smooth scroll would run concurrently with the route
-    // entrance animation and cause a paint spike / jank.
-    window.scrollTo({ top: 0, behavior: 'auto' });
-    requestAnimationFrame(() => {
-      mainRef.current?.focus({ preventScroll: true });
-    });
   }, []);
 
-  const closeMobile = useCallback(() => setMobileOpen(false), []);
-  const openMobile = useCallback(() => setMobileOpen(true), []);
-  const openCommand = useCallback(() => setCommandOpen(true), []);
-  const closeCommand = useCallback(() => setCommandOpen(false), []);
-  const toggleTheme = useCallback(() => setTheme((t) => (t === 'dark' ? 'light' : 'dark')), []);
+  useEffect(() => {
+    syncRoute();
+    window.addEventListener('hashchange', syncRoute);
+    return () => window.removeEventListener('hashchange', syncRoute);
+  }, [syncRoute]);
+
+  useEffect(() => {
+    if (previousRouteRef.current !== resolved.href) headingRef.current?.focus();
+    previousRouteRef.current = resolved.href;
+  }, [resolved.href]);
+
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === 'k') {
+        event.preventDefault();
+        setPaletteOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  useEffect(() => {
+    const previous = previousJobsRef.current;
+    for (const job of snapshot.jobs) {
+      const oldStatus = previous.get(job.id);
+      if (
+        oldStatus
+        && !isTerminalStatus(oldStatus)
+        && (job.status === 'completed' || job.status === 'failed')
+      ) {
+        const name = job.outputName || job.type || 'Job';
+        setAnnouncement(`${name} ${job.status}.`);
+      }
+    }
+    previousJobsRef.current = new Map(snapshot.jobs.map((job) => [job.id, job.status]));
+  }, [snapshot.jobs]);
+
+  const navigate = useCallback((href) => {
+    setPaletteOpen(false);
+    if (window.location.hash === href) {
+      syncRoute();
+    } else {
+      window.location.hash = href.slice(1);
+    }
+  }, [syncRoute]);
+
+  const { route, mode } = resolved;
+  const convertEnabled = route.kind === 'hub' && route.id === 'convert';
+  const pdfEnabled = route.kind === 'hub' && route.id === 'pdf';
+  const mediaEnabled = route.kind === 'hub' && route.id === 'media';
+  const textDevEnabled = route.kind === 'hub' && route.id === 'text';
+  const securityArchiveEnabled = route.kind === 'hub' && route.id === 'security';
+  const utilitiesEnabled = route.kind === 'hub' && route.id === 'utilities';
+  const convertController = useConvertWorkbench({
+    enabled: convertEnabled,
+    mode: convertEnabled ? mode : null,
+  });
+  const pdfController = usePdfWorkbench({
+    enabled: pdfEnabled,
+    mode: pdfEnabled ? mode : null,
+  });
+  const mediaController = useMediaWorkbench({
+    enabled: mediaEnabled,
+    mode: mediaEnabled ? mode : null,
+  });
+  const textDevController = useTextDevWorkbench({
+    enabled: textDevEnabled,
+    mode: textDevEnabled ? mode : null,
+  });
+  const securityArchiveController = useSecurityArchiveWorkbench({
+    enabled: securityArchiveEnabled,
+    mode: securityArchiveEnabled ? mode : null,
+  });
+  const utilitiesController = useUtilitiesWorkbench({
+    enabled: utilitiesEnabled,
+    mode: utilitiesEnabled ? mode : null,
+  });
+  const workbenchController = route.kind === 'hub' && route.id === 'convert'
+    ? convertController
+    : route.kind === 'hub' && route.id === 'pdf'
+      ? pdfController
+      : route.kind === 'hub' && route.id === 'media'
+        ? mediaController
+        : route.kind === 'hub' && route.id === 'text'
+          ? textDevController
+        : route.kind === 'hub' && route.id === 'security'
+          ? securityArchiveController
+        : route.kind === 'hub' && route.id === 'utilities'
+          ? utilitiesController
+        : {};
+  const subtitle = route.kind === 'hub'
+    ? (mode?.name || 'Studio')
+    : route.id === 'assets' ? 'Development reference' : 'Local utility studio';
 
   return (
-    <div className="desktop-app-shell">
-      <a className="skip-link" href="#main-content">Skip to main content</a>
-      <div className="ambient-light ambient-one" aria-hidden="true" />
-      <div className="ambient-light ambient-two" aria-hidden="true" />
-      <Sidebar navigation={navigation} route={route} onNavigate={navigate} mobileOpen={mobileOpen} onClose={closeMobile} apiOnline={apiOnline} />
-      <div className="main-app-column" inert={mobileOpen ? true : undefined} aria-hidden={mobileOpen || undefined}>
+    <div className="studio-shell">
+      <div className="studio-shell__main">
         <Topbar
-          title={current.label}
-          subtitle={current.group}
+          ref={headingRef}
+          title={route.name}
+          subtitle={subtitle}
           theme={theme}
-          onThemeToggle={toggleTheme}
-          onMenuOpen={openMobile}
-          onCommandOpen={openCommand}
           menuExpanded={mobileOpen}
-          apiOnline={apiOnline}
+          onMenuOpen={() => setMobileOpen(true)}
+          onCommandOpen={() => setPaletteOpen(true)}
+          onThemeToggle={() => {
+            const next = theme === 'dark' ? 'light' : 'dark';
+            setTheme(next);
+            writeTheme(next);
+          }}
+          apiStatus={snapshot.status === 'error'
+            ? { tone: 'danger', label: 'Workspace unavailable' }
+            : snapshot.status === 'ready'
+              ? { tone: 'success', label: 'Workspace ready' }
+              : undefined}
         />
-        <main id="main-content" className="app-content" key={route} ref={mainRef} tabIndex={-1}>
-          <React.Suspense fallback={<div className="surface-card content-card" role="status">Loading workspace…</div>}>
-            <ActiveView onNavigate={navigate} notify={setToast} />
-          </React.Suspense>
+        <main id="main-content" className="studio-shell__content" tabIndex={-1}>
+          <div className="route-motion" key={route.id}>
+            {route.id === 'assets' && AssetGallery ? (
+              <Suspense fallback={<Skeleton variant="row" lines={6} label="Loading Asset Gallery" />}>
+                <AssetGallery theme={theme} />
+              </Suspense>
+            ) : route.id === 'home' ? (
+              <Home />
+            ) : route.id === 'activity' ? (
+              <Activity />
+            ) : route.id === 'settings' ? (
+              <Settings
+                theme={theme}
+                onThemeChange={(next) => {
+                  setTheme(next);
+                  writeTheme(next);
+                }}
+              />
+            ) : route.id === 'profile' ? (
+              <Profile />
+            ) : route.kind === 'hub' ? (
+              <Workbench
+                hub={route.hub}
+                mode={workbenchController.mode || mode}
+                {...workbenchController}
+                onModeChange={(modeId) => navigate(`#/${route.id}?mode=${encodeURIComponent(modeId)}`)}
+              />
+            ) : (
+              <RoutePlaceholder resolved={resolved} />
+            )}
+          </div>
         </main>
-        <footer className="app-footer">
-          <span>AlphaStudio · Local API workspace</span>
-          {import.meta.env.DEV ? <button type="button" className="text-button" onClick={() => navigate('assets')}>Asset gallery</button> : null}
-          <span>React + Vite + Fastify</span>
-        </footer>
       </div>
-      <CommandPalette open={commandOpen} navigation={navigation} onClose={closeCommand} onNavigate={navigate} />
-      {toast ? <div className="toast-message" role="status">{toast}</div> : null}
+      <Sidebar
+        navigation={navigationItems}
+        currentHref={currentNavigationHref(resolved)}
+        mobileOpen={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        activeJobCount={activeJobs.length}
+        theme={theme}
+        footer={(
+          <span className="studio-shell__privacy">
+            <Icon name="lock" size={16} />
+            Private · local workspace
+          </span>
+        )}
+      />
+      <CommandPalette
+        open={paletteOpen}
+        navigation={navigationItems}
+        onClose={() => setPaletteOpen(false)}
+        onNavigate={navigate}
+      />
+      <div
+        className="sr-only"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        data-global-announcer
+      >
+        {announcement}
+      </div>
     </div>
   );
 }

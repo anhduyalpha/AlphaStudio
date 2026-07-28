@@ -1,0 +1,192 @@
+/*
+ * AlphaStudio motion language — SPEC §5.
+ *
+ * Functional motion is the balanced baseline. Full adds only the ambient live
+ * pulse. Reduced keeps fast interaction transitions but runs no keyframes.
+ */
+
+.route-motion {
+  min-width: 0;
+  animation: motion-route-enter var(--duration-slow) var(--ease-out) both;
+}
+
+.tabs__panel:not([hidden]) {
+  animation: motion-panel-enter var(--duration-base) var(--ease-standard) both;
+}
+
+.tabs--underline .tabs__tab[aria-selected='true']::after {
+  transform-origin: center;
+  animation: motion-tab-indicator var(--duration-base) var(--ease-standard) both;
+}
+
+.button__icon,
+.button__content > .icon,
+.sidebar__link > .icon,
+.home-job-row__icon,
+.home-launcher__icon {
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+
+.button:hover:not(:disabled) .button__icon,
+.button:hover:not(:disabled) .button__content > .icon,
+.sidebar__link:hover > .icon,
+.home-job-row__link:hover .home-job-row__icon,
+.home-launcher:hover .home-launcher__icon {
+  transform: translateY(calc(var(--space-1) * -0.5));
+}
+
+.button:active:not(:disabled) .button__icon,
+.button:active:not(:disabled) .button__content > .icon,
+.sidebar__link:active > .icon,
+.home-job-row__link:active .home-job-row__icon,
+.home-launcher:active .home-launcher__icon {
+  transform: translateY(calc(var(--space-1) * 0.5));
+}
+
+.modal__scrim {
+  animation: motion-scrim-enter var(--duration-base) var(--ease-out) both;
+}
+
+.modal-layer--exit {
+  pointer-events: none;
+}
+
+.modal-layer--exit .modal__scrim {
+  animation: motion-scrim-exit var(--duration-slow) var(--ease-standard) both;
+}
+
+.modal-layer--exit .modal__surface {
+  animation: motion-modal-exit var(--duration-slow) var(--ease-standard) both;
+}
+
+html[data-motion='full']:not([data-power='low']) .status-badge--live .status-badge__dot {
+  animation: primitive-pulse var(--duration-ambient) var(--ease-in-out) infinite;
+}
+
+html[data-power='low'] .status-badge--live .status-badge__dot {
+  animation: none;
+  opacity: 1;
+}
+
+html[data-motion='reduced'] *,
+html[data-motion='reduced'] *::before,
+html[data-motion='reduced'] *::after {
+  animation: none !important;
+}
+
+html[data-motion='reduced'] .button__spinner {
+  border-right-color: currentColor;
+  opacity: 0.58;
+  transform: none;
+}
+
+html[data-motion='reduced'] .status-badge--live .status-badge__dot {
+  opacity: 1;
+}
+
+html[data-motion='reduced'] .skeleton {
+  background: var(--surface-2);
+}
+
+html[data-motion='reduced'] .skeleton::after {
+  content: none;
+}
+
+html[data-motion='reduced'] .progress-bar--indeterminate .progress-bar__fill {
+  width: 100%;
+  opacity: 0.46;
+  transform: none;
+  background: repeating-linear-gradient(
+    135deg,
+    var(--live-soft),
+    var(--live-soft) var(--space-2),
+    var(--live) var(--space-2),
+    var(--live) var(--space-4)
+  );
+}
+
+html[data-motion='reduced'] .progress-bar__fill,
+html[data-motion='reduced'] .sidebar,
+html[data-motion='reduced'] .sidebar__scrim {
+  transition-duration: var(--duration-fast);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+  }
+
+  .button__spinner {
+    border-right-color: currentColor;
+    opacity: 0.58;
+    transform: none;
+  }
+
+  .skeleton {
+    background: var(--surface-2);
+  }
+
+  .skeleton::after {
+    content: none;
+  }
+
+  .progress-bar--indeterminate .progress-bar__fill {
+    width: 100%;
+    opacity: 0.46;
+    transform: none;
+    background: repeating-linear-gradient(
+      135deg,
+      var(--live-soft),
+      var(--live-soft) var(--space-2),
+      var(--live) var(--space-2),
+      var(--live) var(--space-4)
+    );
+  }
+
+  .progress-bar__fill,
+  .sidebar,
+  .sidebar__scrim {
+    transition-duration: var(--duration-fast);
+  }
+}
+
+@keyframes motion-route-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--space-1));
+  }
+}
+
+@keyframes motion-panel-enter {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes motion-tab-indicator {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--space-1) * -0.5)) scaleX(0.82);
+  }
+}
+
+@keyframes motion-scrim-enter {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes motion-scrim-exit {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes motion-modal-exit {
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}

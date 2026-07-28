@@ -1,4 +1,4 @@
-import { computeUploadMetrics } from '../lib/liveState.js';
+import { computeUploadMetrics } from '../lib/uploadMetrics.js';
 import { createResumableUpload } from './resumableUpload.js';
 
 // Empty means same-origin. In development Vite proxies /api to 127.0.0.1:8787;
@@ -100,73 +100,17 @@ export const api = {
   filePreviewUrl: (id) => apiUrl(`/api/files/${id}/preview`),
 
   workspaceEventsUrl: (id) => apiUrl(`/api/workspaces/${id}/events`),
-  listUploadSessions: (workspaceId) =>
-    request(`/api/upload-sessions?workspaceId=${encodeURIComponent(workspaceId)}`),
+  listUploadSessions: (workspaceId, { includeCompleted = false } = {}) =>
+    request(
+      `/api/upload-sessions?workspaceId=${encodeURIComponent(workspaceId)}${
+        includeCompleted ? '&includeCompleted=1' : ''
+      }`,
+    ),
   getUploadSession: (id) => request(`/api/upload-sessions/${id}`),
   pauseUploadSession: (id) => request(`/api/upload-sessions/${id}/pause`, { method: 'POST' }),
   cancelUploadSession: (id) => request(`/api/upload-sessions/${id}`, { method: 'DELETE' }),
   createResumableUpload(file, options = {}) {
     return createResumableUpload(file, options, { request, apiUrl, apiToken: API_TOKEN, ApiError });
-  },
-
-  /**
-   * Subscribe to workspace SSE. Returns an unsubscribe function.
-   * Closes on error or abort; does not auto-reconnect (callers handle backoff).
-   * @param {string} id
-   * @param {{ onEvent?: (event: any) => void, onError?: (err: Error) => void, onOpen?: () => void, signal?: AbortSignal }} [opts]
-   * @returns {() => void}
-   */
-  subscribeWorkspaceEvents(id, { onEvent, onError, onOpen, signal } = {}) {
-    if (!id || (!API_TOKEN && typeof EventSource === 'undefined')) {
-      return () => {};
-    }
-    if (signal?.aborted) {
-      return () => {};
-    }
-
-    if (API_TOKEN) {
-      return subscribeViaFetch(this.workspaceEventsUrl(id), {
-        onEvent,
-        onError,
-        onOpen,
-        signal,
-      });
-    }
-
-    const es = new EventSource(this.workspaceEventsUrl(id));
-    let closed = false;
-
-    const cleanup = () => {
-      if (closed) return;
-      closed = true;
-      es.close();
-      signal?.removeEventListener('abort', onAbort);
-    };
-
-    const onAbort = () => cleanup();
-    signal?.addEventListener('abort', onAbort);
-
-    es.onopen = () => {
-      if (!closed) onOpen?.();
-    };
-
-    es.onmessage = (ev) => {
-      if (closed) return;
-      try {
-        const event = JSON.parse(ev.data);
-        onEvent?.(event);
-      } catch (err) {
-        onError?.(err instanceof Error ? err : new Error(String(err)));
-      }
-    };
-
-    es.onerror = () => {
-      if (closed) return;
-      cleanup();
-      onError?.(new ApiError('Workspace SSE connection failed', { code: 'SSE_ERROR' }));
-    };
-
-    return cleanup;
   },
 
   getActivity: (limit = 50) => request(`/api/activity?limit=${limit}`),
@@ -251,7 +195,7 @@ export const api = {
 
   /**
    * Poll until file status is terminal ready/failed/missing or timeout.
-   * Used as SSE fallback so inspecting never requires a full page reload.
+   * Polling keeps file inspection available without a full page reload.
    */
   async waitForFileReady(id, { intervalMs = 150, timeoutMs = 30_000, signal } = {}) {
     const start = Date.now();
@@ -283,14 +227,6 @@ export const api = {
    * Optional onUpdate(job). Optional signal for AbortController.
    */
   async waitForJob(id, { onUpdate, intervalMs = 400, signal } = {}) {
-    // Prefer SSE when available
-    if (!API_TOKEN && typeof EventSource !== 'undefined' && !signal?.aborted) {
-      try {
-        return await waitViaSse(id, { onUpdate, signal });
-      } catch {
-        // fall through to poll
-      }
-    }
     while (!signal?.aborted) {
       const job = await this.getJob(id);
       onUpdate?.(job);
@@ -348,6 +284,20 @@ export const api = {
   async fetchJobBlob(jobId) {
     const res = await fetch(this.downloadUrl(jobId), { headers: authHeaders() });
     if (!res.ok) throw new ApiError('Could not read job output', { status: res.status });
+    return res.blob();
+  },
+
+  async fetchFileBlob(fileId, { signal } = {}) {
+    const res = await fetch(this.fileDownloadUrl(fileId), {
+      headers: authHeaders(),
+      signal,
+    });
+    if (!res.ok) {
+      throw new ApiError('Could not read workspace file', {
+        status: res.status,
+        code: 'FILE_READ_FAILED',
+      });
+    }
     return res.blob();
   },
 
@@ -412,97 +362,6 @@ export const api = {
     return blob;
   },
 };
-
-function waitViaSse(id, { onUpdate, signal }) {
-  return new Promise((resolve, reject) => {
-    const es = new EventSource(apiUrl(`/api/jobs/${id}/events`));
-    let settled = false;
-    const cleanup = () => {
-      es.close();
-      signal?.removeEventListener('abort', abort);
-    };
-    const finish = (fn) => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      fn();
-    };
-    const abort = () => {
-      finish(() => reject(new ApiError('Job wait aborted', { code: 'ABORTED' })));
-    };
-    signal?.addEventListener('abort', abort);
-    es.onmessage = (ev) => {
-      try {
-        const job = JSON.parse(ev.data);
-        onUpdate?.(job);
-        if (['completed', 'failed', 'cancelled'].includes(job.status)) {
-          finish(() => resolve(job));
-        }
-      } catch (e) {
-        finish(() => reject(e));
-      }
-    };
-    es.onerror = () => {
-      finish(() => reject(new ApiError('SSE connection failed', { code: 'SSE_ERROR' })));
-    };
-  });
-}
-
-function subscribeViaFetch(url, { onEvent, onError, onOpen, signal }) {
-  const controller = new AbortController();
-  let closed = false;
-  const cleanup = () => {
-    if (closed) return;
-    closed = true;
-    controller.abort();
-    signal?.removeEventListener('abort', cleanup);
-  };
-  signal?.addEventListener('abort', cleanup);
-
-  void (async () => {
-    try {
-      const res = await fetch(url, {
-        headers: authHeaders({ Accept: 'text/event-stream' }),
-        signal: controller.signal,
-      });
-      if (!res.ok || !res.body) {
-        throw new ApiError('Workspace SSE connection failed', {
-          status: res.status,
-          code: 'SSE_ERROR',
-        });
-      }
-      onOpen?.();
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      while (!closed) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const chunks = buffer.split(/\r?\n\r?\n/);
-        buffer = chunks.pop() || '';
-        for (const chunk of chunks) {
-          const payload = chunk
-            .split(/\r?\n/)
-            .filter((line) => line.startsWith('data:'))
-            .map((line) => line.slice(5).trimStart())
-            .join('\n');
-          if (!payload) continue;
-          onEvent?.(JSON.parse(payload));
-        }
-      }
-      if (!closed) throw new ApiError('Workspace SSE connection closed', { code: 'SSE_ERROR' });
-    } catch (err) {
-      if (!closed && err?.name !== 'AbortError') {
-        onError?.(err instanceof Error ? err : new Error(String(err)));
-      }
-    } finally {
-      cleanup();
-    }
-  })();
-
-  return cleanup;
-}
 
 function sleep(ms, signal) {
   return new Promise((resolve, reject) => {

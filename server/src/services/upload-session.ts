@@ -198,12 +198,18 @@ export function getUploadSession(id: string): ReturnType<typeof uploadSessionPub
   return uploadSessionPublic(loadSession(id));
 }
 
-export function listWorkspaceUploadSessions(workspaceId: string) {
+export function listWorkspaceUploadSessions(
+  workspaceId: string,
+  options: { includeCompleted?: boolean } = {},
+) {
+  const statuses = options.includeCompleted
+    ? `('uploading', 'paused', 'failed', 'completed')`
+    : `('uploading', 'paused', 'failed')`;
   return (
     getDb()
       .prepare(
         `SELECT * FROM upload_sessions
-         WHERE workspace_id = ? AND status IN ('uploading', 'paused', 'failed')
+         WHERE workspace_id = ? AND status IN ${statuses}
          ORDER BY created_at ASC`,
       )
       .all(workspaceId) as UploadSessionRow[]

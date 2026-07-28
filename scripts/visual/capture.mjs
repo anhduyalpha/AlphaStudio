@@ -1,14 +1,14 @@
 #!/usr/bin/env node
-// npm run visual:capture — boots the app (API + dev client, flag build
-// VITE_UI=next by default) and captures every screen and component state the
+// npm run visual:capture — boots the app (API + dev client) and captures every
+// screen and component state the
 // manifest defines, in both themes, motion=reduced, animations frozen.
 //
 // Output: visual/captures/*.png + visual/captures/report.json
 //   report.json: { captured[], missing[], consoleErrors{}, cls{} }
-// Missing targets (shell marker / gallery instance not yet built) are DATA,
-// not failures — units make them exist over time. Boot failure exits 1.
+// At the final architecture every manifest target is mandatory. Boot failures
+// and missing routes/states both exit 1.
 //
-// Flags: --keep-server (debug), --ui <flag> (VITE_UI value, default "next").
+// Flag: --keep-server (debug).
 
 import { spawn, execSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -21,8 +21,6 @@ import { THEMES, routeEntries, stateEntries, TAB_INTERACTION_ROUTES } from './ma
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const outDir = path.join(root, 'visual', 'captures');
-const args = process.argv.slice(2);
-const uiFlag = args.includes('--ui') ? args[args.indexOf('--ui') + 1] : 'next';
 
 const clientUrl = `http://127.0.0.1:${CONFIG.CLIENT_PORT}`;
 const serverUrl = `http://127.0.0.1:${CONFIG.SERVER_PORT}`;
@@ -72,7 +70,7 @@ async function main() {
   fs.rmSync(outDir, { recursive: true, force: true });
   fs.mkdirSync(outDir, { recursive: true });
 
-  console.log(`[visual:capture] booting API (${serverUrl}) + client (${clientUrl}, VITE_UI=${uiFlag})`);
+  console.log(`[visual:capture] booting API (${serverUrl}) + client (${clientUrl})`);
   boot(process.execPath, ['--import', 'tsx', 'server/src/index.ts'], {
     NODE_ENV: 'test',
     HOST: '127.0.0.1',
@@ -86,14 +84,13 @@ async function main() {
   }, 'api');
   boot(process.execPath, [path.join(root, 'node_modules', 'vite', 'bin', 'vite.js'), '--host', '127.0.0.1', '--port', String(CONFIG.CLIENT_PORT), '--strictPort'], {
     VITE_API_URL: serverUrl,
-    VITE_UI: uiFlag,
   }, 'vite');
 
   await waitForUrl(`${serverUrl}/api/health`, 60_000);
   await waitForUrl(clientUrl, 120_000);
 
   const browser = await chromium.launch();
-  const report = { captured: [], missing: [], consoleErrors: {}, cls: {}, meta: { uiFlag, when: new Date().toISOString() } };
+  const report = { captured: [], missing: [], consoleErrors: {}, cls: {}, meta: { client: 'final', when: new Date().toISOString() } };
 
   for (const theme of THEMES) {
     const context = await browser.newContext({ viewport: CONFIG.VIEWPORT, deviceScaleFactor: 1 });
@@ -114,7 +111,13 @@ async function main() {
     page.on('pageerror', (e) => errors.push(String(e)));
 
     const settle = async () => {
-      await page.waitForLoadState('networkidle').catch(() => {});
+      await page.waitForFunction(
+        () => document.documentElement.dataset.shell === 'next',
+        undefined,
+        { timeout: 60_000 },
+      );
+      await page.locator('.studio-shell').waitFor({ state: 'visible', timeout: 60_000 });
+      await page.locator('.skeleton-wrap').waitFor({ state: 'detached', timeout: 5_000 }).catch(() => {});
       await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
     };
     const clsSince = (t0) => page.evaluate((t) => (window.__visualShifts || []).filter((s) => s.t > t).reduce((a, s) => a + s.v, 0), t0);
@@ -162,18 +165,71 @@ async function main() {
     } else {
       errors.splice(0);
       for (const entry of stateEntries()) {
-        const node = page.locator(entry.selector).first();
+        let node = page.locator(entry.selector).first();
+        let openedOverlay = false;
+
+        if ((await node.count()) === 0 && entry.component === 'modal') {
+          const trigger = page.locator(`[data-vis-trigger="${entry.variant === 'dialog' ? 'modal/dialog/default' : 'modal/palette/default'}"]`);
+          await trigger.click();
+          node = page.locator(`.modal--${entry.variant}`).first();
+          await node.waitFor({ state: 'visible' });
+          openedOverlay = true;
+        } else if ((await node.count()) === 0 && entry.component === 'commandpalette') {
+          const triggerState = entry.state === 'empty' ? 'empty' : entry.state === 'selected' ? 'selected' : 'default';
+          await page.locator(`[data-vis-command-${triggerState}="true"]`).click();
+          node = page.locator('.command-palette').first();
+          await node.waitFor({ state: 'visible' });
+          if (entry.state === 'empty') {
+            await node.locator('input[type="search"]').fill('missing workflow');
+            await node.locator('.command-palette__empty').waitFor({ state: 'visible' });
+          } else if (entry.state === 'selected') {
+            await node.locator('input[type="search"]').fill('');
+            await node.locator('.command-palette__results > button').nth(1).hover();
+          }
+          openedOverlay = true;
+        } else if ((await node.count()) === 0 && entry.component === 'sidebar') {
+          node = entry.state === 'selected'
+            ? page.locator('.sidebar__link.is-current, .sidebar__link').first()
+            : page.locator('#studio-sidebar').first();
+        } else if ((await node.count()) === 0 && entry.component === 'topbar') {
+          node = page.locator('.topbar').first();
+        }
+
         if ((await node.count()) === 0) {
           report.missing.push({ id: `${entry.id}--${theme}`, reason: `no gallery instance ${entry.selector}` });
           continue;
         }
-        if (entry.action === 'hover') await node.hover();
-        else if (entry.action === 'focus') await node.focus();
-        else if (entry.action === 'mousedown') { await node.hover(); await page.mouse.down(); }
+        const interactive = node.locator('button:not([disabled]), input:not([disabled]):not([type="file"]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex="0"]').first();
+        const actionTarget = entry.component === 'sidebar'
+          ? page.locator('.sidebar__link').first()
+          : entry.component === 'dropzone' && entry.action !== 'focus'
+            ? node
+            : (await interactive.count()) > 0 ? interactive : node;
+        if (entry.action === 'hover') await actionTarget.hover();
+        else if (entry.action === 'focus') {
+          await actionTarget.focus();
+          await page.keyboard.press('Tab');
+          await page.keyboard.press('Shift+Tab');
+        }
+        else if (entry.action === 'mousedown') { await actionTarget.hover(); await page.mouse.down(); }
         await page.evaluate(() => new Promise((r) => requestAnimationFrame(r)));
-        await node.screenshot({ path: path.join(outDir, `${entry.id}--${theme}.png`), animations: 'disabled' });
+        const screenshotPath = path.join(outDir, `${entry.id}--${theme}.png`);
+        if (entry.action) {
+          const box = await node.boundingBox();
+          if (!box) throw new Error(`no screenshot box for ${entry.selector}`);
+          await page.screenshot({ path: screenshotPath, clip: box, animations: 'disabled' });
+        } else {
+          await node.screenshot({ path: screenshotPath, animations: 'disabled' });
+        }
         if (entry.action === 'mousedown') await page.mouse.up();
-        if (entry.action) { await page.mouse.move(0, 0); await page.keyboard.press('Escape').catch(() => {}); }
+        if (entry.action) {
+          await page.mouse.move(0, 0);
+          await actionTarget.evaluate((element) => element.blur?.());
+        }
+        if (openedOverlay) {
+          await page.keyboard.press('Escape');
+          await page.locator('.modal-layer').waitFor({ state: 'detached', timeout: 5_000 }).catch(() => {});
+        }
         report.captured.push({ id: `${entry.id}--${theme}`, theme, component: entry.component, variant: entry.variant, state: entry.state });
       }
       report.consoleErrors[`gallery--${theme}`] = errors.splice(0);
@@ -184,7 +240,9 @@ async function main() {
   await browser.close();
   fs.writeFileSync(path.join(outDir, 'report.json'), JSON.stringify(report, null, 2));
   console.log(`[visual:capture] captured=${report.captured.length} missing=${report.missing.length} → ${path.relative(root, outDir)}`);
-  if (report.missing.length) console.log('[visual:capture] missing targets are pending build units (see report.json), not failures');
+  if (report.missing.length) {
+    throw new Error(`${report.missing.length} required visual target(s) missing; see visual/captures/report.json`);
+  }
 }
 
 main()

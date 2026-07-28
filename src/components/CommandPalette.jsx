@@ -1,155 +1,166 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import EmptyState from './EmptyState';
 import Icon from './Icon';
+import Modal from './Modal';
 
-export default function CommandPalette({ open, navigation, onClose, onNavigate }) {
-  const [query, setQuery] = useState('');
+export function buildPaletteItems(navigation = []) {
+  return navigation.flatMap((item) => {
+    const label = item.label || item.name || item.id;
+    const href = item.href || `#/${item.id}`;
+    const hub = {
+      id: item.id,
+      label,
+      context: item.group || 'Navigation',
+      icon: item.icon || 'dashboard',
+      href,
+      keywords: item.keywords || '',
+    };
+    const modes = (item.modes || []).map((mode) => ({
+      id: `${item.id}:${mode.id}`,
+      label: mode.label || mode.name || mode.id,
+      context: label,
+      icon: mode.icon || item.icon || 'dashboard',
+      href: `${href}?mode=${encodeURIComponent(mode.id)}`,
+      keywords: mode.keywords || '',
+    }));
+    return [hub, ...modes];
+  });
+}
+
+export function filterPaletteItems(items, query) {
+  const normalized = String(query || '').trim().toLocaleLowerCase();
+  if (!normalized) return items;
+  return items.filter((item) => (
+    `${item.label} ${item.context} ${item.keywords} ${item.id}`
+      .toLocaleLowerCase()
+      .includes(normalized)
+  ));
+}
+
+export function getNextPaletteIndex(length, current, key) {
+  if (length <= 0) return -1;
+  if (key === 'Home') return 0;
+  if (key === 'End') return length - 1;
+  if (key === 'ArrowDown') return (current + 1 + length) % length;
+  if (key === 'ArrowUp') return (current - 1 + length) % length;
+  return Math.min(Math.max(current, 0), length - 1);
+}
+
+export function getPaletteInputEntryIndex(length, key) {
+  if (length <= 0) return -1;
+  return key === 'ArrowUp' || key === 'End' ? length - 1 : 0;
+}
+
+export default function CommandPalette({
+  open,
+  navigation = [],
+  onClose,
+  onNavigate,
+  initialQuery = '',
+}) {
+  const [query, setQuery] = useState(initialQuery);
   const [activeIndex, setActiveIndex] = useState(0);
-  const dialogRef = useRef(null);
   const inputRef = useRef(null);
+  const resultsRef = useRef(null);
+  const resultsId = useId();
+  const items = useMemo(() => buildPaletteItems(navigation), [navigation]);
+  const results = useMemo(() => filterPaletteItems(items, query), [items, query]);
 
-  const results = useMemo(
-    () => navigation.filter((item) => {
-      const q = query.trim().toLowerCase();
-      if (!q) return true;
-      return item.label.toLowerCase().includes(q) || item.group.toLowerCase().includes(q) || item.id.includes(q);
-    }),
-    [navigation, query],
-  );
+  useEffect(() => {
+    if (!open) setQuery(initialQuery);
+    setActiveIndex(results.length ? 0 : -1);
+  }, [initialQuery, open, query, results.length]);
 
-  const go = (id) => {
-    onNavigate(id);
-    onClose();
+  const focusResult = (index) => {
+    if (index < 0) return;
+    setActiveIndex(index);
+    requestAnimationFrame(() => {
+      resultsRef.current?.querySelector(`[data-palette-index="${index}"]`)?.focus();
+    });
   };
 
-  useEffect(() => {
-    if (!open) {
-      setQuery('');
-      setActiveIndex(0);
-      return undefined;
-    }
+  const navigate = (item) => {
+    onNavigate?.(item.href, item);
+    onClose?.();
+  };
 
-    const root = dialogRef.current;
-    const previous = document.activeElement;
-
-    const getFocusable = () => {
-      if (!root) return [];
-      return Array.from(
-        root.querySelectorAll(
-          'button:not([disabled]):not(.modal-scrim), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ),
-      ).filter((el) => el.offsetParent !== null || el === document.activeElement);
-    };
-
-    requestAnimationFrame(() => {
-      inputRef.current?.focus();
-    });
-
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        onClose?.();
-        return;
-      }
-
-      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-        if (results.length === 0) return;
-        event.preventDefault();
-        setActiveIndex((idx) => {
-          if (event.key === 'ArrowDown') return (idx + 1) % results.length;
-          return (idx - 1 + results.length) % results.length;
-        });
-        return;
-      }
-
-      if (event.key === 'Enter' && results[activeIndex]) {
-        // Prefer activating highlighted result when focus is in the search input.
-        if (document.activeElement === inputRef.current) {
-          event.preventDefault();
-          go(results[activeIndex].id);
-          return;
-        }
-      }
-
-      if (event.key !== 'Tab' || !root) return;
-      const list = getFocusable();
-      if (list.length === 0) return;
-      const first = list[0];
-      const last = list[list.length - 1];
-      if (event.shiftKey) {
-        if (document.activeElement === first || !root.contains(document.activeElement)) {
-          event.preventDefault();
-          last.focus();
-        }
-      } else if (document.activeElement === last || !root.contains(document.activeElement)) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      if (previous && typeof previous.focus === 'function') {
-        try {
-          previous.focus();
-        } catch {
-          /* ignore */
-        }
-      }
-    };
-  }, [open, onClose, onNavigate, results, activeIndex]);
-
-  useEffect(() => {
-    setActiveIndex(0);
-  }, [query]);
-
-  if (!open) return null;
+  const handleListKeyDown = (event) => {
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    focusResult(getNextPaletteIndex(results.length, activeIndex, event.key));
+  };
 
   return (
-    <div className="modal-layer" ref={dialogRef} role="dialog" aria-modal="true" aria-label="Search AlphaStudio">
-      <button
-        className="modal-scrim"
-        type="button"
-        tabIndex={-1}
-        onClick={onClose}
-        aria-label="Close search"
-      />
-      <div className="command-palette" data-testid="command-palette">
-        <div className="command-input">
+    <Modal
+      open={open}
+      variant="palette"
+      ariaLabel="Search AlphaStudio"
+      onClose={onClose}
+      initialFocusRef={inputRef}
+      className="command-palette-layer"
+    >
+      <div className="command-palette">
+        <label className="command-palette__search">
           <Icon name="search" />
+          <span className="sr-only">Search tools and modes</span>
           <input
             ref={inputRef}
+            type="search"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search workspaces and settings…"
-            aria-label="Search workspaces and settings"
-            aria-controls="command-palette-results"
-            aria-autocomplete="list"
+            onChange={(event) => setQuery(event.currentTarget.value)}
+            onKeyDown={(event) => {
+              if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+                event.preventDefault();
+                focusResult(getPaletteInputEntryIndex(results.length, event.key));
+              }
+            }}
+            placeholder="Search tools and modes…"
+            aria-controls={resultsId}
             autoComplete="off"
           />
           <kbd>Esc</kbd>
-        </div>
-        <div className="command-results" id="command-palette-results" role="listbox" aria-label="Matching workspaces">
-          {results.map((item, index) => (
-            <button
-              type="button"
-              key={item.id}
-              role="option"
-              aria-selected={index === activeIndex}
-              className={index === activeIndex ? 'is-active' : undefined}
-              onMouseEnter={() => setActiveIndex(index)}
-              onClick={() => go(item.id)}
-            >
-              <span>
+        </label>
+        {results.length ? (
+          <div
+            ref={resultsRef}
+            id={resultsId}
+            className="command-palette__results"
+            role="listbox"
+            aria-label="Matching tools and modes"
+            onKeyDown={handleListKeyDown}
+          >
+            {results.map((item, index) => (
+              <button
+                key={item.id}
+                type="button"
+                role="option"
+                aria-selected={index === activeIndex}
+                tabIndex={index === activeIndex ? 0 : -1}
+                className={index === activeIndex ? 'is-selected' : ''}
+                data-palette-index={index}
+                onFocus={() => setActiveIndex(index)}
+                onMouseEnter={() => setActiveIndex(index)}
+                onClick={() => navigate(item)}
+              >
                 <Icon name={item.icon} />
-                <b>{item.label}</b>
-              </span>
-              <small>{item.group}</small>
-            </button>
-          ))}
-          {results.length === 0 ? <p>No workspace found.</p> : null}
-        </div>
+                <span>
+                  <strong>{item.label}</strong>
+                  <small>{item.context}</small>
+                </span>
+                <Icon name="arrow" />
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="command-palette__empty">
+            <EmptyState
+              variant="compact"
+              title="No tools or modes found"
+              description="Try a hub name, mode, or workflow."
+            />
+          </div>
+        )}
       </div>
-    </div>
+    </Modal>
   );
 }

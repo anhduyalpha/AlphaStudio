@@ -102,7 +102,10 @@ function whichAll(name: string): string[] {
   return hits;
 }
 
-function probeVersion(execPath: string, name: string): string | undefined {
+export function probeOptionalBinary(
+  execPath: string,
+  name: string,
+): { usable: boolean; version?: string } {
   const argSets: string[][] = [['-v'], ['--version'], ['-version'], ['version']];
   if (name === 'tesseract') argSets.unshift(['--version']);
   if (name.startsWith('gs')) argSets.unshift(['--version']);
@@ -115,15 +118,16 @@ function probeVersion(execPath: string, name: string): string | undefined {
         stdio: ['ignore', 'pipe', 'pipe'],
       });
       const first = String(out).split(/\r?\n/)[0]?.trim();
-      if (first) return first.slice(0, 120);
-    } catch (e) {
-      const err = e as { stdout?: string; stderr?: string };
-      const msg = String(err.stdout || err.stderr || '');
-      if (msg.trim()) return msg.split(/\r?\n/)[0]?.trim().slice(0, 120);
+      return {
+        usable: true,
+        version: first ? first.slice(0, 120) : undefined,
+      };
+    } catch {
+      // A file on PATH is not enough to advertise a capability. Broken
+      // wrappers and missing runtime dependencies must fail closed.
     }
   }
-  // Binary exists — treat available without version
-  return undefined;
+  return { usable: false };
 }
 
 function resolveOne(logical: OptionalBinaryName): OptionalBinary {
@@ -137,10 +141,14 @@ function resolveOne(logical: OptionalBinaryName): OptionalBinary {
   for (const n of searchNames) {
     const hits = whichAll(n);
     for (const p of hits) {
-      const version = probeVersion(p, n);
-      // Accept if file exists (probe may fail on some CLI tools that print to stderr only)
-      if (fs.existsSync(p)) {
-        return { name: logical, path: p, available: true, version: version || n };
+      const probe = probeOptionalBinary(p, n);
+      if (probe.usable) {
+        return {
+          name: logical,
+          path: p,
+          available: true,
+          version: probe.version || n,
+        };
       }
     }
   }

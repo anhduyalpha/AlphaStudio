@@ -190,3 +190,83 @@ export function downloadText(filename, text, mime = 'text/plain') {
   a.remove();
   URL.revokeObjectURL(url);
 }
+
+export const COLOR_MODES = Object.freeze([
+  { value: 'picker', label: 'Picker' },
+  { value: 'palette', label: 'Palette' },
+  { value: 'contrast', label: 'Contrast' },
+  { value: 'gradient', label: 'Gradient' },
+  { value: 'image', label: 'Image palette' },
+]);
+
+export const COLOR_IMAGE_OPERATIONS = Object.freeze([
+  { value: 'optimize', label: 'Optimize image', capability: 'image.compress' },
+  { value: 'strip-metadata', label: 'Strip metadata', capability: 'image.strip-metadata' },
+]);
+
+export function isHexColor(value) {
+  return /^#[0-9a-f]{6}$/i.test(String(value || ''));
+}
+
+export function defaultColorForm() {
+  return {
+    colorMode: 'picker',
+    hex: '#9b7cff',
+    foreground: '#f7f8fc',
+    background: '#121727',
+    gradientStart: '#9b7cff',
+    gradientEnd: '#49dbe8',
+    imageOperation: 'optimize',
+    quality: '80',
+  };
+}
+
+export function computeColorLab(form = {}, imagePalette = []) {
+  const colorMode = COLOR_MODES.some((entry) => entry.value === form.colorMode)
+    ? form.colorMode
+    : 'picker';
+  const hex = isHexColor(form.hex) ? form.hex.toLowerCase() : '#9b7cff';
+  const palette = colorMode === 'image'
+    ? imagePalette.filter(isHexColor).slice(0, 16)
+    : paletteFromHex(hex, 5);
+  const foreground = hexToRgb(form.foreground);
+  const background = hexToRgb(form.background);
+  const ratio = foreground && background ? contrastRatio(foreground, background) : null;
+  const gradientStart = isHexColor(form.gradientStart) ? form.gradientStart : '#9b7cff';
+  const gradientEnd = isHexColor(form.gradientEnd) ? form.gradientEnd : '#49dbe8';
+  return {
+    colorMode,
+    hex,
+    rgb: hexToRgb(hex),
+    palette,
+    contrast: {
+      foreground: form.foreground,
+      background: form.background,
+      ratio,
+      grade: contrastGrade(ratio),
+    },
+    gradient: `linear-gradient(135deg, ${gradientStart}, ${gradientEnd})`,
+  };
+}
+
+export function buildColorImageJobOptions(form = {}, uploadIds = []) {
+  const imageOperation = COLOR_IMAGE_OPERATIONS.some((entry) => entry.value === form.imageOperation)
+    ? form.imageOperation
+    : 'optimize';
+  const options = {
+    operation: imageOperation,
+    _mode: 'color',
+    _uploadIds: uploadIds.map(String),
+  };
+  if (imageOperation === 'optimize') {
+    options.format = 'png';
+    options.quality = Math.min(100, Math.max(1, Number(form.quality) || 80));
+  }
+  return options;
+}
+
+export function validateColorImageJob(form = {}, uploadIds = []) {
+  if (form.colorMode !== 'image') return '';
+  if (uploadIds.length !== 1) return 'Select exactly one image for the color workflow.';
+  return '';
+}

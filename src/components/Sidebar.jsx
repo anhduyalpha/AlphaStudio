@@ -1,136 +1,108 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
+import useFocusTrap from '../hooks/useFocusTrap';
+import { brandAssets } from '../assets/registry';
+import Button from './Button';
 import Icon from './Icon';
-import { BrandMark } from './Brand';
+import StatusBadge from './StatusBadge';
 
-function Sidebar({ navigation, route, onNavigate, mobileOpen, onClose, apiOnline = null }) {
-  const groups = [...new Set(navigation.map((item) => item.group))];
-  const asideRef = useRef(null);
-  const previousFocusRef = useRef(null);
-  const healthLabel = apiOnline === true ? 'Local API connected' : apiOnline === false ? 'Local API offline' : 'Local workspace';
-  const healthDetail = apiOnline === true ? 'Health check OK' : apiOnline === false ? 'Start server to process files' : 'Private · localhost';
+export default function Sidebar({
+  navigation = [],
+  currentHref,
+  onNavigate,
+  mobileOpen = false,
+  onClose,
+  activeJobCount = 0,
+  footer,
+  theme = 'dark',
+  className = '',
+}) {
+  const drawerRef = useRef(null);
+  const closeRef = useRef(null);
+  const groups = useMemo(
+    () => [...new Set(navigation.map((item) => item.group || 'Navigation'))],
+    [navigation],
+  );
 
-  useEffect(() => {
-    if (!mobileOpen) return undefined;
-
-    previousFocusRef.current = document.activeElement;
-    const root = asideRef.current;
-
-    const getFocusable = () => {
-      if (!root) return [];
-      return Array.from(
-        root.querySelectorAll(
-          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ),
-      ).filter((el) => el.offsetParent !== null || el === document.activeElement);
-    };
-
-    requestAnimationFrame(() => {
-      const list = getFocusable();
-      list[0]?.focus();
-    });
-
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        onClose?.();
-        return;
-      }
-      if (event.key !== 'Tab' || !root) return;
-      const list = getFocusable();
-      if (list.length === 0) return;
-      const first = list[0];
-      const last = list[list.length - 1];
-      if (event.shiftKey) {
-        if (document.activeElement === first || !root.contains(document.activeElement)) {
-          event.preventDefault();
-          last.focus();
-        }
-      } else if (document.activeElement === last || !root.contains(document.activeElement)) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      const previous = previousFocusRef.current;
-      if (previous && typeof previous.focus === 'function') {
-        try {
-          previous.focus();
-        } catch {
-          /* ignore */
-        }
-      }
-    };
-  }, [mobileOpen, onClose]);
+  useFocusTrap({
+    active: mobileOpen,
+    containerRef: drawerRef,
+    initialFocusRef: closeRef,
+    onEscape: onClose,
+  });
 
   return (
     <>
       <button
-        className={`sidebar-scrim ${mobileOpen ? 'visible' : ''}`}
+        className={['sidebar__scrim', mobileOpen ? 'is-visible' : ''].filter(Boolean).join(' ')}
         type="button"
-        tabIndex={mobileOpen ? 0 : -1}
+        tabIndex={-1}
         aria-label="Close navigation"
-        onClick={onClose}
+        aria-hidden={!mobileOpen}
+        disabled={!mobileOpen}
+        onClick={mobileOpen ? onClose : undefined}
       />
       <aside
         id="studio-sidebar"
-        ref={asideRef}
-        className={`sidebar studio-rail ${mobileOpen ? 'mobile-open' : ''}`}
-        data-testid="studio-rail"
+        ref={drawerRef}
+        className={[
+          'sidebar',
+          mobileOpen ? 'is-mobile-open' : '',
+          className,
+        ].filter(Boolean).join(' ')}
+        aria-label="Primary navigation"
+        role={mobileOpen ? 'dialog' : undefined}
+        aria-modal={mobileOpen ? 'true' : undefined}
+        tabIndex={mobileOpen ? -1 : undefined}
       >
-        <div className="brand-row">
-          <div className="brand-symbol"><BrandMark size={40} /></div>
-          <div>
-            <strong>AlphaStudio</strong>
-            <span>Local utility suite</span>
-          </div>
-          <button className="icon-button sidebar-close" type="button" onClick={onClose} aria-label="Close navigation">
+        <header className="sidebar__brand">
+          <img
+            src={theme === 'light' ? brandAssets.horizontalLight : brandAssets.horizontal}
+            alt="AlphaStudio"
+          />
+          <Button
+            ref={closeRef}
+            className="sidebar__close"
+            variant="icon"
+            size="sm"
+            aria-label="Close navigation"
+            onClick={onClose}
+          >
             <Icon name="close" />
-          </button>
-        </div>
-
-        <div className={`local-status${apiOnline === false ? ' is-offline' : ''}${apiOnline === true ? ' is-online' : ''}`}>
-          <span className="status-dot" aria-hidden="true" />
-          <div>
-            <strong>{healthLabel}</strong>
-            <span>{healthDetail}</span>
-          </div>
-        </div>
-
-        <nav className="sidebar-nav" aria-label="Studio navigation">
+          </Button>
+        </header>
+        {activeJobCount > 0 ? (
+          <StatusBadge tone="live">{activeJobCount} active jobs</StatusBadge>
+        ) : null}
+        <nav className="sidebar__nav" aria-label="Workspace">
           {groups.map((group) => (
-            <div className="nav-group" key={group}>
-              <p>{group}</p>
-              {navigation
-                .filter((item) => item.group === group)
-                .map((item) => (
-                  <button
-                    type="button"
-                    key={item.id}
-                    className={`sidebar-link ${route === item.id ? 'active' : ''}`}
-                    aria-current={route === item.id ? 'page' : undefined}
-                    onClick={() => onNavigate(item.id)}
-                  >
-                    <Icon name={item.icon} size={18} />
-                    <span>{item.label}</span>
-                  </button>
-                ))}
-            </div>
+            <section className="sidebar__group" key={group}>
+              <h2>{group}</h2>
+              <div>
+                {navigation.filter((item) => (item.group || 'Navigation') === group).map((item) => {
+                  const href = item.href || `#/${item.id}`;
+                  const current = currentHref === href;
+                  return (
+                    <a
+                      key={item.id}
+                      className={['sidebar__link', current ? 'is-current' : ''].filter(Boolean).join(' ')}
+                      href={href}
+                      aria-current={current ? 'page' : undefined}
+                      onClick={(event) => {
+                        onNavigate?.(item, event);
+                        if (mobileOpen) onClose?.();
+                      }}
+                    >
+                      <Icon name={item.icon || 'dashboard'} />
+                      <span>{item.label || item.name}</span>
+                    </a>
+                  );
+                })}
+              </div>
+            </section>
           ))}
         </nav>
-
-        <div className="sidebar-footer-card">
-          <div className="mini-alpha"><img src="/avatars/alphad-profile.svg" alt="" width="38" height="38" /></div>
-          <div>
-            <strong>AlphaD Workspace</strong>
-            <span>Private · Localhost</span>
-          </div>
-        </div>
+        {footer ? <footer className="sidebar__footer">{footer}</footer> : null}
       </aside>
     </>
   );
 }
-
-export default React.memo(Sidebar);
