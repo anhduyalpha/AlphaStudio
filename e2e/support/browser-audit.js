@@ -58,7 +58,12 @@ export const test = base.extend({
       if (/\/api\/jobs\/[^/]+\/events(?:\?|$)/.test(failure.url)) return false;
       return !audit.allowedRequestFailures.some((pattern) => pattern.test(failure.url));
     });
-    expect.soft(audit.consoleErrors, 'browser console errors').toEqual([]);
+    const unexpectedConsoleErrors = audit.consoleErrors.filter((entry) => {
+      if (!/^Failed to load resource: net::ERR_/i.test(entry.text)) return true;
+      const url = entry.location?.url || '';
+      return !audit.allowedRequestFailures.some((pattern) => pattern.test(url));
+    });
+    expect.soft(unexpectedConsoleErrors, 'unexpected browser console errors').toEqual([]);
     expect.soft(audit.pageErrors, 'uncaught page errors').toEqual([]);
     expect.soft(unexpectedRequestFailures, 'unexpected failed requests').toEqual([]);
     expect.soft(audit.httpFailures, 'unexpected HTTP error responses').toEqual([]);

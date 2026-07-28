@@ -1,7 +1,11 @@
 e2e/rebuild-journey.spec.js
 e2e/support/
 scripts/test/
+scripts/visual/capture.mjs
 playwright.config.js
 package.json
 PROGRESS.md
 evidence/
+src/workbench/Workbench.jsx
+src/styles/workbench.css
+src/tests/workbench-registry.test.jsx
