@@ -121,6 +121,12 @@ export default function MediaPreviewPanel({ state = {}, dispatch = () => {} }) {
                 type: 'set-duration',
                 value: Number(event.currentTarget.duration) || 0,
               })}
+              onTimeUpdate={(event) => dispatch({
+                type: 'set-playhead',
+                value: event.currentTarget.duration
+                  ? (event.currentTarget.currentTime / event.currentTarget.duration) * 100
+                  : 0,
+              })}
               onError={() => setDecodeError('The browser rejected the video stream')}
             />
           ) : null}
@@ -134,6 +140,12 @@ export default function MediaPreviewPanel({ state = {}, dispatch = () => {} }) {
               onLoadedMetadata={(event) => dispatch({
                 type: 'set-duration',
                 value: Number(event.currentTarget.duration) || 0,
+              })}
+              onTimeUpdate={(event) => dispatch({
+                type: 'set-playhead',
+                value: event.currentTarget.duration
+                  ? (event.currentTarget.currentTime / event.currentTarget.duration) * 100
+                  : 0,
               })}
               onError={() => setDecodeError('The browser rejected the audio stream')}
             />

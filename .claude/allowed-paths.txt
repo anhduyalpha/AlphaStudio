@@ -1,4 +1,5 @@
 src/hubs/media.ts
+src/main.jsx
 src/next/hooks/useMediaWorkbench.js
 src/workbench/panels/MediaPreviewPanel.jsx
 src/workbench/panels/WaveformPanel.jsx
