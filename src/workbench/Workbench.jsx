@@ -272,6 +272,7 @@ function InputRegion({
   onDiscardUpload,
   selectedFileIds,
   onToggleFile,
+  onMoveFile,
   pauseableFileIds,
   onPauseFile,
 }) {
@@ -326,51 +327,74 @@ function InputRegion({
         items={files}
         emptyTitle="No input files"
         emptyDescription="Drop files above or browse from your device."
-        renderItem={(file) => (
-          <FileRow
-            key={file.id}
-            name={file.originalName || file.name}
-            size={file.size}
-            status={file.status === 'processing' ? 'inspecting' : file.status}
-            statusLabel={file.message || undefined}
-            selected={(selectedFileIds || snapshot.selectedFileIds).includes(String(file.id))}
-            progress={file.composedProgress || file.uploadProgress}
-            actions={onRemoveFile || onToggleFile ? (
-              <>
-                {onToggleFile ? (
-                  <label className="workbench-file-select">
-                    <input
-                      type="checkbox"
-                      aria-label={`Select ${file.originalName || file.name}`}
-                      checked={(selectedFileIds || []).includes(String(file.id))}
-                      onChange={() => onToggleFile(file.id)}
-                    />
-                    <span>Select</span>
-                  </label>
-                ) : null}
-                {onPauseFile && pauseableFileIds?.includes(String(file.id)) ? (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => onPauseFile(file)}
-                  >
-                    Pause
-                  </Button>
-                ) : null}
-                {onRemoveFile ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    icon="trash"
-                    onClick={() => onRemoveFile(file)}
-                  >
-                    Remove
-                  </Button>
-                ) : null}
-              </>
-            ) : null}
-          />
-        )}
+        renderItem={(file) => {
+          const index = files.findIndex((item) => String(item.id) === String(file.id));
+          return (
+            <FileRow
+              key={file.id}
+              name={file.originalName || file.name}
+              size={file.size}
+              status={file.status === 'processing' ? 'inspecting' : file.status}
+              statusLabel={file.message || undefined}
+              selected={(selectedFileIds || snapshot.selectedFileIds).includes(String(file.id))}
+              progress={file.composedProgress || file.uploadProgress}
+              actions={onRemoveFile || onToggleFile || onMoveFile ? (
+                <>
+                  {onToggleFile ? (
+                    <label className="workbench-file-select">
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${file.originalName || file.name}`}
+                        checked={(selectedFileIds || []).includes(String(file.id))}
+                        onChange={() => onToggleFile(file.id)}
+                      />
+                      <span>Select</span>
+                    </label>
+                  ) : null}
+                  {onMoveFile && (selectedFileIds || []).includes(String(file.id)) ? (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={index === 0}
+                        onClick={() => onMoveFile(file.id, -1)}
+                      >
+                        Move up
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={index === files.length - 1}
+                        onClick={() => onMoveFile(file.id, 1)}
+                      >
+                        Move down
+                      </Button>
+                    </>
+                  ) : null}
+                  {onPauseFile && pauseableFileIds?.includes(String(file.id)) ? (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => onPauseFile(file)}
+                    >
+                      Pause
+                    </Button>
+                  ) : null}
+                  {onRemoveFile ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon="trash"
+                      onClick={() => onRemoveFile(file)}
+                    >
+                      Remove
+                    </Button>
+                  ) : null}
+                </>
+              ) : null}
+            />
+          );
+        }}
       />
     </div>
   );
@@ -400,7 +424,7 @@ function ConfigureRegion({
   }
   return (
     <div className="workbench-configure-stack">
-      <GroupBoard board={groupBoard} />
+      {groupBoard ? <GroupBoard board={groupBoard} /> : null}
       {options.map((option) => (
         <OptionControl
           key={option.id}
@@ -611,7 +635,8 @@ function ResultsRegion({
             meta={[
               result.outputFormat ? String(result.outputFormat).toUpperCase() : '',
               result.sourceLabel || '',
-            ].filter(Boolean).join(' · ')}
+              result.detail || '',
+            ].filter(Boolean).join(' | ')}
             status={result.status === 'running' ? 'converting' : result.status}
             statusLabel={result.error || result.message || undefined}
             progress={['queued', 'running'].includes(result.status) ? result.progress : undefined}
@@ -690,9 +715,14 @@ export default function Workbench({
   groupBoard,
   pauseableFileIds = [],
   onPauseFile,
+  inputFiles,
+  selectedFileIds,
+  onToggleFile,
+  onMoveFile,
+  onAddInput = noop,
 }) {
   const snapshot = useStore(selectSnapshot);
-  const files = groupBoard ? snapshot.files : selectedWorkbenchFiles(snapshot);
+  const files = inputFiles || (groupBoard ? snapshot.files : selectedWorkbenchFiles(snapshot));
   const selectedMode = mode || hub.modes[0];
   const jobRun = selectedMode.run?.job;
   const resumeJobId = jobRun ? readActiveJobId(hub.id, selectedMode.id) : null;
@@ -706,7 +736,10 @@ export default function Workbench({
   const progress = workbenchProgress(snapshot, attempt.jobIds);
   const capabilityReason = capability.available === false ? capability.reason : '';
   const implementationReason = typeof onRun === 'function' ? '' : 'This mode is not implemented yet.';
-  const inputReason = (selectedMode.input?.kind || 'files') === 'files' && files.length === 0
+  const selectedInputCount = selectedFileIds === undefined
+    ? files.length
+    : selectedFileIds.length;
+  const inputReason = (selectedMode.input?.kind || 'files') === 'files' && selectedInputCount === 0
     ? 'Add at least one file to run.'
     : '';
   const detectionReason = groupBoard && files.length > 0
@@ -743,13 +776,13 @@ export default function Workbench({
         </Banner>
       ) : null}
       {actionError ? (
-        <Banner tone="danger" title="Convert action needs attention" icon={<Icon name="warning" />}>
+        <Banner tone="danger" title={`${hub.name} action needs attention`} icon={<Icon name="warning" />}>
           {actionError}
         </Banner>
       ) : null}
       {unsupportedFiles.length ? (
         <Banner tone="warning" title={`${unsupportedFiles.length} unsupported ${unsupportedFiles.length === 1 ? 'file' : 'files'}`} icon={<Icon name="warning" />}>
-          Remove the unsupported input or upload a repaired version before converting it.
+          Remove the unsupported input or upload a repaired version before running it.
         </Banner>
       ) : null}
       <div className="workbench__workspace">
@@ -766,8 +799,9 @@ export default function Workbench({
             onRemoveFile={onRemoveFile}
             onResumeUpload={onResumeUpload}
             onDiscardUpload={onDiscardUpload}
-            selectedFileIds={groupBoard?.selectedFileIds}
-            onToggleFile={groupBoard?.onToggleFile}
+            selectedFileIds={groupBoard?.selectedFileIds || selectedFileIds}
+            onToggleFile={groupBoard?.onToggleFile || onToggleFile}
+            onMoveFile={onMoveFile}
             pauseableFileIds={pauseableFileIds}
             onPauseFile={onPauseFile}
           />
@@ -797,7 +831,7 @@ export default function Workbench({
             onRemoveResult={onRemoveResult}
             onRemoveBadInput={onRemoveBadInput}
             onRetryHydrate={onRetryHydrate}
-            onAddInput={noop}
+            onAddInput={onAddInput}
           />
         </Card>
       </div>

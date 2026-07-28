@@ -6,5 +6,7 @@ src/next/hooks/usePdfWorkbench.js
 src/workbench/Workbench.jsx
 src/styles/workbench.css
 src/tests/
+server/src/tools/optional-binaries.ts
+server/tests/pdf-optional-binaries.test.ts
 PROGRESS.md
 evidence/

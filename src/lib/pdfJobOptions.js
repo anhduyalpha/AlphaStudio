@@ -10,6 +10,129 @@ export const GATED_OP_IDS = new Set(['to-images', 'ocr', 'compress-advanced', 'r
 /** Ops that may accept an ephemeral PDF password (never persisted by UI) */
 export const PASSWORD_CAPABLE_OPS = new Set();
 
+/**
+ * Presentation metadata only. The server remains authoritative for which
+ * operations exist, their capability ids, cardinality, option keys, output
+ * kinds, and engine policy. Entries absent from the published contract are
+ * never rendered.
+ */
+export const PDF_OPERATION_PRESENTATION = Object.freeze({
+  merge: { label: 'Merge PDFs', group: 'organize', groupLabel: 'Organize' },
+  split: { label: 'Split PDF', group: 'organize', groupLabel: 'Organize' },
+  reorder: { label: 'Reorder pages', group: 'organize', groupLabel: 'Organize' },
+  rotate: { label: 'Rotate pages', group: 'organize', groupLabel: 'Organize' },
+  extract: { label: 'Extract pages', group: 'organize', groupLabel: 'Organize' },
+  'delete-pages': { label: 'Delete pages', group: 'organize', groupLabel: 'Organize' },
+  'duplicate-pages': { label: 'Duplicate pages', group: 'organize', groupLabel: 'Organize' },
+  'from-images': { label: 'Images to PDF', group: 'convert', groupLabel: 'Convert' },
+  'to-images': { label: 'PDF to images', group: 'convert', groupLabel: 'Convert' },
+  'to-text': { label: 'PDF to text', group: 'convert', groupLabel: 'Convert' },
+  'compress-structural': {
+    label: 'Structural optimization',
+    group: 'optimize',
+    groupLabel: 'Optimize',
+  },
+  'compress-advanced': {
+    label: 'Advanced compression',
+    group: 'optimize',
+    groupLabel: 'Optimize',
+  },
+  repair: { label: 'Repair PDF', group: 'optimize', groupLabel: 'Optimize' },
+  inspect: { label: 'Inspect document', group: 'analyze', groupLabel: 'Analyze' },
+  ocr: { label: 'Extract text with OCR', group: 'analyze', groupLabel: 'Analyze' },
+});
+
+export const SUPPORTED_PDF_OPTION_KEYS = Object.freeze(new Set([
+  'splitMode',
+  'pages',
+  'everyN',
+  'groups',
+  'order',
+  'allowDuplicates',
+  'angle',
+  'insertAt',
+  'quality',
+  'format',
+  'dpi',
+  'pageSize',
+  'orientation',
+  'fit',
+  'marginPt',
+  'ocrLang',
+  'ocrPageLimit',
+]));
+
+function isRecord(value) {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Parse the backend-published PDF operation contract and attach presentation
+ * labels. A malformed or unpublished section returns an empty list so the UI
+ * fails closed instead of reviving the old client-side operation catalog.
+ */
+export function publishedPdfOperations(capabilities) {
+  const raw = isRecord(capabilities) && isRecord(capabilities.pdf)
+    ? capabilities.pdf.operations
+    : null;
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((entry) => {
+    if (
+      !isRecord(entry)
+      || typeof entry.id !== 'string'
+      || typeof entry.capability !== 'string'
+      || !isRecord(entry.cardinality)
+      || !Array.isArray(entry.options)
+      || !entry.options.every((key) => typeof key === 'string')
+      || !Array.isArray(entry.outputKinds)
+      || !entry.outputKinds.every((kind) => typeof kind === 'string')
+      || !isRecord(entry.enginePolicy)
+      || !Array.isArray(entry.enginePolicy.engines)
+    ) {
+      return [];
+    }
+    const presentation = PDF_OPERATION_PRESENTATION[entry.id];
+    if (!presentation) return [];
+    const minFiles = Number(entry.cardinality.minFiles);
+    const maxFiles = entry.cardinality.maxFiles == null
+      ? null
+      : Number(entry.cardinality.maxFiles);
+    if (
+      !Number.isFinite(minFiles)
+      || minFiles < 0
+      || (maxFiles !== null && (!Number.isFinite(maxFiles) || maxFiles < minFiles))
+    ) {
+      return [];
+    }
+    return [{
+      id: entry.id,
+      capability: entry.capability,
+      cardinality: { minFiles, maxFiles },
+      options: [...entry.options],
+      outputKinds: [...entry.outputKinds],
+      enginePolicy: {
+        strategy: typeof entry.enginePolicy.strategy === 'string'
+          ? entry.enginePolicy.strategy
+          : '',
+        engines: entry.enginePolicy.engines.map(String),
+        fallback: typeof entry.enginePolicy.fallback === 'string'
+          ? entry.enginePolicy.fallback
+          : '',
+      },
+      ...presentation,
+    }];
+  });
+}
+
+export function unsupportedPdfOptionKeys(operation) {
+  return (operation?.options || []).filter((key) => !SUPPORTED_PDF_OPTION_KEYS.has(key));
+}
+
+export function pdfOperationEngineLabel(operation) {
+  const engines = operation?.enginePolicy?.engines;
+  return Array.isArray(engines) && engines.length ? engines.join(' or ') : 'Engine not published';
+}
+
 /** Best-effort: does a page spec clearly mean every page of a known document? */
 export function isDeleteAllSpec(pagesStr, pageCount) {
   const s = String(pagesStr || '').trim().toLowerCase();
@@ -36,6 +159,7 @@ export function defaultFormStateForOperation(operation) {
     splitGroups: '1-2;3-4',
     ocr: false,
     ocrLang: 'eng',
+    ocrPageLimit: '50',
     pageSize: 'fit-to-image',
     orientation: 'auto',
     fit: 'contain',
@@ -97,13 +221,14 @@ export function validatePdfClient(p) {
     return 'Merge requires at least two PDF files (reorder them in the list if needed)';
   }
   if (
-    opMeta.needsPages &&
-    (operation === 'extract' || operation === 'delete-pages' || operation === 'duplicate-pages')
+    operation === 'extract'
+    || operation === 'delete-pages'
+    || operation === 'duplicate-pages'
   ) {
     if (!effectivePages) return 'Page selection is required for this operation';
   }
   if (operation === 'delete-pages' && isDeleteAllSpec(effectivePages, editPlan?.pageCount)) {
-    return 'Cannot delete all pages — the result would be an empty PDF';
+    return 'Cannot delete all pages - the result would be an empty PDF';
   }
   if (operation === 'reorder' && !effectiveOrder) {
     return 'Page order is required (e.g. 3,1,2)';
@@ -139,6 +264,7 @@ export function buildPdfJobOptions(p) {
     splitGroups = '',
     ocr = false,
     ocrLang = 'eng',
+    ocrPageLimit = '50',
     pageSize = 'fit-to-image',
     orientation = 'auto',
     fit = 'contain',
@@ -213,6 +339,10 @@ export function buildPdfJobOptions(p) {
   if (operation === 'ocr') {
     options.ocr = true;
     options.ocrLang = ocrLang || 'eng';
+    options.ocrPageLimit = Math.max(
+      1,
+      Math.min(200, Math.round(Number(ocrPageLimit)) || 50),
+    );
     if (pageSpec) options.pages = pageSpec;
   }
 
@@ -235,6 +365,119 @@ export function buildPdfJobOptions(p) {
     if (options[k] === undefined || options[k] === '') delete options[k];
   });
   return options;
+}
+
+function requiredText(value, label) {
+  const normalized = String(value || '').trim();
+  if (!normalized) throw new Error(`${label} is required`);
+  return normalized;
+}
+
+/**
+ * Build one immutable PDF job attempt. Upload order is intentionally retained
+ * in options so retrying merge/from-images preserves the submitted order.
+ */
+export function buildPdfJobRequest({
+  workspaceId,
+  uploadIds = [],
+  clientRequestId,
+  operation,
+  form = {},
+  opMeta = {},
+}) {
+  const workspace = requiredText(workspaceId, 'Workspace');
+  const requestId = requiredText(clientRequestId, 'Client request id');
+  const ids = [...new Set(uploadIds.map(String).filter(Boolean))];
+  if (!ids.length) throw new Error('At least one PDF input is required');
+  const options = {
+    ...buildPdfJobOptions({ ...form, operation, opMeta }),
+    _uploadIds: ids,
+  };
+  return {
+    type: 'pdf',
+    workspaceId: workspace,
+    uploadIds: ids,
+    clientRequestId: requestId,
+    options,
+  };
+}
+
+export function buildPdfRetryRequest({ workspaceId, job, clientRequestId }) {
+  if (!job || job.type !== 'pdf' || job.status !== 'failed') {
+    throw new Error('Only a failed PDF job can be retried');
+  }
+  const uploadIds = job.options?._uploadIds || job.options?.uploadIds || [];
+  return buildPdfJobRequest({
+    workspaceId,
+    uploadIds,
+    clientRequestId,
+    operation: job.options?.operation,
+    form: job.options,
+  });
+}
+
+function extensionOf(name) {
+  const match = String(name || '').toLowerCase().match(/\.([a-z0-9]+)$/);
+  return match ? match[1] : '';
+}
+
+/**
+ * Join persisted PDF jobs with workspace outputs for the canonical Results
+ * rail. Jobs without an output remain visible for progress and recovery.
+ */
+export function buildPdfResultRows({ jobs = [], outputs = [], files = [] } = {}) {
+  const fileNames = new Map(files.map((file) => [
+    String(file.id),
+    file.originalName || file.name || String(file.id),
+  ]));
+  const pdfJobs = jobs.filter((job) => job?.type === 'pdf');
+  const jobsById = new Map(pdfJobs.map((job) => [String(job.id), job]));
+  const outputRows = outputs.flatMap((output) => {
+    const job = jobsById.get(String(output.jobId || ''));
+    if (!job) return [];
+    const sourceNames = (job.options?._uploadIds || [])
+      .map((id) => fileNames.get(String(id)))
+      .filter(Boolean);
+    const operation = PDF_OPERATION_PRESENTATION[job.options?.operation];
+    return [{
+      ...output,
+      id: String(output.id),
+      outputId: String(output.id),
+      jobId: String(job.id),
+      name: output.name || job.outputName || 'PDF output',
+      outputName: output.name || job.outputName || 'PDF output',
+      outputFormat: extensionOf(output.name) || extensionOf(job.outputName),
+      sourceLabel: sourceNames.join(', ') || operation?.label || 'PDF operation',
+      status: job.status === 'completed' ? 'completed' : job.status,
+      progress: job.progress,
+      options: job.options,
+      createdAt: output.createdAt || job.createdAt,
+      downloadUrl: output.downloadUrl || job.downloadUrl,
+      meta: job.meta,
+      detail: describeJobMeta(job).join(' | '),
+    }];
+  });
+  const jobsWithOutputs = new Set(outputRows.map((row) => row.jobId));
+  const jobRows = pdfJobs
+    .filter((job) => !jobsWithOutputs.has(String(job.id)))
+    .map((job) => {
+      const sourceNames = (job.options?._uploadIds || [])
+        .map((id) => fileNames.get(String(id)))
+        .filter(Boolean);
+      const operation = PDF_OPERATION_PRESENTATION[job.options?.operation];
+      return {
+        ...job,
+        id: String(job.id),
+        jobId: String(job.id),
+        name: job.outputName || operation?.label || 'PDF operation',
+        outputFormat: extensionOf(job.outputName),
+        sourceLabel: sourceNames.join(', ') || operation?.label || 'PDF operation',
+        detail: describeJobMeta(job).join(' | '),
+      };
+    });
+  return [...outputRows, ...jobRows].sort((a, b) => (
+    Date.parse(b.createdAt || '') - Date.parse(a.createdAt || '')
+  ));
 }
 
 /** Format bytes for result cards */
