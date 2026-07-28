@@ -38,7 +38,7 @@ and the visual-judge subagent. Nothing waits on human review during the run.)
 | 21 | E7 | Security & Archive hub | done | unit-21-e7-security-archive-hub | fc01f6e | 14 | capability-driven security and archive workflows |
 | 22 | E8 | Utilities hub | done | unit-22-e8-utilities-hub | 683e498 | 14 | dual local+job run shape |
 | 23 | V1 | Home view + ResumeStrip placements | done | unit-23-v1-home-resume-strip | 88dd18d | 5,10,13 | |
-| 24 | V2 | Activity view | todo | — | — | 9,13 | |
+| 24 | V2 | Activity view | in-progress | unit-24-v2-activity-view | — | 9,13 | |
 | 25 | V3 | Settings + Profile views | todo | — | — | 9,13 | deferred-decision: density ships inert (SPEC §8.2) |
 | 26 | F0 | Motion system | todo | — | — | 9,10,11,13,14,15,16,17,18,19,20,21,22,23,24,25 | deferred-decision: ambient beyond ambient-1 excluded (SPEC §8.1) |
 | 27 | F2 | E2E acceptance gate | todo | — | — | 2,5,6,12,13,15,26 | runs locally only (CI has no e2e/external tools); must be green on flag build before F1 |
