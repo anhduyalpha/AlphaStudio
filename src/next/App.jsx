@@ -39,6 +39,7 @@ import useTextDevWorkbench from './hooks/useTextDevWorkbench.js';
 import useSecurityArchiveWorkbench from './hooks/useSecurityArchiveWorkbench.js';
 import useUtilitiesWorkbench from './hooks/useUtilitiesWorkbench.js';
 import usePdfWorkbench from './hooks/usePdfWorkbench.js';
+import Home from './views/Home.jsx';
 
 const AssetGallery = import.meta.env.DEV
   ? lazy(() => import('./views/AssetGallery.jsx'))
@@ -295,6 +296,8 @@ export default function App() {
             <Suspense fallback={<Skeleton variant="row" lines={6} label="Loading Asset Gallery" />}>
               <AssetGallery theme={theme} />
             </Suspense>
+          ) : route.id === 'home' ? (
+            <Home />
           ) : route.kind === 'hub' ? (
             <Workbench
               hub={route.hub}

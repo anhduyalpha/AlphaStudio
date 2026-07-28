@@ -1,12 +1,6 @@
-src/hubs/utilities.ts
-src/lib/qrJobOptions.js
-src/lib/colorPalette.js
-src/lib/clipboardImage.js
 src/next/App.jsx
-src/next/hooks/useUtilitiesWorkbench.js
-src/workbench/panels/QrDesignerPanel.jsx
-src/workbench/panels/ColorLabPanel.jsx
-src/styles/workbench.css
+src/next/views/Home.jsx
+src/styles/views.css
 src/tests/
 PROGRESS.md
 evidence/
