@@ -1,7 +1,8 @@
-src/next/App.jsx
-src/next/views/Settings.jsx
-src/next/views/Profile.jsx
+src/styles/motion.css
+src/styles/primitives.css
+src/styles/workbench.css
 src/styles/views.css
+src/hooks/useMotionPreference.js
 src/tests/
 PROGRESS.md
 evidence/
