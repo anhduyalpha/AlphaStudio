@@ -35,6 +35,7 @@ import { recoverUploadSessions } from '../protocol/uploads';
 import Workbench from '../workbench/Workbench.jsx';
 import useConvertWorkbench from './hooks/useConvertWorkbench.js';
 import useMediaWorkbench from './hooks/useMediaWorkbench.js';
+import useTextDevWorkbench from './hooks/useTextDevWorkbench.js';
 import usePdfWorkbench from './hooks/usePdfWorkbench.js';
 
 const AssetGallery = import.meta.env.DEV
@@ -221,6 +222,7 @@ export default function App() {
   const convertEnabled = route.kind === 'hub' && route.id === 'convert';
   const pdfEnabled = route.kind === 'hub' && route.id === 'pdf';
   const mediaEnabled = route.kind === 'hub' && route.id === 'media';
+  const textDevEnabled = route.kind === 'hub' && route.id === 'text';
   const convertController = useConvertWorkbench({
     enabled: convertEnabled,
     mode: convertEnabled ? mode : null,
@@ -233,12 +235,18 @@ export default function App() {
     enabled: mediaEnabled,
     mode: mediaEnabled ? mode : null,
   });
+  const textDevController = useTextDevWorkbench({
+    enabled: textDevEnabled,
+    mode: textDevEnabled ? mode : null,
+  });
   const workbenchController = route.kind === 'hub' && route.id === 'convert'
     ? convertController
     : route.kind === 'hub' && route.id === 'pdf'
       ? pdfController
       : route.kind === 'hub' && route.id === 'media'
         ? mediaController
+        : route.kind === 'hub' && route.id === 'text'
+          ? textDevController
         : {};
   const subtitle = route.kind === 'hub'
     ? (mode?.name || 'Studio')
