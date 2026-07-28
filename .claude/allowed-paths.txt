@@ -3,6 +3,7 @@ src/lib/convertJobOptions.js
 src/lib/converterGroups.js
 src/next/App.jsx
 src/next/hooks/useConvertWorkbench.js
+src/protocol/store.ts
 src/workbench/Workbench.jsx
 src/styles/workbench.css
 src/tests/

@@ -55,9 +55,16 @@ describe('D3 lazy panel registry', () => {
 
 describe('D3 hub reference validation', () => {
   it('accepts the D1 route-only stubs until their E units fill the config fields', () => {
-    for (const hub of hubRegistry) {
+    const routeOnlyStubs = hubRegistry.filter((hub) => hub.modes.every((mode) => (
+      !mode.capabilityIds
+      && !mode.input
+      && !mode.panels
+      && !mode.run
+    )));
+    for (const hub of routeOnlyStubs) {
       expect(validateHubReferences(hub), hub.id).toEqual([]);
     }
+    expect(routeOnlyStubs.map((hub) => hub.id)).not.toContain('convert');
   });
 
   it('validates every normative reference family through injected resolvers', () => {
@@ -122,6 +129,7 @@ describe('D3 canonical Workbench flow', () => {
     });
     expect(pdf.jobs.map((job) => job.id)).toEqual(['pdf-job']);
     expect(pdf.activeJobs).toEqual([]);
+    expect(pdf.failedJobs.map((job) => job.id)).toEqual(['pdf-job']);
     expect(pdf.failedJob?.id).toBe('pdf-job');
     expect(pdf.outputs.map((output) => output.id)).toEqual(['pdf-output']);
 
@@ -133,6 +141,7 @@ describe('D3 canonical Workbench flow', () => {
       jobIds: [],
       jobs: [],
       activeJobs: [],
+      failedJobs: [],
       failedJob: null,
       outputs: [],
     });

@@ -23,6 +23,7 @@
 // boundary contracts.ts uses; the shape is re-declared so nothing sees `any`.
 // @ts-expect-error TS7016: untyped JS module, intentionally so.
 import { api as untypedApi } from '../api/client.js';
+import { connectWorkspaceEvents } from './events.js';
 
 const client = untypedApi as {
   recoverWorkspace: (body: { id?: string; route?: string }) => Promise<unknown>;
@@ -55,6 +56,32 @@ const TERMINAL_JOB_STATUSES = new Set(['completed', 'failed', 'cancelled']);
 
 export function isTerminalStatus(status: string | null | undefined): boolean {
   return TERMINAL_JOB_STATUSES.has(String(status || ''));
+}
+
+/**
+ * Own the sole workspace-event subscription at the same boundary that owns
+ * every state write. UI layers only manage this handle's React lifecycle.
+ */
+export function connectWorkspaceStore(workspaceId: string): { close: () => void } {
+  return connectWorkspaceEvents(workspaceId, {
+    onEvent: (event) => {
+      applyEvent(event);
+      const candidate = event && typeof event === 'object' && 'job' in event
+        ? (event as { job?: unknown }).job
+        : event;
+      const job = candidate && typeof candidate === 'object'
+        ? candidate as { status?: string | null }
+        : null;
+      if (isTerminalStatus(job?.status)) {
+        // Output rows are registered immediately before the terminal envelope.
+        // Hydration brings that authoritative row into the same store snapshot.
+        void hydrate();
+      }
+    },
+    onResync: () => {
+      void hydrate();
+    },
+  });
 }
 
 /* ---------------------------------------------------------------- *
