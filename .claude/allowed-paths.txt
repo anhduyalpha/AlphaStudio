@@ -1,11 +1,10 @@
-e2e/rebuild-journey.spec.js
-e2e/support/
+docs/plans/UNIT-F1.md
+e2e/
+server/tests/
 scripts/test/
-scripts/visual/capture.mjs
+scripts/visual/
 playwright.config.js
 package.json
 PROGRESS.md
 evidence/
-src/workbench/Workbench.jsx
-src/styles/workbench.css
-src/tests/workbench-registry.test.jsx
+src/
