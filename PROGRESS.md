@@ -36,7 +36,7 @@ and the visual-judge subagent. Nothing waits on human review during the run.)
 | 19 | E5 | Media editor panels | done | unit-19-e5-media-editors | ca6d729 | 18 | evidence/unit-19.md; decoded waveform + linked trim timeline + capability preload verified; 451 client tests green |
 | 20 | E6 | Text & Dev hub | done | unit-20-e6-text-dev-hub | 5401c22 | 14 | config-driven text/editor/OCR/dev workflows |
 | 21 | E7 | Security & Archive hub | done | unit-21-e7-security-archive-hub | fc01f6e | 14 | capability-driven security and archive workflows |
-| 22 | E8 | Utilities hub | todo | — | — | 14 | dual local+job run shape |
+| 22 | E8 | Utilities hub | in-progress | unit-22-e8-utilities-hub | — | 14 | dual local+job run shape |
 | 23 | V1 | Home view + ResumeStrip placements | todo | — | — | 5,10,13 | |
 | 24 | V2 | Activity view | todo | — | — | 9,13 | |
 | 25 | V3 | Settings + Profile views | todo | — | — | 9,13 | deferred-decision: density ships inert (SPEC §8.2) |
