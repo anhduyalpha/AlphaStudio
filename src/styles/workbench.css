@@ -78,10 +78,12 @@
   flex: 1 1 auto;
 }
 
+.workbench__input .file-row,
 .workbench__results .file-row {
   grid-template-columns: auto minmax(0, 1fr);
 }
 
+.workbench__input .file-row__actions,
 .workbench__results .file-row__actions {
   grid-column: 1 / -1;
   flex-wrap: wrap;
