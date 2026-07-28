@@ -1,9 +1,10 @@
-src/hubs/media.ts
-src/main.jsx
-src/next/hooks/useMediaWorkbench.js
-src/workbench/panels/MediaPreviewPanel.jsx
-src/workbench/panels/WaveformPanel.jsx
-src/workbench/panels/TimelinePanel.jsx
+src/hubs/textdev.ts
+src/lib/textJobOptions.js
+src/lib/textDiff.js
+src/next/App.jsx
+src/next/hooks/useTextDevWorkbench.js
+src/workbench/panels/DiffPanel.jsx
+src/workbench/panels/ComparePanel.jsx
 src/styles/workbench.css
 src/tests/
 PROGRESS.md
