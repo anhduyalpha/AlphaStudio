@@ -99,21 +99,27 @@ ol {
 a {
   color: var(--accent);
   text-decoration: none;
-  transition: color var(--duration-fast) var(--ease-standard);
+  transition:
+    color var(--duration-fast) var(--ease-standard),
+    outline-color var(--duration-fast) var(--ease-standard);
 }
 
 a:hover {
   color: var(--accent-hover);
 }
 
-/* Focus is interaction, so the ring is accent-family (§4.2) */
-:focus-visible {
-  outline: 2px solid var(--focus-ring);
+/* Focus is interaction: a transparent ring fades to the accent family (§4.2/§5.3). */
+:where(a, button, input, select, textarea, [tabindex]) {
+  outline: 2px solid transparent;
   outline-offset: 2px;
 }
 
+:focus-visible {
+  outline-color: var(--focus-ring);
+}
+
 :focus:not(:focus-visible) {
-  outline: none;
+  outline-color: transparent;
 }
 
 ::selection {

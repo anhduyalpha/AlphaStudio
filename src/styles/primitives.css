@@ -28,11 +28,11 @@
   cursor: pointer;
   touch-action: manipulation;
   transition:
-    background var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard),
     border-color var(--duration-fast) var(--ease-standard),
-    box-shadow var(--duration-fast) var(--ease-standard),
     color var(--duration-fast) var(--ease-standard),
-    opacity var(--duration-fast) var(--ease-standard);
+    opacity var(--duration-fast) var(--ease-standard),
+    outline-color var(--duration-fast) var(--ease-standard);
 }
 
 .button:hover:not(:disabled) {
@@ -183,9 +183,9 @@
   color: var(--text);
   font: var(--text-body);
   transition:
-    background var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard),
     border-color var(--duration-fast) var(--ease-standard),
-    box-shadow var(--duration-fast) var(--ease-standard);
+    outline-color var(--duration-fast) var(--ease-standard);
 }
 
 .field__control::placeholder {
@@ -198,7 +198,7 @@
 
 .field__control:focus-visible {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-soft);
+  outline-color: var(--focus-ring);
 }
 
 .field.has-error .field__control {
@@ -261,9 +261,9 @@ textarea.field__control {
   border-radius: var(--radius-xs);
   background: var(--surface-2);
   transition:
-    background var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard),
     border-color var(--duration-fast) var(--ease-standard),
-    box-shadow var(--duration-fast) var(--ease-standard);
+    outline-color var(--duration-fast) var(--ease-standard);
 }
 
 .field__checkbox-box::after {
@@ -314,6 +314,7 @@ textarea.field__control {
   text-align: left;
   cursor: pointer;
   touch-action: manipulation;
+  transition: outline-color var(--duration-fast) var(--ease-standard);
 }
 
 .toggle:hover:not(:disabled) .toggle__track {
@@ -348,7 +349,7 @@ textarea.field__control {
   border-radius: var(--radius-pill);
   background: var(--surface-2);
   transition:
-    background var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard),
     border-color var(--duration-fast) var(--ease-standard);
 }
 
@@ -362,7 +363,7 @@ textarea.field__control {
   background: var(--text-2);
   box-shadow: var(--shadow-1);
   transition:
-    background var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard),
     transform var(--duration-fast) var(--ease-out);
 }
 
@@ -405,10 +406,11 @@ textarea.field__control {
   cursor: pointer;
   touch-action: manipulation;
   transition:
-    background var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard),
     border-color var(--duration-fast) var(--ease-standard),
     color var(--duration-fast) var(--ease-standard),
-    opacity var(--duration-fast) var(--ease-standard);
+    opacity var(--duration-fast) var(--ease-standard),
+    outline-color var(--duration-fast) var(--ease-standard);
 }
 
 .tabs__tab:hover:not(:disabled) {
@@ -426,8 +428,7 @@ textarea.field__control {
 }
 
 .tabs__tab:focus-visible {
-  outline: none;
-  box-shadow: inset 0 0 0 2px var(--focus-ring);
+  outline-color: var(--focus-ring);
 }
 
 .tabs--underline .tabs__list {
@@ -506,7 +507,7 @@ textarea.field__control {
 }
 
 .status-badge--live .status-badge__dot {
-  animation: primitive-pulse var(--duration-ambient) var(--ease-in-out) infinite;
+  opacity: 1;
 }
 
 .status-badge--success {
@@ -553,9 +554,9 @@ textarea.field__control {
   cursor: pointer;
   touch-action: manipulation;
   transition:
-    background var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard),
     border-color var(--duration-fast) var(--ease-standard),
-    box-shadow var(--duration-fast) var(--ease-standard);
+    outline-color var(--duration-fast) var(--ease-standard);
 }
 
 .card.is-interactive:hover {
@@ -805,29 +806,6 @@ textarea.field__control {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .button,
-  .field__control,
-  .field__checkbox-box,
-  .toggle__track,
-  .toggle__thumb,
-  .tabs__tab,
-  .card.is-interactive {
-    transition: none;
-  }
-
-  .button__spinner,
-  .status-badge--live .status-badge__dot,
-  .skeleton::after {
-    animation: none;
-  }
-
-  .button__spinner {
-    border-right-color: currentColor;
-    opacity: 0.58;
-  }
-}
-
 /* File and flow primitives — SPEC §4.4 / C3. */
 
 .dropzone {
@@ -845,7 +823,8 @@ textarea.field__control {
     background-color var(--duration-fast) var(--ease-standard),
     border-color var(--duration-fast) var(--ease-standard),
     opacity var(--duration-fast) var(--ease-standard),
-    transform var(--duration-fast) var(--ease-standard);
+    transform var(--duration-fast) var(--ease-standard),
+    outline-color var(--duration-fast) var(--ease-standard);
 }
 
 .dropzone.is-empty {
@@ -946,7 +925,8 @@ textarea.field__control {
   transition:
     background-color var(--duration-fast) var(--ease-standard),
     border-color var(--duration-fast) var(--ease-standard),
-    opacity var(--duration-fast) var(--ease-standard);
+    opacity var(--duration-fast) var(--ease-standard),
+    outline-color var(--duration-fast) var(--ease-standard);
 }
 
 .file-row:hover:not(.is-disabled) {
@@ -1333,53 +1313,6 @@ textarea.field__control {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .dropzone,
-  .file-row,
-  .progress-bar__fill {
-    transition: none;
-  }
-
-  .progress-bar--indeterminate .progress-bar__fill {
-    width: 100%;
-    opacity: 0.46;
-    transform: none;
-    animation: none;
-    background: repeating-linear-gradient(
-      135deg,
-      var(--live-soft),
-      var(--live-soft) var(--space-2),
-      var(--live) var(--space-2),
-      var(--live) var(--space-4)
-    );
-  }
-
-  .toast {
-    animation: none;
-  }
-}
-
-html[data-motion='reduced'] .button__spinner,
-html[data-motion='reduced'] .status-badge--live .status-badge__dot,
-html[data-motion='reduced'] .skeleton::after,
-html[data-motion='reduced'] .progress-bar--indeterminate .progress-bar__fill,
-html[data-motion='reduced'] .toast {
-  animation: none;
-}
-
-html[data-motion='reduced'] .progress-bar--indeterminate .progress-bar__fill {
-  width: 100%;
-  opacity: 0.46;
-  transform: none;
-  background: repeating-linear-gradient(
-    135deg,
-    var(--live-soft),
-    var(--live-soft) var(--space-2),
-    var(--live) var(--space-2),
-    var(--live) var(--space-4)
-  );
-}
-
 /* Overlay and chrome primitives — SPEC §4.3, §4.4 and §4.7 / C4. */
 
 .sr-only {
@@ -1586,7 +1519,8 @@ html[data-motion='reduced'] .progress-bar--indeterminate .progress-bar__fill {
   transition:
     background-color var(--duration-fast) var(--ease-standard),
     border-color var(--duration-fast) var(--ease-standard),
-    color var(--duration-fast) var(--ease-standard);
+    color var(--duration-fast) var(--ease-standard),
+    outline-color var(--duration-fast) var(--ease-standard);
 }
 
 .command-palette__results > button:hover,
@@ -1629,6 +1563,15 @@ html[data-motion='reduced'] .progress-bar--indeterminate .progress-bar__fill {
 
 .sidebar__scrim {
   z-index: calc(var(--z-drawer) - 1);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-slow) var(--ease-standard);
+}
+
+.sidebar__scrim.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transition-duration: var(--duration-base);
 }
 
 .sidebar__brand {
@@ -1693,7 +1636,8 @@ html[data-motion='reduced'] .progress-bar--indeterminate .progress-bar__fill {
   transition:
     background-color var(--duration-fast) var(--ease-standard),
     border-color var(--duration-fast) var(--ease-standard),
-    color var(--duration-fast) var(--ease-standard);
+    color var(--duration-fast) var(--ease-standard),
+    outline-color var(--duration-fast) var(--ease-standard);
 }
 
 .sidebar__link:hover {
@@ -1779,6 +1723,10 @@ html[data-motion='reduced'] .progress-bar--indeterminate .progress-bar__fill {
   border-radius: var(--radius-pill);
   background: var(--surface-2);
   color: var(--text-2);
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard),
+    outline-color var(--duration-fast) var(--ease-standard);
 }
 
 .topbar__profile:hover {
@@ -1805,19 +1753,21 @@ html[data-motion='reduced'] .progress-bar--indeterminate .progress-bar__fill {
 @media (max-width: 900px) {
   .sidebar {
     z-index: var(--z-drawer);
-    visibility: hidden;
     border-color: var(--glass-border);
+    pointer-events: none;
     transform: translateX(-100%);
-    transition: transform var(--duration-base) var(--ease-out);
+    transition: transform var(--duration-slow) var(--ease-standard);
   }
 
   .sidebar.is-mobile-open {
-    visibility: visible;
     background: var(--glass-bg);
     backdrop-filter: blur(var(--glass-blur));
     border: 1px solid var(--glass-border);
     box-shadow: var(--shadow-1);
+    pointer-events: auto;
     transform: translateX(0);
+    transition-duration: var(--duration-base);
+    transition-timing-function: var(--ease-out);
   }
 
   .sidebar__close,
@@ -1876,20 +1826,4 @@ html[data-motion='reduced'] .progress-bar--indeterminate .progress-bar__fill {
     height: 40px;
     min-height: 40px;
   }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .skip-link,
-  .sidebar,
-  .modal__surface {
-    transition: none;
-    animation: none;
-  }
-}
-
-html[data-motion='reduced'] .skip-link,
-html[data-motion='reduced'] .sidebar,
-html[data-motion='reduced'] .modal__surface {
-  transition: none;
-  animation: none;
 }

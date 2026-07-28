@@ -32,15 +32,15 @@ export default function Sidebar({
 
   return (
     <>
-      {mobileOpen ? (
-        <button
-          className="sidebar__scrim"
-          type="button"
-          tabIndex={-1}
-          aria-label="Close navigation"
-          onClick={onClose}
-        />
-      ) : null}
+      <button
+        className={['sidebar__scrim', mobileOpen ? 'is-visible' : ''].filter(Boolean).join(' ')}
+        type="button"
+        tabIndex={-1}
+        aria-label="Close navigation"
+        aria-hidden={!mobileOpen}
+        disabled={!mobileOpen}
+        onClick={mobileOpen ? onClose : undefined}
+      />
       <aside
         id="studio-sidebar"
         ref={drawerRef}
