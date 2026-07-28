@@ -124,6 +124,10 @@ describe('D1 client entry and pre-paint bootstrap', () => {
   it('loads the old and next clients from mutually exclusive flag branches', () => {
     const source = fs.readFileSync(MAIN, 'utf8');
     expect(source).toContain("import.meta.env.VITE_UI === 'next'");
+    expect(source).toContain("await import('./protocol/contracts')");
+    expect(source).toContain('await contracts.loadContracts()');
+    expect(source.indexOf('await contracts.loadContracts()'))
+      .toBeLessThan(source.indexOf("return import('./next/App')"));
     expect(source).toContain("return import('./next/App')");
     expect(source).toContain("import('./styles.css')");
     expect(source).toContain("import('./animations/index.css')");

@@ -20,7 +20,7 @@ const mediaHub = {
           optionsFrom: 'media.video.operations',
         },
       ],
-      panels: ['media-preview'],
+      panels: ['media-preview', 'timeline'],
       run: {
         label: 'Run video job',
         job: {
@@ -47,7 +47,7 @@ const mediaHub = {
           optionsFrom: 'media.audio.operations',
         },
       ],
-      panels: ['media-preview'],
+      panels: ['media-preview', 'waveform', 'timeline'],
       run: {
         label: 'Run audio job',
         job: {

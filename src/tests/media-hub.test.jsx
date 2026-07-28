@@ -18,6 +18,8 @@ import {
 } from '../lib/imageCrop.js';
 import MediaPreviewPanel from '../workbench/panels/MediaPreviewPanel.jsx';
 import CropPanel from '../workbench/panels/CropPanel.jsx';
+import TimelinePanel, { normalizeTimelineRange } from '../workbench/panels/TimelinePanel.jsx';
+import WaveformPanel, { waveformPeaks } from '../workbench/panels/WaveformPanel.jsx';
 import { getPanelLoader, validateHubReferences } from '../workbench/registry.jsx';
 
 const CONTROLLER_SOURCE = readFileSync(
@@ -46,10 +48,13 @@ describe('E4 Media Studio config', () => {
     expect(mediaHub.modes.map((mode) => mode.id)).toEqual(['video', 'audio', 'image']);
     expect(mediaHub.modes[0]).toMatchObject({
       input: { kind: 'files', multiple: false, acceptFromJob: 'media' },
-      panels: ['media-preview'],
+      panels: ['media-preview', 'timeline'],
       run: { job: { jobType: 'media', buildOptions: 'buildMediaJobOptions' } },
     });
-    expect(mediaHub.modes[1].run.job.jobType).toBe('audio');
+    expect(mediaHub.modes[1]).toMatchObject({
+      panels: ['media-preview', 'waveform', 'timeline'],
+      run: { job: { jobType: 'audio' } },
+    });
     expect(mediaHub.modes[2]).toMatchObject({
       panels: ['media-preview', 'crop'],
       run: { job: { jobType: 'image' } },
@@ -62,13 +67,22 @@ describe('E4 Media Studio config', () => {
       hasAcceptList: () => false,
       hasBuilder: (id) => id === 'buildMediaJobOptions',
       hasCompute: () => false,
-      hasPanel: (id) => ['media-preview', 'crop'].includes(id),
+      hasPanel: (id) => ['media-preview', 'crop', 'waveform', 'timeline'].includes(id),
     })).toEqual([]);
     expect(getPanelLoader('media-preview', {
       './panels/MediaPreviewPanel.jsx': () => Promise.resolve({ default: MediaPreviewPanel }),
     })).toBeTypeOf('function');
     expect(getPanelLoader('crop', {
       './panels/CropPanel.jsx': () => Promise.resolve({ default: CropPanel }),
+    })).toBeTypeOf('function');
+  });
+
+  it('resolves the editor panel modules added after the media foundation', () => {
+    expect(getPanelLoader('waveform', {
+      './panels/WaveformPanel.jsx': () => Promise.resolve({ default: WaveformPanel }),
+    })).toBeTypeOf('function');
+    expect(getPanelLoader('timeline', {
+      './panels/TimelinePanel.jsx': () => Promise.resolve({ default: TimelinePanel }),
     })).toBeTypeOf('function');
   });
 
@@ -234,5 +248,47 @@ describe('E4 media panel states and layering', () => {
     expect(CROP_SOURCE).toContain('clientToNatural');
     expect(PREVIEW_SOURCE).toContain('onError');
     expect(PREVIEW_SOURCE).toContain('This media cannot be decoded in the browser');
+  });
+});
+
+describe('E5 waveform and timeline editors', () => {
+  it('reduces decoded samples into bounded waveform peaks', () => {
+    const samples = Float32Array.from([0, 0.2, -0.8, 0.1, 0.5, -0.1, 0.3, 1]);
+    const peaks = waveformPeaks(samples, 8);
+    expect(peaks).toHaveLength(8);
+    expect(peaks.every((peak) => peak >= 0.08 && peak <= 1)).toBe(true);
+    expect(Math.max(...peaks)).toBe(1);
+  });
+
+  it('clamps timeline start/end/duration to the decoded media duration', () => {
+    expect(normalizeTimelineRange({
+      total: 10,
+      start: 9.98,
+      duration: 4,
+    })).toEqual({
+      total: 10,
+      start: 9.95,
+      end: 10,
+      duration: 0.05,
+    });
+    expect(normalizeTimelineRange({ total: 0, start: -2, duration: 0 }))
+      .toEqual({ total: 10, start: 0, end: 10, duration: 10 });
+  });
+
+  it('renders waveform fallback entry and an accessible trim timeline', () => {
+    const waveform = renderToStaticMarkup(
+      <WaveformPanel state={{ visible: true }} />,
+    );
+    const timeline = renderToStaticMarkup(
+      <TimelinePanel
+        state={{ visible: true, total: 12, start: 2, duration: 4 }}
+        dispatch={() => {}}
+      />,
+    );
+    expect(waveform).toContain('Waveform waiting for audio');
+    expect(timeline).toContain('Trim selection');
+    expect(timeline).toContain('4.00s selected');
+    expect(timeline).toContain('aria-label="Trim start"');
+    expect(timeline).toContain('aria-label="Trim end"');
   });
 });

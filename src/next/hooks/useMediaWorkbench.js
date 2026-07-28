@@ -217,6 +217,7 @@ export default function useMediaWorkbench({ enabled, mode }) {
   const [previewRetry, setPreviewRetry] = useState(0);
   const [preview, setPreview] = useState({ status: 'idle', file: null, error: '' });
   const [duration, setDuration] = useState(0);
+  const [playhead, setPlayhead] = useState(0);
   const [dimensions, setDimensions] = useState(null);
   const tasksRef = useRef(new Map());
 
@@ -239,6 +240,7 @@ export default function useMediaWorkbench({ enabled, mode }) {
     const next = defaultMediaForm(modeId);
     setForm(next);
     setDuration(0);
+    setPlayhead(0);
     setDimensions(null);
     setActionError('');
   }, [modeId]);
@@ -388,16 +390,18 @@ export default function useMediaWorkbench({ enabled, mode }) {
   const onOptionChange = useCallback((id, value) => {
     setActionError('');
     if (id === 'operation') {
-      setForm(defaultMediaForm(modeId, String(value)));
-      setDuration(0);
-      setDimensions(null);
+      const next = defaultMediaForm(modeId, String(value));
+      if (String(value) === 'trim' && duration > 0) {
+        next.duration = String(duration);
+      }
+      setForm(next);
       return;
     }
     setForm((current) => ({
       ...current,
       [id]: typeof current[id] === 'boolean' ? Boolean(value) : String(value),
     }));
-  }, [modeId]);
+  }, [duration, modeId]);
 
   const onPanelDispatch = useCallback((_panelKey, action) => {
     if (!action || typeof action !== 'object') return;
@@ -405,15 +409,37 @@ export default function useMediaWorkbench({ enabled, mode }) {
     if (action.type === 'retry-preview') setPreviewRetry((value) => value + 1);
     if (action.type === 'set-duration') {
       const value = Number(action.value) || 0;
-      setDuration(value);
-      setForm((current) => ({
-        ...current,
-        duration: String(Math.max(0.05, Math.min(value || Number(current.duration) || 10, value || 10))),
-      }));
+      setDuration((current) => current === value ? current : value);
+      setForm((current) => {
+        const nextDuration = String(
+          Math.max(0.05, Math.min(value || Number(current.duration) || 10, value || 10)),
+        );
+        return current.duration === nextDuration
+          ? current
+          : { ...current, duration: nextDuration };
+      });
+    }
+    if (action.type === 'set-playhead') {
+      const nextPlayhead = Math.max(0, Math.min(100, Number(action.value) || 0));
+      setPlayhead((current) => current === nextPlayhead ? current : nextPlayhead);
+    }
+    if (action.type === 'set-range') {
+      const value = action.value || {};
+      setForm((current) => {
+        const start = String(Math.max(0, Number(value.start) || 0));
+        const nextDuration = String(Math.max(0.05, Number(value.duration) || 0.05));
+        return current.start === start && current.duration === nextDuration
+          ? current
+          : { ...current, start, duration: nextDuration };
+      });
     }
     if (action.type === 'set-dimensions') {
       const value = action.value || null;
-      setDimensions(value);
+      setDimensions((current) => (
+        current?.width === value?.width && current?.height === value?.height
+          ? current
+          : value
+      ));
       setForm((current) => {
         if (current.crop || !value?.width || !value?.height) return current;
         return {
@@ -624,6 +650,19 @@ export default function useMediaWorkbench({ enabled, mode }) {
         resultJob,
         disabled: activeJobIds.length > 0,
         visible: !(modeId === 'image' && effectiveOperation === 'crop'),
+      },
+      waveform: {
+        previewFile: preview.file,
+        previewStatus: preview.status,
+        progress: playhead,
+        visible: modeId === 'audio',
+      },
+      timeline: {
+        visible: ['video', 'audio'].includes(modeId) && effectiveOperation === 'trim',
+        total: duration,
+        start: form.start,
+        duration: form.duration,
+        disabled: activeJobIds.length > 0,
       },
       crop: {
         file: selectedFile,

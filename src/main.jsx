@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom/client';
 
 async function loadClient() {
   if (import.meta.env.VITE_UI === 'next') {
+    const contracts = await import('./protocol/contracts');
+    await contracts.loadContracts();
     return import('./next/App');
   }
 
