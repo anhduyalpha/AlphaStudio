@@ -41,6 +41,8 @@ import useUtilitiesWorkbench from './hooks/useUtilitiesWorkbench.js';
 import usePdfWorkbench from './hooks/usePdfWorkbench.js';
 import Activity from './views/Activity.jsx';
 import Home from './views/Home.jsx';
+import Profile from './views/Profile.jsx';
+import Settings from './views/Settings.jsx';
 
 const AssetGallery = import.meta.env.DEV
   ? lazy(() => import('./views/AssetGallery.jsx'))
@@ -301,6 +303,16 @@ export default function App() {
             <Home />
           ) : route.id === 'activity' ? (
             <Activity />
+          ) : route.id === 'settings' ? (
+            <Settings
+              theme={theme}
+              onThemeChange={(next) => {
+                setTheme(next);
+                writeTheme(next);
+              }}
+            />
+          ) : route.id === 'profile' ? (
+            <Profile />
           ) : route.kind === 'hub' ? (
             <Workbench
               hub={route.hub}
