@@ -31,7 +31,7 @@ and the visual-judge subagent. Nothing waits on human review during the run.)
 | 14 | D3 | Workbench and panel registry | done | unit-14-d3-workbench-registry | 6f1aaab | 4,5,9,10,12 | |
 | 15 | E1 | Convert hub | done | unit-15-e1-convert-hub | b29776c | 7,14 | docs/plans/UNIT-E1.md; evidence/unit-15.md; config-driven batch board, safe recovery, current-attempt scoping, parity results; spec + visual SHIP |
 | 16 | E2 | PDF hub config + export/operations | done | unit-16-e2-pdf-hub | b059714 | 14 | evidence/unit-16.md; live merge/from-images/export verified; capability/runtime parity fixed; 146 PDF + 428 client tests green |
-| 17 | E3 | PdfOrganizerPanel | todo | — | — | 16 | flagged: own detailed plan; heaviest panel |
+| 17 | E3 | PdfOrganizerPanel | in-progress | unit-17-e3-pdf-organizer | — | 16 | detailed plan: docs/plans/UNIT-E3.md |
 | 18 | E4 | Media hub + preview/crop | todo | — | — | 14 | |
 | 19 | E5 | Media editor panels | todo | — | — | 18 | |
 | 20 | E6 | Text & Dev hub | todo | — | — | 14 | |

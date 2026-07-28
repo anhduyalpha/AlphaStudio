@@ -1,12 +1,10 @@
-src/hubs/pdf.ts
-src/lib/pdfJobOptions.js
+docs/plans/UNIT-E3.md
+src/api/client.js
 src/lib/pdfPreview.js
-src/next/App.jsx
 src/next/hooks/usePdfWorkbench.js
+src/workbench/panels/PdfOrganizerPanel.jsx
 src/workbench/Workbench.jsx
 src/styles/workbench.css
 src/tests/
-server/src/tools/optional-binaries.ts
-server/tests/pdf-optional-binaries.test.ts
 PROGRESS.md
 evidence/
