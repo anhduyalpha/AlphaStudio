@@ -355,6 +355,20 @@ export const api = {
     return res.blob();
   },
 
+  async fetchFileBlob(fileId, { signal } = {}) {
+    const res = await fetch(this.fileDownloadUrl(fileId), {
+      headers: authHeaders(),
+      signal,
+    });
+    if (!res.ok) {
+      throw new ApiError('Could not read workspace file', {
+        status: res.status,
+        code: 'FILE_READ_FAILED',
+      });
+    }
+    return res.blob();
+  },
+
   async fetchJobJson(jobId) {
     const res = await fetch(this.downloadUrl(jobId), { headers: authHeaders() });
     if (!res.ok) throw new ApiError('Could not read job output', { status: res.status });
