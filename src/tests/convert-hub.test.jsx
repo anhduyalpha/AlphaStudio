@@ -75,7 +75,8 @@ describe('E1 Convert hub config', () => {
 
   it('wires hydrate, one workspace event owner, and the protocol upload orchestrator', () => {
     expect(APP_SOURCE).toContain('connectWorkspaceEvents(snapshot.workspaceId');
-    expect(APP_SOURCE).toContain('onEvent: applyEvent');
+    expect(APP_SOURCE).toContain('applyEvent(event)');
+    expect(APP_SOURCE).toContain('isTerminalStatus(job?.status)');
     expect(APP_SOURCE).toContain('void hydrate(');
     expect(CONTROLLER_SOURCE).toContain('createUploadTask(file');
     expect(CONTROLLER_SOURCE).toContain('buildConvertRetryRequest');

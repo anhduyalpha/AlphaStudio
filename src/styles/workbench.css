@@ -102,6 +102,10 @@
   background: var(--surface);
 }
 
+.workbench__run .run-bar.is-disabled {
+  opacity: 1;
+}
+
 @media (width < 1200px) {
   .workbench__workspace {
     grid-template-columns: repeat(2, minmax(0, 1fr));

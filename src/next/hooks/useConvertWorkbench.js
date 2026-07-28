@@ -183,28 +183,33 @@ export default function useConvertWorkbench({ enabled, mode }) {
       && ['queued', 'running'].includes(job.status)
       && grouping.groups.some((group) => jobTouchesFileIds(job, group.fileIds))
     ));
+    const failures = [];
     await Promise.all(active.map(async (job) => {
       const key = optimisticRequest('cancel', job.id);
       try {
         applyPoll({ job: await api.cancelJob(job.id) });
+      } catch (error) {
+        failures.push(failedReason(error));
       } finally {
         resolveRequest(key);
       }
     }));
+    if (failures.length) setActionError(failures[0]);
   }, [grouping.groups, snapshot.jobs]);
 
   const onRetry = useCallback(async (job) => {
     if (!snapshot.workspaceId) return;
     setActionError('');
-    const body = buildConvertRetryRequest({
-      workspaceId: snapshot.workspaceId,
-      job,
-      clientRequestId: requestId('convert-retry'),
-    });
-    const key = optimisticRequest('convert', job.id, {
-      clientRequestId: body.clientRequestId,
-    });
+    let key = '';
     try {
+      const body = buildConvertRetryRequest({
+        workspaceId: snapshot.workspaceId,
+        job,
+        clientRequestId: requestId('convert-retry'),
+      });
+      key = optimisticRequest('convert', job.id, {
+        clientRequestId: body.clientRequestId,
+      });
       const next = await api.createJob(body);
       applyPoll({ job: next });
       rememberActiveJob('convert', 'convert', next.id);
@@ -212,7 +217,7 @@ export default function useConvertWorkbench({ enabled, mode }) {
     } catch (error) {
       setActionError(failedReason(error));
     } finally {
-      resolveRequest(key);
+      if (key) resolveRequest(key);
     }
   }, [snapshot.workspaceId]);
 
@@ -222,6 +227,8 @@ export default function useConvertWorkbench({ enabled, mode }) {
     try {
       await api.removeWorkspaceFile(snapshot.workspaceId, file.id);
       await hydrate({ route: 'convert' });
+    } catch (error) {
+      setActionError(failedReason(error));
     } finally {
       resolveRequest(key);
     }
@@ -233,14 +240,20 @@ export default function useConvertWorkbench({ enabled, mode }) {
     try {
       await api.deleteJob(id);
       await hydrate({ route: 'convert' });
+    } catch (error) {
+      setActionError(failedReason(error));
     } finally {
       resolveRequest(key);
     }
   }, []);
 
   const onDiscardUpload = useCallback(async (session) => {
-    await api.cancelUploadSession(session.id);
-    if (snapshot.workspaceId) await recoverUploadSessions(snapshot.workspaceId);
+    try {
+      await api.cancelUploadSession(session.id);
+      if (snapshot.workspaceId) await recoverUploadSessions(snapshot.workspaceId);
+    } catch (error) {
+      setActionError(failedReason(error));
+    }
   }, [snapshot.workspaceId]);
 
   const onResumeUpload = useCallback(() => {
@@ -270,11 +283,23 @@ export default function useConvertWorkbench({ enabled, mode }) {
     onRemoveResult,
     onResumeUpload,
     onDiscardUpload,
-    onDownload: (result) => api.downloadJob(result.jobId, result.name),
-    onDownloadBatch: (outputs) => api.downloadOutputsZip(snapshot.workspaceId, {
-      outputIds: outputs.map((output) => output.id),
-      jobIds: outputs.map((output) => output.jobId),
-    }),
+    onDownload: async (result) => {
+      try {
+        await api.downloadJob(result.jobId, result.name);
+      } catch (error) {
+        setActionError(failedReason(error));
+      }
+    },
+    onDownloadBatch: async (outputs) => {
+      try {
+        await api.downloadOutputsZip(snapshot.workspaceId, {
+          outputIds: outputs.map((output) => output.id),
+          jobIds: outputs.map((output) => output.jobId),
+        });
+      } catch (error) {
+        setActionError(failedReason(error));
+      }
+    },
     onRetryHydrate: () => hydrate({ route: 'convert' }),
   } : {};
 }

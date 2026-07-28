@@ -159,7 +159,16 @@ export default function App() {
     if (!snapshot.workspaceId) return undefined;
     void recoverUploadSessions(snapshot.workspaceId).catch(() => {});
     const subscription = connectWorkspaceEvents(snapshot.workspaceId, {
-      onEvent: applyEvent,
+      onEvent: (event) => {
+        applyEvent(event);
+        const job = event?.job && typeof event.job === 'object' ? event.job : event;
+        if (isTerminalStatus(job?.status)) {
+          // Outputs are registered before the terminal event but are not
+          // duplicated into that event envelope. Re-hydrate once so Results
+          // receives the authoritative output row immediately.
+          void hydrate();
+        }
+      },
       onResync: () => {
         void hydrate();
       },
