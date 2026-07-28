@@ -30,7 +30,7 @@ and the visual-judge subagent. Nothing waits on human review during the run.)
 | 13 | D2 | Shell chrome and Asset Gallery | done | unit-13-d2-shell-chrome-gallery | 175f9c4 | 11,12 | |
 | 14 | D3 | Workbench and panel registry | done | unit-14-d3-workbench-registry | 6f1aaab | 4,5,9,10,12 | |
 | 15 | E1 | Convert hub | done | unit-15-e1-convert-hub | b29776c | 7,14 | docs/plans/UNIT-E1.md; evidence/unit-15.md; config-driven batch board, safe recovery, current-attempt scoping, parity results; spec + visual SHIP |
-| 16 | E2 | PDF hub config + export/operations | todo | — | — | 14 | |
+| 16 | E2 | PDF hub config + export/operations | in_progress | unit-16-e2-pdf-hub | — | 14 | |
 | 17 | E3 | PdfOrganizerPanel | todo | — | — | 16 | flagged: own detailed plan; heaviest panel |
 | 18 | E4 | Media hub + preview/crop | todo | — | — | 14 | |
 | 19 | E5 | Media editor panels | todo | — | — | 18 | |

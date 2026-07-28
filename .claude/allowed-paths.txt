@@ -1,12 +1,10 @@
-src/hubs/convert.ts
-src/lib/convertJobOptions.js
-src/lib/converterGroups.js
+src/hubs/pdf.ts
+src/lib/pdfJobOptions.js
+src/lib/pdfPreview.js
 src/next/App.jsx
-src/next/hooks/useConvertWorkbench.js
-src/protocol/store.ts
+src/next/hooks/usePdfWorkbench.js
 src/workbench/Workbench.jsx
 src/styles/workbench.css
 src/tests/
-docs/plans/UNIT-E1.md
 PROGRESS.md
 evidence/
