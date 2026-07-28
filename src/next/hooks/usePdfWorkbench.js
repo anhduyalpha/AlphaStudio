@@ -29,9 +29,17 @@ import {
   unsupportedPdfOptionKeys,
   validatePdfClient,
 } from '../../lib/pdfJobOptions.js';
+import { PDF_PREVIEW_BYTE_LIMIT, formatPreviewBytes } from '../../lib/pdfPreview.js';
 import useStore from './useStore.js';
 
 const selectSnapshot = (snapshot) => snapshot;
+const ORGANIZER_OPERATION_IDS = new Set([
+  'reorder',
+  'rotate',
+  'extract',
+  'delete-pages',
+  'duplicate-pages',
+]);
 
 function requestId(prefix = 'pdf') {
   const suffix = globalThis.crypto?.randomUUID?.()
@@ -261,11 +269,18 @@ export default function usePdfWorkbench({ enabled, mode }) {
   const snapshot = useStore(selectSnapshot);
   const [contractTick, setContractTick] = useState(0);
   const [operationId, setOperationId] = useState('merge');
+  const [organizerOperationId, setOrganizerOperationId] = useState('reorder');
   const [form, setForm] = useState(() => defaultFormStateForOperation('merge'));
   const [selectedFileIds, setSelectedFileIds] = useState([]);
   const [pauseableFileIds, setPauseableFileIds] = useState([]);
   const [attemptJobIds, setAttemptJobIds] = useState([]);
   const [actionError, setActionError] = useState('');
+  const [previewRetry, setPreviewRetry] = useState(0);
+  const [organizerPreview, setOrganizerPreview] = useState({
+    status: 'idle',
+    file: null,
+    error: '',
+  });
   const tasksRef = useRef(new Map());
 
   useEffect(() => {
@@ -287,7 +302,11 @@ export default function usePdfWorkbench({ enabled, mode }) {
   const qualityLookup = useMemo(() => qualityPresets(), [contractTick]);
   const presets = qualityLookup.available ? qualityLookup.value : [];
   const qualityDefault = contract.status === 'ready' ? contract.contract.quality.default : '';
-  const effectiveOperationId = mode?.id === 'organize' ? 'reorder' : operationId;
+  const organizerOperations = useMemo(
+    () => operations.filter((entry) => ORGANIZER_OPERATION_IDS.has(entry.id)),
+    [operations],
+  );
+  const effectiveOperationId = mode?.id === 'organize' ? organizerOperationId : operationId;
   const operation = operations.find((entry) => entry.id === effectiveOperationId) || null;
 
   useEffect(() => {
@@ -300,6 +319,17 @@ export default function usePdfWorkbench({ enabled, mode }) {
       ...(qualityDefault ? { quality: qualityDefault } : {}),
     });
   }, [mode?.id, operationId, operations, qualityDefault]);
+
+  useEffect(() => {
+    if (!organizerOperations.length || mode?.id !== 'organize') return;
+    if (organizerOperations.some((entry) => entry.id === organizerOperationId)) return;
+    const first = organizerOperations[0];
+    setOrganizerOperationId(first.id);
+    setForm({
+      ...defaultFormStateForOperation(first.id),
+      ...(qualityDefault ? { quality: qualityDefault } : {}),
+    });
+  }, [mode?.id, organizerOperationId, organizerOperations, qualityDefault]);
 
   useEffect(() => {
     if (!qualityDefault) return;
@@ -346,6 +376,75 @@ export default function usePdfWorkbench({ enabled, mode }) {
     const byId = new Map(compatibleFiles.map((file) => [String(file.id), file]));
     return selectedFileIds.map((id) => byId.get(String(id))).filter(Boolean);
   }, [compatibleFiles, selectedFileIds]);
+  const organizerFile = mode?.id === 'organize' ? selectedFiles[0] || null : null;
+
+  useEffect(() => {
+    if (!enabled || mode?.id !== 'organize' || !organizerFile) {
+      setOrganizerPreview({ status: 'idle', file: null, error: '' });
+      return undefined;
+    }
+    if (organizerFile.localOnly || organizerFile.status !== 'ready') {
+      setOrganizerPreview({ status: 'loading', file: null, error: '' });
+      return undefined;
+    }
+    if (Number(organizerFile.size) > PDF_PREVIEW_BYTE_LIMIT) {
+      setOrganizerPreview({
+        status: 'limited',
+        file: null,
+        error: `Preview is limited to ${formatPreviewBytes(PDF_PREVIEW_BYTE_LIMIT)}. Manual page entry and backend processing remain available.`,
+      });
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    let active = true;
+    setOrganizerPreview({ status: 'loading', file: null, error: '' });
+    void api.fetchFileBlob(organizerFile.id, { signal: controller.signal })
+      .then((blob) => {
+        if (!active) return;
+        if (blob.size > PDF_PREVIEW_BYTE_LIMIT) {
+          setOrganizerPreview({
+            status: 'limited',
+            file: null,
+            error: `Preview is limited to ${formatPreviewBytes(PDF_PREVIEW_BYTE_LIMIT)}. Manual page entry and backend processing remain available.`,
+          });
+          return;
+        }
+        const name = organizerFile.originalName || organizerFile.name || 'document.pdf';
+        setOrganizerPreview({
+          status: 'ready',
+          file: new File([blob], name, {
+            type: blob.type || organizerFile.mime || 'application/pdf',
+            lastModified: Date.parse(organizerFile.updatedAt || organizerFile.createdAt || '') || 0,
+          }),
+          error: '',
+        });
+      })
+      .catch((error) => {
+        if (!active || controller.signal.aborted) return;
+        setOrganizerPreview({
+          status: 'error',
+          file: null,
+          error: failedReason(error),
+        });
+      });
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [
+    enabled,
+    mode?.id,
+    organizerFile?.createdAt,
+    organizerFile?.id,
+    organizerFile?.localOnly,
+    organizerFile?.mime,
+    organizerFile?.originalName,
+    organizerFile?.size,
+    organizerFile?.status,
+    organizerFile?.updatedAt,
+    previewRetry,
+  ]);
   const activePdfJobIds = useMemo(
     () => snapshot.jobs
       .filter((job) => job.type === 'pdf' && ['queued', 'running'].includes(job.status))
@@ -382,6 +481,19 @@ export default function usePdfWorkbench({ enabled, mode }) {
       reason,
     };
   }), [contractTick, operations]);
+  const organizerOperationChoices = useMemo(
+    () => organizerOperations.map((entry) => {
+      const lookup = gatedOperation(entry.capability);
+      const unavailable = !lookup.available || Boolean(lookup.value);
+      return {
+        value: entry.id,
+        label: entry.label,
+        disabled: unavailable,
+        reason: lookup.available ? lookup.value?.reason : lookup.reason,
+      };
+    }),
+    [contractTick, organizerOperations],
+  );
 
   const unsupportedOptions = unsupportedPdfOptionKeys(operation);
   let capability;
@@ -433,13 +545,7 @@ export default function usePdfWorkbench({ enabled, mode }) {
       return {
         ...mode,
         input: { ...mode.input, multiple: false },
-        options: [{
-          id: 'organizeOperation',
-          type: 'derived',
-          label: 'Page operation',
-          value: operation?.label || 'Reorder pages',
-          hint: operation ? `Uses ${pdfOperationEngineLabel(operation)}.` : 'Waiting for the server contract.',
-        }],
+        options: [],
       };
     }
     return {
@@ -479,6 +585,16 @@ export default function usePdfWorkbench({ enabled, mode }) {
   const onPanelDispatch = useCallback((_panelKey, action) => {
     setActionError('');
     if (!action || typeof action !== 'object') return;
+    if (action.type === 'set-operation') {
+      const nextId = String(action.value || '');
+      if (!ORGANIZER_OPERATION_IDS.has(nextId)) return;
+      setOrganizerOperationId(nextId);
+      setForm({
+        ...defaultFormStateForOperation(nextId),
+        ...(qualityDefault ? { quality: qualityDefault } : {}),
+      });
+      return;
+    }
     if (action.type === 'set-plan') {
       setForm((current) => ({
         ...current,
@@ -492,7 +608,10 @@ export default function usePdfWorkbench({ enabled, mode }) {
     if (action.type === 'set-angle') {
       setForm((current) => ({ ...current, angle: String(action.value || '90') }));
     }
-  }, []);
+    if (action.type === 'retry-preview') {
+      setPreviewRetry((value) => value + 1);
+    }
+  }, [qualityDefault]);
 
   const onToggleFile = useCallback((fileId) => {
     const id = String(fileId);
@@ -792,6 +911,10 @@ export default function usePdfWorkbench({ enabled, mode }) {
     panelState: {
       'pdf-organizer': {
         file: selectedFiles[0] || null,
+        previewFile: organizerPreview.file,
+        previewStatus: organizerPreview.status,
+        previewError: organizerPreview.error,
+        operations: organizerOperationChoices,
         operation: operation?.id || 'reorder',
         editPlan: form.editPlan,
         pages: form.pages,
