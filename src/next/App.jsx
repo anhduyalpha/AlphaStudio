@@ -37,6 +37,7 @@ import useConvertWorkbench from './hooks/useConvertWorkbench.js';
 import useMediaWorkbench from './hooks/useMediaWorkbench.js';
 import useTextDevWorkbench from './hooks/useTextDevWorkbench.js';
 import useSecurityArchiveWorkbench from './hooks/useSecurityArchiveWorkbench.js';
+import useUtilitiesWorkbench from './hooks/useUtilitiesWorkbench.js';
 import usePdfWorkbench from './hooks/usePdfWorkbench.js';
 
 const AssetGallery = import.meta.env.DEV
@@ -225,6 +226,7 @@ export default function App() {
   const mediaEnabled = route.kind === 'hub' && route.id === 'media';
   const textDevEnabled = route.kind === 'hub' && route.id === 'text';
   const securityArchiveEnabled = route.kind === 'hub' && route.id === 'security';
+  const utilitiesEnabled = route.kind === 'hub' && route.id === 'utilities';
   const convertController = useConvertWorkbench({
     enabled: convertEnabled,
     mode: convertEnabled ? mode : null,
@@ -245,6 +247,10 @@ export default function App() {
     enabled: securityArchiveEnabled,
     mode: securityArchiveEnabled ? mode : null,
   });
+  const utilitiesController = useUtilitiesWorkbench({
+    enabled: utilitiesEnabled,
+    mode: utilitiesEnabled ? mode : null,
+  });
   const workbenchController = route.kind === 'hub' && route.id === 'convert'
     ? convertController
     : route.kind === 'hub' && route.id === 'pdf'
@@ -255,6 +261,8 @@ export default function App() {
           ? textDevController
         : route.kind === 'hub' && route.id === 'security'
           ? securityArchiveController
+        : route.kind === 'hub' && route.id === 'utilities'
+          ? utilitiesController
         : {};
   const subtitle = route.kind === 'hub'
     ? (mode?.name || 'Studio')

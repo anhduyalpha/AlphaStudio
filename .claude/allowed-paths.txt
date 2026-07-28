@@ -1,10 +1,11 @@
-src/hubs/security.ts
-src/lib/securityJobOptions.js
-src/lib/archiveJobOptions.js
-src/lib/archiveTree.js
+src/hubs/utilities.ts
+src/lib/qrJobOptions.js
+src/lib/colorPalette.js
+src/lib/clipboardImage.js
 src/next/App.jsx
-src/next/hooks/useSecurityArchiveWorkbench.js
-src/workbench/panels/ArchiveTreePanel.jsx
+src/next/hooks/useUtilitiesWorkbench.js
+src/workbench/panels/QrDesignerPanel.jsx
+src/workbench/panels/ColorLabPanel.jsx
 src/styles/workbench.css
 src/tests/
 PROGRESS.md
