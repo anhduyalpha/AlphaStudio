@@ -1,9 +1,11 @@
-docs/plans/UNIT-E3.md
-src/api/client.js
-src/lib/pdfPreview.js
-src/next/hooks/usePdfWorkbench.js
-src/workbench/panels/PdfOrganizerPanel.jsx
-src/workbench/Workbench.jsx
+src/hubs/media.ts
+src/lib/mediaJobOptions.js
+src/lib/imageCrop.js
+src/hooks/useJobPreviewUrl.js
+src/next/hooks/useMediaWorkbench.js
+src/next/App.jsx
+src/workbench/panels/MediaPreviewPanel.jsx
+src/workbench/panels/CropPanel.jsx
 src/styles/workbench.css
 src/tests/
 PROGRESS.md
