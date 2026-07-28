@@ -59,17 +59,17 @@ describe('F0 motion system', () => {
   });
 
   it('mounts one route entrance boundary and loads motion after component styles', () => {
-    const app = read('src/next/App.jsx');
-    const workbenchImport = app.indexOf("import '../styles/workbench.css';");
-    const motionImport = app.indexOf("import '../styles/motion.css';");
+    const app = read('src/App.jsx');
+    const workbenchImport = app.indexOf("import './styles/workbench.css';");
+    const motionImport = app.indexOf("import './styles/motion.css';");
     expect(workbenchImport).toBeGreaterThan(-1);
     expect(motionImport).toBeGreaterThan(workbenchImport);
     expect(app).toContain('<div className="route-motion" key={route.id}>');
   });
 
   it('keeps modal and drawer exit surfaces mounted for their exit motion', () => {
-    const modal = read('src/next/components/Modal.jsx');
-    const sidebar = read('src/next/components/Sidebar.jsx');
+    const modal = read('src/components/Modal.jsx');
+    const sidebar = read('src/components/Sidebar.jsx');
     expect(modal).toContain("setPhase('exit')");
     expect(modal).toContain("getPropertyValue('--duration-slow')");
     expect(modal).toContain('onAnimationEnd');

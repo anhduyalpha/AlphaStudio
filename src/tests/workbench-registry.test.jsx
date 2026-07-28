@@ -18,7 +18,7 @@ import RegisteredPanel, {
   validateHubReferences,
 } from '../workbench/registry.jsx';
 
-const APP = fileURLToPath(new URL('../next/App.jsx', import.meta.url));
+const APP = fileURLToPath(new URL('../App.jsx', import.meta.url));
 const WORKBENCH = fileURLToPath(new URL('../workbench/Workbench.jsx', import.meta.url));
 const CSS = fileURLToPath(new URL('../styles/workbench.css', import.meta.url));
 
@@ -178,7 +178,7 @@ describe('D3 canonical Workbench flow', () => {
   it('mounts from App for every hub without hub-name special cases', () => {
     const appSource = fs.readFileSync(APP, 'utf8');
     const workbenchSource = fs.readFileSync(WORKBENCH, 'utf8');
-    expect(appSource).toContain("import Workbench from '../workbench/Workbench.jsx'");
+    expect(appSource).toContain("import Workbench from './workbench/Workbench.jsx'");
     expect(appSource).toMatch(/<Workbench\s+hub=\{route\.hub\}/);
     expect(workbenchSource).not.toMatch(/hub\.(?:id|name)\s*===/);
     expect(workbenchSource).toContain('selectRunProgress(snapshot');

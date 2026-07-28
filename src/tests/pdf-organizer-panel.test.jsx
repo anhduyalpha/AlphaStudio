@@ -15,7 +15,7 @@ const PANEL_SOURCE = readFileSync(
   'utf8',
 );
 const CONTROLLER_SOURCE = readFileSync(
-  fileURLToPath(new URL('../next/hooks/usePdfWorkbench.js', import.meta.url)),
+  fileURLToPath(new URL('../hooks/usePdfWorkbench.js', import.meta.url)),
   'utf8',
 );
 const API_SOURCE = readFileSync(

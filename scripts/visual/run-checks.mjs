@@ -18,19 +18,8 @@ const opt = (name, dflt) => (args.includes(name) ? args[args.indexOf(name) + 1] 
 
 const stylesDir = path.resolve(root, opt('--styles-dir', 'src/styles'));
 const tokensFile = args.includes('--tokens-file') ? path.resolve(root, opt('--tokens-file')) : undefined;
-// New-UI JSX scope. SPEC governs only the rebuilt client: while src/next
-// exists (transitional, pre-F1) the OLD client still lives in src/components
-// + src/views and is exempt (F1 deletes it). After the flip (src/next gone,
-// src/styles present) the final paths are enforced.
-import fs from 'node:fs';
-const transitional = fs.existsSync(path.join(root, 'src/next'));
-const flipped = !transitional && fs.existsSync(path.join(root, 'src/styles'));
-const jsxDirs = (transitional
-  ? ['src/next', 'src/workbench']
-  : flipped
-    ? ['src/components', 'src/views', 'src/workbench']
-    : []
-).map((d) => path.join(root, d));
+const jsxDirs = ['src/components', 'src/views', 'src/workbench']
+  .map((directory) => path.join(root, directory));
 
 const results = [
   tokenPurity({ stylesDir, jsxDirs, root }),

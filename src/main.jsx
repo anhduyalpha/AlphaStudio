@@ -2,16 +2,9 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 
 async function loadClient() {
-  if (import.meta.env.VITE_UI === 'next') {
-    const contracts = await import('./protocol/contracts');
-    await contracts.loadContracts();
-    return import('./next/App');
-  }
-
-  await Promise.all([
-    import('./styles.css'),
-    import('./animations/index.css'),
-  ]);
+  const contracts = await import('./protocol/contracts');
+  await contracts.loadContracts();
+  document.documentElement.dataset.shell = 'next';
   return import('./App');
 }
 

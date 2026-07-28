@@ -7,22 +7,22 @@ import Profile, {
   normalizeProfile,
   profileChanged,
   profileInitials,
-} from '../next/views/Profile.jsx';
+} from '../views/Profile.jsx';
 import Settings, {
   normalizeSettings,
   settingsChanged,
-} from '../next/views/Settings.jsx';
+} from '../views/Settings.jsx';
 
 const APP_SOURCE = readFileSync(
-  fileURLToPath(new URL('../next/App.jsx', import.meta.url)),
+  fileURLToPath(new URL('../App.jsx', import.meta.url)),
   'utf8',
 );
 const SETTINGS_SOURCE = readFileSync(
-  fileURLToPath(new URL('../next/views/Settings.jsx', import.meta.url)),
+  fileURLToPath(new URL('../views/Settings.jsx', import.meta.url)),
   'utf8',
 );
 const PROFILE_SOURCE = readFileSync(
-  fileURLToPath(new URL('../next/views/Profile.jsx', import.meta.url)),
+  fileURLToPath(new URL('../views/Profile.jsx', import.meta.url)),
   'utf8',
 );
 const MOTION_SOURCE = readFileSync(

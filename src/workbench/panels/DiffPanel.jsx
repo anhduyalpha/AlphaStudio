@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { EmptyState, Icon, StatusBadge } from '../../next/components/index.jsx';
+import { EmptyState, Icon, StatusBadge } from '../../components/index.jsx';
 import { boundedDiffLines, summarizeDiff } from '../../lib/textDiff.js';
 
 const MAX_RENDERED_HUNKS = 240;

@@ -27,11 +27,11 @@ import QrDesignerPanel from '../workbench/panels/QrDesignerPanel.jsx';
 import { getPanelLoader, validateHubReferences } from '../workbench/registry.jsx';
 
 const APP_SOURCE = readFileSync(
-  fileURLToPath(new URL('../next/App.jsx', import.meta.url)),
+  fileURLToPath(new URL('../App.jsx', import.meta.url)),
   'utf8',
 );
 const CONTROLLER_SOURCE = readFileSync(
-  fileURLToPath(new URL('../next/hooks/useUtilitiesWorkbench.js', import.meta.url)),
+  fileURLToPath(new URL('../hooks/useUtilitiesWorkbench.js', import.meta.url)),
   'utf8',
 );
 

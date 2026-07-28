@@ -21,11 +21,11 @@ import { validateHubReferences } from '../workbench/registry.jsx';
 import Workbench from '../workbench/Workbench.jsx';
 
 const APP_SOURCE = readFileSync(
-  fileURLToPath(new URL('../next/App.jsx', import.meta.url)),
+  fileURLToPath(new URL('../App.jsx', import.meta.url)),
   'utf8',
 );
 const CONTROLLER_SOURCE = readFileSync(
-  fileURLToPath(new URL('../next/hooks/useConvertWorkbench.js', import.meta.url)),
+  fileURLToPath(new URL('../hooks/useConvertWorkbench.js', import.meta.url)),
   'utf8',
 );
 const STORE_SOURCE = readFileSync(

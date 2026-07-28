@@ -2,6 +2,7 @@
  * Pure helpers for QR Decode clipboard paste validation.
  * Safe to unit-test without DOM or network.
  */
+import { formatBytes } from './formatBytes.js';
 
 /** Default max clipboard image size (10 MiB). */
 export const MAX_CLIPBOARD_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -230,11 +231,4 @@ export async function imageBlobFromClipboardEvent(event) {
     }
   }
   return null;
-}
-
-export function formatBytes(n) {
-  if (n == null || !Number.isFinite(n)) return '—';
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }

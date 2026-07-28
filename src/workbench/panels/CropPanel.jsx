@@ -7,7 +7,7 @@ import {
   Icon,
   Skeleton,
   StatusBadge,
-} from '../../next/components/index.jsx';
+} from '../../components/index.jsx';
 import {
   clampCropRect,
   clientToNatural,

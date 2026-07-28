@@ -7,7 +7,7 @@ import {
   Icon,
   Skeleton,
   StatusBadge,
-} from '../../next/components/index.jsx';
+} from '../../components/index.jsx';
 
 export default function ComparePanel({ state = {}, dispatch = () => {} }) {
   const {

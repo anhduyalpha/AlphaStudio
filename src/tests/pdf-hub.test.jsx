@@ -16,11 +16,11 @@ import Workbench from '../workbench/Workbench.jsx';
 import { validateHubReferences } from '../workbench/registry.jsx';
 
 const CONTROLLER_SOURCE = readFileSync(
-  fileURLToPath(new URL('../next/hooks/usePdfWorkbench.js', import.meta.url)),
+  fileURLToPath(new URL('../hooks/usePdfWorkbench.js', import.meta.url)),
   'utf8',
 );
 const APP_SOURCE = readFileSync(
-  fileURLToPath(new URL('../next/App.jsx', import.meta.url)),
+  fileURLToPath(new URL('../App.jsx', import.meta.url)),
   'utf8',
 );
 const WORKBENCH_CSS = readFileSync(

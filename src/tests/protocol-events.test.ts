@@ -1,12 +1,8 @@
 /**
  * Parser + reconnect suite for `src/protocol/events.ts` (PLAN B3, SPEC §7.2).
  *
- * Written BEFORE the implementation: the three SSE paths this module replaces
- * (`api/client.js` subscribeWorkspaceEvents/subscribeViaFetch/waitViaSse,
- * `hooks/useWorkspaceEvents.js`, `hooks/useJobRunner.js`) have no tests at all
- * (AUDIT §5 PR-5/PR-6), so SPEC §3.2 (events row), §6.3 (reconnect/epoch
- * re-hydrate) and §6.4 (the client epoch rule) are the only contract — and they
- * are pinned here.
+ * SPEC §3.2 (events row), §6.3 (reconnect/epoch re-hydrate), and §6.4
+ * (the client epoch rule) are pinned here.
  *
  * Each case is written as the hazard it kills. The named ones: a second stream
  * per workspace (the F3-H1 leak class), a wedged half-open connection that never

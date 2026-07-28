@@ -126,7 +126,6 @@ try {
   clientProcess = startService('scripts/test/start-e2e-client.mjs', {
     ...serviceEnv,
     VITE_API_URL: serverUrl,
-    VITE_UI: 'next',
     E2E_CLIENT_PORT: clientPort,
   });
   await Promise.all([

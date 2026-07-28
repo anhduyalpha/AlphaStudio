@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, useMemo } from 'react';
-import { ErrorState, Skeleton } from '../next/components/index.jsx';
+import { ErrorState, Skeleton } from '../components/index.jsx';
 
 export const panelPaths = Object.freeze({
   'pdf-organizer': './panels/PdfOrganizerPanel.jsx',

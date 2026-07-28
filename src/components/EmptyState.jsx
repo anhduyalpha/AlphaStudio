@@ -1,30 +1,31 @@
 import React from 'react';
-import { emptyIllustrations, emptyStateCopy } from '../assets/registry';
 
 export default function EmptyState({
-  type = 'noResults',
+  variant = 'default',
   title,
   description,
-  action = null,
-  compact = false,
-  className = '',
+  visual,
+  action,
   live = false,
+  className = '',
+  ...props
 }) {
-  const copy = emptyStateCopy[type] || emptyStateCopy.noResults;
-  const src = emptyIllustrations[type] || emptyIllustrations.noResults;
-
   return (
     <div
-      className={`alpha-empty-state${compact ? ' is-compact' : ''} ${className}`.trim()}
-      role={live ? 'status' : undefined}
-      aria-live={live ? 'polite' : undefined}
+      {...props}
+      {...(live ? { role: 'status', 'aria-live': 'polite' } : {})}
+      className={[
+        'empty-state',
+        variant === 'compact' ? 'empty-state--compact' : 'empty-state--default',
+        className,
+      ].filter(Boolean).join(' ')}
     >
-      <img src={src} alt="" width="480" height="300" loading="lazy" aria-hidden="true" />
-      <div className="alpha-empty-copy">
-        <strong>{title || copy.title}</strong>
-        <p>{description || copy.description}</p>
-        {action ? <div className="alpha-empty-action">{action}</div> : null}
+      {visual ? <div className="empty-state__visual" aria-hidden="true">{visual}</div> : null}
+      <div className="empty-state__copy">
+        <h3 className="empty-state__title">{title}</h3>
+        {description ? <p className="empty-state__description">{description}</p> : null}
       </div>
+      {action ? <div className="empty-state__action">{action}</div> : null}
     </div>
   );
 }

@@ -19,7 +19,7 @@
     "start": "npm run start -w alphastudio-server",
     "test": "npm run test -w alphastudio-server",
     "test:client": "vitest run",
-    "test:pdf": "node --import tsx --test --test-concurrency=1 server/tests/pdf-*.test.ts server/tests/ui-pdf-struct.test.ts",
+    "test:pdf": "node --import tsx --test --test-concurrency=1 server/tests/pdf-*.test.ts",
     "test:e2e": "node scripts/test/run-playwright.mjs",
     "visual:capture": "node scripts/visual/capture.mjs",
     "visual:diff": "node scripts/visual/diff.mjs",

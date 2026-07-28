@@ -121,18 +121,17 @@ describe('D1 hash resolution and legacy redirects', () => {
 });
 
 describe('D1 client entry and pre-paint bootstrap', () => {
-  it('loads the old and next clients from mutually exclusive flag branches', () => {
+  it('loads only the final client after contracts are ready', () => {
     const source = fs.readFileSync(MAIN, 'utf8');
-    expect(source).toContain("import.meta.env.VITE_UI === 'next'");
+    expect(source).not.toContain('VITE_UI');
     expect(source).toContain("await import('./protocol/contracts')");
     expect(source).toContain('await contracts.loadContracts()');
     expect(source.indexOf('await contracts.loadContracts()'))
-      .toBeLessThan(source.indexOf("return import('./next/App')"));
-    expect(source).toContain("return import('./next/App')");
-    expect(source).toContain("import('./styles.css')");
-    expect(source).toContain("import('./animations/index.css')");
+      .toBeLessThan(source.indexOf("return import('./App')"));
     expect(source).toContain("return import('./App')");
-    expect(source).not.toContain("import './styles/tokens.css'");
+    expect(source).toContain("document.documentElement.dataset.shell = 'next'");
+    expect(source).not.toContain("import('./styles.css')");
+    expect(source).not.toContain("import('./animations/index.css')");
   });
 
   it('removes only the verified no-op device heuristic', () => {
