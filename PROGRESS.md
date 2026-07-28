@@ -29,7 +29,7 @@ and the visual-judge subagent. Nothing waits on human review during the run.)
 | 12 | D1 | Shell skeleton: entry flag, router, hub registry | done | unit-12-d1-shell-skeleton | 9bfdbc7 | 5,9 | evidence/unit-12.md; spec reviewer SHIP; verified and removed no-op index.html heuristic |
 | 13 | D2 | Shell chrome and Asset Gallery | done | unit-13-d2-shell-chrome-gallery | 175f9c4 | 11,12 | |
 | 14 | D3 | Workbench and panel registry | done | unit-14-d3-workbench-registry | 6f1aaab | 4,5,9,10,12 | |
-| 15 | E1 | Convert hub | in-progress | unit-15-e1-convert-hub | — | 7,14 | detailed plan: docs/plans/UNIT-E1.md; e2e centerpiece |
+| 15 | E1 | Convert hub | done | unit-15-e1-convert-hub | b29776c | 7,14 | docs/plans/UNIT-E1.md; evidence/unit-15.md; config-driven batch board, safe recovery, current-attempt scoping, parity results; spec + visual SHIP |
 | 16 | E2 | PDF hub config + export/operations | todo | — | — | 14 | |
 | 17 | E3 | PdfOrganizerPanel | todo | — | — | 16 | flagged: own detailed plan; heaviest panel |
 | 18 | E4 | Media hub + preview/crop | todo | — | — | 14 | |
