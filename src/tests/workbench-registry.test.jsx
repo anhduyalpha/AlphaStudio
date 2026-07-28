@@ -129,6 +129,7 @@ describe('D3 canonical Workbench flow', () => {
     });
     expect(pdf.jobs.map((job) => job.id)).toEqual(['pdf-job']);
     expect(pdf.activeJobs).toEqual([]);
+    expect(pdf.failedJobs.map((job) => job.id)).toEqual(['pdf-job']);
     expect(pdf.failedJob?.id).toBe('pdf-job');
     expect(pdf.outputs.map((output) => output.id)).toEqual(['pdf-output']);
 
@@ -140,6 +141,7 @@ describe('D3 canonical Workbench flow', () => {
       jobIds: [],
       jobs: [],
       activeJobs: [],
+      failedJobs: [],
       failedJob: null,
       outputs: [],
     });

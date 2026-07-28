@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import convertHub from '../hubs/convert';
 import {
   buildConvertJobOptions,
@@ -16,6 +18,7 @@ import {
   hasActiveDuplicateJob,
 } from '../lib/converterGroups.js';
 import { validateHubReferences } from '../workbench/registry.jsx';
+import Workbench from '../workbench/Workbench.jsx';
 
 const APP_SOURCE = readFileSync(
   fileURLToPath(new URL('../next/App.jsx', import.meta.url)),
@@ -23,6 +26,10 @@ const APP_SOURCE = readFileSync(
 );
 const CONTROLLER_SOURCE = readFileSync(
   fileURLToPath(new URL('../next/hooks/useConvertWorkbench.js', import.meta.url)),
+  'utf8',
+);
+const STORE_SOURCE = readFileSync(
+  fileURLToPath(new URL('../protocol/store.ts', import.meta.url)),
   'utf8',
 );
 
@@ -74,13 +81,57 @@ describe('E1 Convert hub config', () => {
   });
 
   it('wires hydrate, one workspace event owner, and the protocol upload orchestrator', () => {
-    expect(APP_SOURCE).toContain('connectWorkspaceEvents(snapshot.workspaceId');
-    expect(APP_SOURCE).toContain('applyEvent(event)');
-    expect(APP_SOURCE).toContain('isTerminalStatus(job?.status)');
-    expect(APP_SOURCE).toContain('void hydrate(');
+    expect(APP_SOURCE).toContain('connectWorkspaceStore(snapshot.workspaceId)');
+    expect(APP_SOURCE).not.toContain("from '../protocol/events'");
+    expect(STORE_SOURCE).toContain('applyEvent(event)');
+    expect(STORE_SOURCE).toContain('isTerminalStatus(job?.status)');
+    expect(STORE_SOURCE).toContain('void hydrate(');
     expect(CONTROLLER_SOURCE).toContain('createUploadTask(file');
+    expect(CONTROLLER_SOURCE).toContain('await task.pause()');
     expect(CONTROLLER_SOURCE).toContain('buildConvertRetryRequest');
+    expect(CONTROLLER_SOURCE).toContain('gatedOperation(capabilityId)');
+    expect(CONTROLLER_SOURCE).not.toContain('hasActiveDuplicateJob(');
     expect(CONTROLLER_SOURCE).not.toMatch(/\b(fetch|XMLHttpRequest|EventSource)\b/);
+  });
+
+  it('renders the detected group board without a hub-name branch', () => {
+    const html = renderToStaticMarkup(
+      <Workbench
+        hub={convertHub}
+        mode={convertHub.modes[0]}
+        onRun={() => {}}
+        groupBoard={{
+          groups: [{
+            id: 'format:source',
+            label: 'SOURCE · Image',
+            fileIds: ['f-1'],
+            members: [{ originalName: 'sample.source' }],
+            outputs: [output('target')],
+            valid: true,
+            engine: 'Test engine',
+            settings: {
+              format: 'target',
+              quality: 'balanced',
+              preserveMetadata: true,
+            },
+          }],
+          qualityPresets: ['balanced'],
+          selectedFileIds: ['f-1'],
+          onToggleFile: () => {},
+          onSelectGroup: () => {},
+          onSettingChange: () => {},
+          onApplySettings: () => {},
+          onRunGroup: () => {},
+          onRunSelected: () => {},
+          onCancelGroup: () => {},
+        }}
+      />,
+    );
+    expect(html).toContain('Detected groups');
+    expect(html).toContain('Convert group');
+    expect(html).toContain('Convert selected');
+    expect(html).toContain('Apply to compatible');
+    expect(html).not.toContain("hub.id === 'convert'");
   });
 });
 

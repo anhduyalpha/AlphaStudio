@@ -24,14 +24,13 @@ import {
 } from './components/index.jsx';
 import { navigationItems, resolveHashRoute } from '../hubs/index';
 import {
-  applyEvent,
+  connectWorkspaceStore,
   getSnapshot,
   hydrate,
   isTerminalStatus,
   selectActiveJobs,
   subscribe,
 } from '../protocol/store';
-import { connectWorkspaceEvents } from '../protocol/events';
 import { recoverUploadSessions } from '../protocol/uploads';
 import Workbench from '../workbench/Workbench.jsx';
 import useConvertWorkbench from './hooks/useConvertWorkbench.js';
@@ -158,21 +157,7 @@ export default function App() {
   useEffect(() => {
     if (!snapshot.workspaceId) return undefined;
     void recoverUploadSessions(snapshot.workspaceId).catch(() => {});
-    const subscription = connectWorkspaceEvents(snapshot.workspaceId, {
-      onEvent: (event) => {
-        applyEvent(event);
-        const job = event?.job && typeof event.job === 'object' ? event.job : event;
-        if (isTerminalStatus(job?.status)) {
-          // Outputs are registered before the terminal event but are not
-          // duplicated into that event envelope. Re-hydrate once so Results
-          // receives the authoritative output row immediately.
-          void hydrate();
-        }
-      },
-      onResync: () => {
-        void hydrate();
-      },
-    });
+    const subscription = connectWorkspaceStore(snapshot.workspaceId);
     return () => subscription.close();
   }, [snapshot.workspaceId]);
 

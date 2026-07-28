@@ -61,9 +61,12 @@ export function buildConversionGroups(files = []) {
     const first = members[0];
     const detect = first.detect || {};
     const outputs = compatibleOutputsForMembers(members);
+    const publishedRecommendation = outputs.find(
+      (output) => output.available && output.format === detect.recommendedOutput,
+    )?.format;
     const recommended =
-      detect.recommendedOutput ||
-      outputs.find((o) => o.available)?.format ||
+      publishedRecommendation ||
+      outputs.find((output) => output.available)?.format ||
       null;
     const recommendedOption = outputs.find(
       (o) => o.available && o.format === recommended,
@@ -82,7 +85,7 @@ export function buildConversionGroups(files = []) {
       engine:
         recommendedOption?.engine?.name ||
         detect.preferredEngine?.name ||
-        engineForFamily(detect.family),
+        null,
       preferredEngine: recommendedOption?.engine || detect.preferredEngine || null,
     };
   });
@@ -194,43 +197,21 @@ export function formatGroupLabel(detect) {
   return fmt || fam || 'Unknown';
 }
 
-export function engineForFamily(family) {
-  switch (String(family || '').toLowerCase()) {
-    case 'image':
-      return 'Sharp';
-    case 'audio':
-    case 'video':
-      return 'FFmpeg';
-    case 'document':
-    case 'spreadsheet':
-    case 'presentation':
-      return 'LibreOffice';
-    case 'pdf':
-      return 'pdf-lib';
-    case 'archive':
-      return 'Archive';
-    case 'text':
-      return 'Text/PDF';
-    default:
-      return 'Converter';
-  }
-}
-
 /** Resolve the actual registry-selected engine for a group's current target. */
 export function engineForOutput(group, format) {
   const option = (group?.outputs || []).find(
     (output) => output.available && output.format === format,
   );
-  return option?.engine?.name || group?.preferredEngine?.name || group?.engine || 'Converter';
+  return option?.engine?.name || group?.preferredEngine?.name || group?.engine || null;
 }
 
 /**
  * Default per-group settings.
  */
-export function defaultGroupSettings(group) {
+export function defaultGroupSettings(group, publishedQuality = '') {
   return {
     format: group?.recommendedOutput || '',
-    quality: 'balanced',
+    quality: publishedQuality || '',
     preserveMetadata: true,
   };
 }
@@ -249,7 +230,7 @@ export function applySettingsToCompatible(sourceSettings, groups, sourceGroupId)
       next[g.id] = {
         ...(next[g.id] || defaultGroupSettings(g)),
         format: src.format,
-        quality: src.quality ?? 'balanced',
+        quality: src.quality,
         preserveMetadata: src.preserveMetadata !== false,
       };
     }
@@ -320,6 +301,7 @@ export function buildResultRows({ jobs = [], outputs = [], files = [] } = {}) {
         progress: j.progress ?? 0,
         message: j.message,
         error: j.error,
+        options: opts,
         downloadUrl: downloadable
           ? j.downloadUrl || out?.downloadUrl || null
           : null,
@@ -503,7 +485,7 @@ export function buildConvertAllPlans(groups = [], groupSettings = {}) {
       groupId: group.id,
       fileIds: [...(group.fileIds || [])],
       format: settings.format,
-      quality: settings.quality || 'balanced',
+      quality: settings.quality || undefined,
       preserveMetadata: settings.preserveMetadata !== false,
       inputFormat: group.format || null,
       inputFamily: group.family || null,
@@ -523,7 +505,7 @@ export function buildConvertSelectionPlan(files, selectedIds, format, settings =
   return {
     fileIds: ids,
     format,
-    quality: settings.quality || 'balanced',
+    quality: settings.quality || undefined,
     preserveMetadata: settings.preserveMetadata !== false,
   };
 }

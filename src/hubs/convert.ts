@@ -35,6 +35,7 @@ const convertHub = {
         },
       ],
       run: {
+        label: 'Convert all',
         job: {
           jobType: 'converter',
           buildOptions: 'buildConvertJobOptions',
