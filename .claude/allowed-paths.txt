@@ -1,8 +1,13 @@
+src/next/App.jsx
+src/next/components/Modal.jsx
+src/next/components/Sidebar.jsx
+src/styles/base.css
 src/styles/motion.css
 src/styles/primitives.css
 src/styles/workbench.css
 src/styles/views.css
 src/hooks/useMotionPreference.js
 src/tests/
+scripts/visual/checks/motion-purity.mjs
 PROGRESS.md
 evidence/

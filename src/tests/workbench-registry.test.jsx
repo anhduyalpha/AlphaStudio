@@ -168,9 +168,7 @@ describe('D3 canonical Workbench flow', () => {
     const appSource = fs.readFileSync(APP, 'utf8');
     const workbenchSource = fs.readFileSync(WORKBENCH, 'utf8');
     expect(appSource).toContain("import Workbench from '../workbench/Workbench.jsx'");
-    expect(appSource.replace(/\r\n/g, '\n')).toContain(
-      "<Workbench\n              hub={route.hub}",
-    );
+    expect(appSource).toMatch(/<Workbench\s+hub=\{route\.hub\}/);
     expect(workbenchSource).not.toMatch(/hub\.(?:id|name)\s*===/);
     expect(workbenchSource).toContain('selectRunProgress(snapshot');
     expect(workbenchSource).toContain('mode.panels || []');

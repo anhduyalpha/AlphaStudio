@@ -842,11 +842,14 @@
 }
 
 .gallery-section__header code {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  max-width: 100%;
   padding: var(--space-1) var(--space-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-xs);
   color: var(--text-3);
+  overflow-wrap: anywhere;
+  text-align: right;
   background: var(--surface-2);
 }
 
@@ -1004,12 +1007,6 @@
 .force-row-hover .file-row {
   border-color: var(--border-strong);
   background: color-mix(in srgb, var(--surface), var(--surface-2));
-}
-
-html[data-motion='full'] .gallery-state .progress-bar--indeterminate:not(.is-reduced) .progress-bar__fill,
-html[data-motion='balanced'] .gallery-state .progress-bar--indeterminate:not(.is-reduced) .progress-bar__fill {
-  animation: none;
-  transform: translateX(70%);
 }
 
 @media (max-width: 1200px) {

@@ -12,6 +12,7 @@ import '../styles/base.css';
 import '../styles/primitives.css';
 import '../styles/views.css';
 import '../styles/workbench.css';
+import '../styles/motion.css';
 import {
   Card,
   CommandPalette,
@@ -295,34 +296,36 @@ export default function App() {
               : undefined}
         />
         <main id="main-content" className="studio-shell__content" tabIndex={-1}>
-          {route.id === 'assets' && AssetGallery ? (
-            <Suspense fallback={<Skeleton variant="row" lines={6} label="Loading Asset Gallery" />}>
-              <AssetGallery theme={theme} />
-            </Suspense>
-          ) : route.id === 'home' ? (
-            <Home />
-          ) : route.id === 'activity' ? (
-            <Activity />
-          ) : route.id === 'settings' ? (
-            <Settings
-              theme={theme}
-              onThemeChange={(next) => {
-                setTheme(next);
-                writeTheme(next);
-              }}
-            />
-          ) : route.id === 'profile' ? (
-            <Profile />
-          ) : route.kind === 'hub' ? (
-            <Workbench
-              hub={route.hub}
-              mode={workbenchController.mode || mode}
-              {...workbenchController}
-              onModeChange={(modeId) => navigate(`#/${route.id}?mode=${encodeURIComponent(modeId)}`)}
-            />
-          ) : (
-            <RoutePlaceholder resolved={resolved} />
-          )}
+          <div className="route-motion" key={route.id}>
+            {route.id === 'assets' && AssetGallery ? (
+              <Suspense fallback={<Skeleton variant="row" lines={6} label="Loading Asset Gallery" />}>
+                <AssetGallery theme={theme} />
+              </Suspense>
+            ) : route.id === 'home' ? (
+              <Home />
+            ) : route.id === 'activity' ? (
+              <Activity />
+            ) : route.id === 'settings' ? (
+              <Settings
+                theme={theme}
+                onThemeChange={(next) => {
+                  setTheme(next);
+                  writeTheme(next);
+                }}
+              />
+            ) : route.id === 'profile' ? (
+              <Profile />
+            ) : route.kind === 'hub' ? (
+              <Workbench
+                hub={route.hub}
+                mode={workbenchController.mode || mode}
+                {...workbenchController}
+                onModeChange={(modeId) => navigate(`#/${route.id}?mode=${encodeURIComponent(modeId)}`)}
+              />
+            ) : (
+              <RoutePlaceholder resolved={resolved} />
+            )}
+          </div>
         </main>
       </div>
       <Sidebar

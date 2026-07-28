@@ -21,6 +21,7 @@ import {
 
 const COMPONENTS_DIR = fileURLToPath(new URL('../next/components/', import.meta.url));
 const PRIMITIVES_CSS = fileURLToPath(new URL('../styles/primitives.css', import.meta.url));
+const MOTION_CSS = fileURLToPath(new URL('../styles/motion.css', import.meta.url));
 
 describe('C3 file primitives', () => {
   it.each(['files', 'paste'])('renders the %s Dropzone with one native browse input', (variant) => {
@@ -279,12 +280,15 @@ describe('C3 structural invariants', () => {
 
   it('uses transform rather than width for progress motion and supplies reduced-motion forms', () => {
     const css = fs.readFileSync(PRIMITIVES_CSS, 'utf8');
+    const motionCss = fs.readFileSync(MOTION_CSS, 'utf8');
     expect(css).toContain('transform: scaleX(var(--progress-scale))');
     const progressSource = fs.readFileSync(path.join(COMPONENTS_DIR, 'ProgressBar.jsx'), 'utf8');
     expect(progressSource).not.toMatch(/style=\{\{[^}]*width/s);
-    expect(css).toMatch(/prefers-reduced-motion:[\s\S]*\.progress-bar--indeterminate/);
-    expect(css).toMatch(/prefers-reduced-motion:[\s\S]*\.toast/);
-    expect(css).toMatch(/html\[data-motion='reduced'\][\s\S]*\.progress-bar--indeterminate/);
-    expect(css).toMatch(/html\[data-motion='reduced'\][\s\S]*\.toast/);
+    expect(motionCss).toMatch(/prefers-reduced-motion:[\s\S]*\.progress-bar--indeterminate/);
+    expect(motionCss).toMatch(/prefers-reduced-motion:[\s\S]*animation: none !important/);
+    expect(motionCss).toMatch(/html\[data-motion='reduced'\][\s\S]*\.progress-bar--indeterminate/);
+    expect(motionCss).toMatch(/html\[data-motion='reduced'\][\s\S]*animation: none !important/);
+    expect(css).toContain('.toast--enter');
+    expect(css).toContain('.toast--exit');
   });
 });

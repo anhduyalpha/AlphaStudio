@@ -12,25 +12,11 @@ const prefersReducedMotion = () =>
   typeof window.matchMedia === 'function' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-// Cheap, safe device heuristics — every API is optional and feature-detected.
-function deviceSuggestsLighter() {
-  if (typeof navigator === 'undefined') return false;
-  const conn = navigator.connection;
-  if (conn && conn.saveData === true) return true;
-  if (typeof navigator.hardwareConcurrency === 'number' && navigator.hardwareConcurrency <= 4) return true;
-  if (typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4) return true;
-  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-    if (window.matchMedia('(max-width: 900px)').matches) return true;
-  }
-  return false;
-}
-
 // Resolution order: OS reduced-motion always wins → explicit stored choice →
-// device heuristic (balanced) → balanced default.
+// balanced default.
 function resolveMode(stored) {
   if (prefersReducedMotion()) return 'reduced';
   if (stored && MOTION_MODES.includes(stored)) return stored;
-  if (deviceSuggestsLighter()) return 'balanced';
   return 'balanced';
 }
 
@@ -56,24 +42,44 @@ export default function useMotionPreference() {
   // Optional low-power flag for CSS (Battery API + save-data). Graceful no-op if unavailable.
   useEffect(() => {
     let cancelled = false;
-    const apply = (low) => {
+    let battery = null;
+    let batteryLow = false;
+    const conn = typeof navigator !== 'undefined' ? navigator.connection : null;
+    let saveData = Boolean(conn?.saveData);
+
+    const apply = () => {
       if (cancelled) return;
-      if (low) document.documentElement.dataset.power = 'low';
+      if (saveData || batteryLow) document.documentElement.dataset.power = 'low';
       else delete document.documentElement.dataset.power;
     };
-    const conn = typeof navigator !== 'undefined' ? navigator.connection : null;
-    if (conn?.saveData) apply(true);
+
+    const updateConnection = () => {
+      saveData = Boolean(conn?.saveData);
+      apply();
+    };
+    const updateBattery = () => {
+      batteryLow = Boolean(battery) && battery.level < 0.2 && !battery.charging;
+      apply();
+    };
+
+    apply();
+    conn?.addEventListener?.('change', updateConnection);
     const nav = typeof navigator !== 'undefined' ? navigator : null;
     if (nav && typeof nav.getBattery === 'function') {
       nav.getBattery().then((bat) => {
         if (cancelled) return;
-        const update = () => apply(Boolean(bat) && bat.level < 0.15 && !bat.charging);
-        update();
-        bat.addEventListener?.('levelchange', update);
-        bat.addEventListener?.('chargingchange', update);
+        battery = bat;
+        updateBattery();
+        battery.addEventListener?.('levelchange', updateBattery);
+        battery.addEventListener?.('chargingchange', updateBattery);
       }).catch(() => { /* ignore */ });
     }
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      conn?.removeEventListener?.('change', updateConnection);
+      battery?.removeEventListener?.('levelchange', updateBattery);
+      battery?.removeEventListener?.('chargingchange', updateBattery);
+    };
   }, []);
 
   // Re-resolve whenever the OS reduced-motion preference flips at runtime.
