@@ -41,7 +41,7 @@ and the visual-judge subagent. Nothing waits on human review during the run.)
 | 24 | V2 | Activity view | done | unit-24-v2-activity-view | 119cd35 | 9,13 | |
 | 25 | V3 | Settings + Profile views | done | unit-25-v3-settings-profile | 8a0a73c | 9,13 | evidence/unit-25.md; theme/motion mirrors + server-only inert density verified; live Profile preview/save/restore verified; 495 client tests green |
 | 26 | F0 | Motion system | done | unit-26-f0-motion-system | fe526e2 | 9,10,11,13,14,15,16,17,18,19,20,21,22,23,24,25 | evidence/unit-26.md; all three modes computed-style verified; ambient-1 full-only; reduced zero keyframes + static indicators; 506 client tests green |
-| 27 | F2 | E2E acceptance gate | todo | — | — | 2,5,6,12,13,15,26 | runs locally only (CI has no e2e/external tools); must be green on flag build before F1 |
+| 27 | F2 | E2E acceptance gate | in-progress | unit-27-f2-e2e-acceptance | — | 2,5,6,12,13,15,26 | runs locally only (CI has no e2e/external tools); must be green on flag build before F1 |
 | 28 | F1 | Flip, deletion, S3 | todo | — | — | 1-27 | flagged: own detailed plan; single point of no return |
 
 Column semantics:
